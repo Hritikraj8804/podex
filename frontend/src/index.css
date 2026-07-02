@@ -3,7 +3,9 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', sans-serif;
-    background-color: #0b0c10;
+    transition-property: color, background-color, border-color;
+    transition-duration: 200ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
   
   code, pre {
@@ -11,21 +13,48 @@
   }
 }
 
-/* Custom scrollbar styling for slick dark workspace look */
+/* Webkit scrollbar customization to react to light/dark themes */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f111a;
+  background: #f8fafc;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #090b0e;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1f2233;
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #1e202a;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #2d314d;
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #2d314a;
+}
+
+/* Custom interactive UI animations */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.glow-animation {
+  animation: pulseGlow 3s infinite ease-in-out;
 }
