@@ -1514,7 +1514,7 @@ export default function App() {
                     </div>
                     <pre 
                       style={{ fontSize: `${codeFontSize}px` }}
-                      className="w-full bg-[#050608] border border-slate-250 dark:border-[#161822] rounded-xl p-4 text-slate-700 dark:text-slate-300 overflow-auto whitespace-pre font-mono h-[420px] transition-all"
+                      className="w-full bg-slate-100 dark:bg-[#050608] text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-[#161822] rounded-xl p-4 overflow-auto whitespace-pre font-mono h-[420px] transition-all"
                     >
                       {yamlText || "Fetching YAML spec..."}
                     </pre>
