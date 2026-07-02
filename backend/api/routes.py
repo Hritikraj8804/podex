@@ -1,0 +1,143 @@
+import yaml
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
+
+from backend.services.k8s_service import K8sService
+from backend.services.investigation_service import InvestigationService
+from backend.ai import get_ai_provider, build_concept_prompt, InvestigationResult, ConceptExplanation
+from backend.utils import clean_kubernetes_dict
+
+router = APIRouter()
+k8s_service = K8sService()
+investigation_service = InvestigationService()
+
+# Request schemas
+class InvestigateRequest(BaseModel):
+    type: str  # 'pod', 'deployment', or 'service'
+    name: str
+    namespace: str
+
+class ScaleRequest(BaseModel):
+    namespace: str
+    name: str
+    replicas: int
+
+class RestartRequest(BaseModel):
+    namespace: str
+    name: str
+
+class DeleteRequest(BaseModel):
+    namespace: str
+    name: str
+
+# 1. Dashboard Stats
+@router.get("/stats")
+def get_stats():
+    return k8s_service.get_cluster_stats()
+
+# 2. Explorer Lists
+@router.get("/pods")
+def get_pods(namespace: Optional[str] = Query(None)):
+    return k8s_service.list_pods(namespace)
+
+@router.get("/deployments")
+def get_deployments(namespace: Optional[str] = Query(None)):
+    return k8s_service.list_deployments(namespace)
+
+@router.get("/services")
+def get_services(namespace: Optional[str] = Query(None)):
+    return k8s_service.list_services(namespace)
+
+# 3. Resource Tabs
+@router.get("/{resource_type}/{namespace}/{name}/details")
+def get_details(resource_type: str, namespace: str, name: str):
+    rt = resource_type.lower()
+    try:
+        if rt == "pod":
+            return k8s_service.get_pod_details(namespace, name)
+        elif rt == "deployment":
+            return k8s_service.get_deployment_details(namespace, name)
+        elif rt == "service":
+            return k8s_service.get_service_details(namespace, name)
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid resource type: {resource_type}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{resource_type}/{namespace}/{name}/yaml")
+def get_yaml(resource_type: str, namespace: str, name: str):
+    rt = resource_type.lower()
+    try:
+        if rt == "pod":
+            data = k8s_service.get_pod_details(namespace, name)
+        elif rt == "deployment":
+            data = k8s_service.get_deployment_details(namespace, name)
+        elif rt == "service":
+            data = k8s_service.get_service_details(namespace, name)
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid resource type: {resource_type}")
+        
+        # Clean Kubernetes dict to remove system fields and null values
+        cleaned_data = clean_kubernetes_dict(data)
+        yaml_str = yaml.dump(cleaned_data, default_flow_style=False)
+        return {"yaml": yaml_str}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{resource_type}/{namespace}/{name}/logs")
+def get_logs(resource_type: str, namespace: str, name: str, tail: int = 100):
+    rt = resource_type.lower()
+    try:
+        if rt == "pod":
+            return {"logs": k8s_service.get_pod_logs(namespace, name, tail_lines=tail)}
+        elif rt == "deployment":
+            return {"logs": k8s_service.get_deployment_logs(namespace, name, tail_lines=tail)}
+        elif rt == "service":
+            return {"logs": k8s_service.get_service_logs(namespace, name, tail_lines=tail)}
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid resource type: {resource_type}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{resource_type}/{namespace}/{name}/events")
+def get_events(resource_type: str, namespace: str, name: str):
+    return k8s_service.get_resource_events(namespace, name, resource_type)
+
+# 4. Investigate Endpoint
+@router.post("/investigate", response_model=InvestigationResult)
+async def investigate(req: InvestigateRequest):
+    return await investigation_service.investigate_resource(
+        resource_type=req.type,
+        name=req.name,
+        namespace=req.namespace
+    )
+
+# 5. Concept Learning Endpoint
+@router.get("/learn", response_model=ConceptExplanation)
+async def learn_concept(concept: str = Query(..., description="The Kubernetes resource or topic to explain")):
+    ai_provider = get_ai_provider()
+    prompt = build_concept_prompt(concept)
+    return await ai_provider.explain_concept(prompt)
+
+# 6. Operations (Restart, Scale, Delete)
+@router.post("/operations/scale")
+def scale_resource(req: ScaleRequest):
+    result = k8s_service.scale_deployment(req.namespace, req.name, req.replicas)
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("message"))
+    return result
+
+@router.post("/operations/restart")
+def restart_resource(req: RestartRequest):
+    result = k8s_service.restart_deployment(req.namespace, req.name)
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("message"))
+    return result
+
+@router.post("/operations/delete")
+def delete_resource(req: DeleteRequest):
+    result = k8s_service.delete_pod(req.namespace, req.name)
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("message"))
+    return result

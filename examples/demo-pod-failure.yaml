@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: failing-demo-pod
+  namespace: default
+  labels:
+    app: demo-failing
+spec:
+  containers:
+  - name: web-server
+    image: nginx:does-not-exist # Forces ImagePullBackOff!
+    ports:
+    - containerPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crashing-deployment
+  namespace: default
+  labels:
+    app: demo-crashing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-crashing
+  template:
+    metadata:
+      labels:
+        app: demo-crashing
+    spec:
+      containers:
+      - name: app-server
+        image: busybox
+        command: ["sh", "-c", "echo 'Booting...'; sleep 3; echo 'Error occurred!'; exit 1"] # Forces CrashLoopBackOff!
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: healthy-demo-pod
+  namespace: default
+  labels:
+    app: demo-healthy
+spec:
+  containers:
+  - name: web-server
+    image: nginx:alpine
+    ports:
+    - containerPort: 80
+

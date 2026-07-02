@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies if needed (e.g. curl for healthchecks)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python requirements
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend application source
+COPY backend/ /app/backend/
+
+# Keep working directory as /app so python resolves imports starting with 'backend.' correctly
+WORKDIR /app
+
+# Expose backend port
+EXPOSE 8000
+
+# Run FastAPI app with hot reload enabled for local development
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
