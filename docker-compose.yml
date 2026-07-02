@@ -30,14 +30,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.frontend
     ports:
-      - "3000:3000"
-    volumes:
-      # Optional: mount frontend directory for live development
-      - ./frontend:/app
-      # Do not overwrite node_modules mounted from container
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:8000
+      - "3000:80"
     depends_on:
       - backend
     restart: always
