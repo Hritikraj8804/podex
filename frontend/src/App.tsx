@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   RefreshCw,
   Trash2,
-  ChevronRight,
   Search,
   HelpCircle,
   Info,
@@ -112,7 +111,7 @@ export default function App() {
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
 
   // Drawer Resizing & Layout States
-  const [detailsWidth, setDetailsWidth] = useState<number>(500);
+  const [detailsWidth, setDetailsWidth] = useState<number>(520);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const [isDrawerMaximized, setIsDrawerMaximized] = useState<boolean>(false);
 
@@ -411,15 +410,15 @@ export default function App() {
   const getStatusColor = (status: string) => {
     const s = status.toLowerCase();
     if (s.includes('run') || s === 'ready' || s === 'completed' || s.includes('active')) {
-      return 'bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40';
+      return 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-450 border border-emerald-250 dark:border-emerald-900/40';
     }
     if (s.includes('backoff') || s.includes('fail') || s.includes('error') || s.includes('unhealthy')) {
-      return 'bg-red-50/70 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/40';
+      return 'bg-red-50/80 dark:bg-red-950/40 text-red-700 dark:text-red-450 border border-red-250 dark:border-red-900/40';
     }
     if (s.includes('pend') || s.includes('progress') || s.includes('terminat') || s.includes('creat')) {
-      return 'bg-amber-50/70 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40';
+      return 'bg-amber-50/80 dark:bg-amber-950/40 text-amber-700 dark:text-amber-450 border border-amber-250 dark:border-amber-900/40';
     }
-    return 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800';
+    return 'bg-slate-50 dark:bg-slate-900 text-slate-650 dark:text-slate-400 border border-slate-200 dark:border-slate-800';
   };
 
   // System namespaces that should be hidden from beginners by default
@@ -495,6 +494,19 @@ export default function App() {
 
   const relatedList = getRelatedResources();
 
+  // Metrics for Circular Health Donut
+  const runningPodsCount = filteredPods.filter(p => {
+    const s = p.status.toLowerCase();
+    return s.includes('run') || s === 'completed' || s === 'ready';
+  }).length;
+  const totalPodsCount = filteredPods.length;
+  const healthPercentage = totalPodsCount > 0 ? Math.round((runningPodsCount / totalPodsCount) * 100) : 100;
+  
+  // SVG properties for Donut Chart
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (healthPercentage / 100) * circumference;
+
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#07080b] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-200">
       
@@ -528,13 +540,13 @@ export default function App() {
                     setActiveTab(tab.id as any);
                     setSelectedResource(null);
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition ${
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${
                     isActive
                       ? 'bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-l-4 border-cyan-500'
                       : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-500' : 'text-slate-400'}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-500' : 'text-slate-405'}`} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -548,7 +560,7 @@ export default function App() {
             <span className="text-slate-500 font-bold">Theme Mode</span>
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-1.5 rounded-lg bg-slate-200 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
+              className="p-1.5 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
               title="Toggle Light/Dark Theme"
             >
               {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -578,7 +590,7 @@ export default function App() {
             {/* Namespace Filter for Explorer */}
             {activeTab === 'explorer' && (
               <div className="flex items-center bg-slate-100 dark:bg-[#111319] border border-slate-200 dark:border-[#1e202a] rounded-xl px-3 py-1">
-                <Sliders className="w-3.5 h-3.5 text-slate-400 mr-2" />
+                <Sliders className="w-3.5 h-3.5 text-slate-405 mr-2" />
                 <span className="text-[11px] text-slate-500 dark:text-slate-500 mr-2 font-bold">Namespace:</span>
                 <input
                   type="text"
@@ -597,7 +609,7 @@ export default function App() {
                   type="checkbox"
                   checked={showSystemResources}
                   onChange={(e) => setShowSystemResources(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-350 dark:border-[#1e202a] focus:ring-0"
+                  className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-350 dark:border-[#1e202a] focus:ring-0 cursor-pointer"
                 />
                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Show System</span>
               </label>
@@ -606,7 +618,7 @@ export default function App() {
 
           <div className="flex items-center space-x-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
             <span>Kind Cluster Dev</span>
-            <span className={`w-2 h-2 rounded-full ${stats?.status === 'healthy' ? 'bg-cyan-400 animate-pulse' : 'bg-amber-400'}`} />
+            <span className={`w-2 h-2 rounded-full ${stats?.status === 'healthy' ? 'bg-cyan-400 animate-pulse shadow-md' : 'bg-amber-450'}`} />
           </div>
         </header>
 
@@ -617,30 +629,101 @@ export default function App() {
           {activeTab === 'dashboard' && (
             <div className="max-w-5xl mx-auto space-y-8">
               
-              {/* Welcome Banner */}
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-cyan-950/20 via-slate-100 to-slate-200 dark:from-indigo-950/60 dark:via-cyan-950/15 dark:to-slate-950 border border-slate-200 dark:border-indigo-900/40 p-8 shadow-sm">
-                <div className="absolute right-0 top-0 w-64 h-64 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-3xl" />
-                <div className="relative z-10 space-y-2">
-                  <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 tracking-wider uppercase">Mentor Workspace</span>
-                  <h3 className="text-2xl font-black text-slate-800 dark:text-white leading-tight">Learn Kubernetes. Check Logs. Run AI Diagnosis.</h3>
-                  <p className="text-slate-650 dark:text-slate-400 max-w-xl text-xs leading-relaxed font-semibold">
-                    Podex connects securely to your local Kubernetes control plane. We parse active resources, watch logs, and translate system crashes into simple English recommendations.
-                  </p>
-                  <div className="pt-4 flex items-center space-x-3">
-                    <button
-                      onClick={() => setActiveTab('explorer')}
-                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-bold text-xs hover:shadow-md hover:shadow-cyan-500/15 transition flex items-center cursor-pointer"
-                    >
-                      <span>Inspect Active Cluster</span>
-                      <ChevronRight className="w-3.5 h-3.5 ml-1.5" />
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('learn')}
-                      className="px-5 py-2.5 rounded-xl bg-white hover:bg-slate-100 dark:bg-[#111319] dark:hover:bg-[#151821] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#1e202a] font-bold text-xs transition flex items-center cursor-pointer"
-                    >
-                      <span>Ask AI Tutor</span>
-                    </button>
+              {/* CNCF Style Top Hero Split Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Left Welcome Content (2/3 width) */}
+                <div className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-slate-800 p-8 shadow-sm flex flex-col justify-between min-h-[220px]">
+                  <div className="absolute right-0 top-0 w-64 h-64 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-3xl" />
+                  <div className="relative z-10 space-y-3">
+                    <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 tracking-widest uppercase">Kubernetes AI Mentor</span>
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white leading-tight">Inspect container states & diagnose errors reactively.</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed font-semibold max-w-lg">
+                      Podex fetches live logs, details, and events from your Kind cluster, highlighting degraded pods. Click on the live status grid below to troubleshoot.
+                    </p>
                   </div>
+                  
+                  {/* Interactive Status Grid (CNCF K9s Cell Graphic) */}
+                  <div className="relative z-10 pt-6 border-t border-slate-100 dark:border-slate-800/80 mt-6">
+                    <div className="flex justify-between items-center mb-2.5">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        Cluster Pod Map ({filteredPods.length} total)
+                      </span>
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold italic">Click cell to inspect</span>
+                    </div>
+                    {filteredPods.length === 0 ? (
+                      <span className="text-xs text-slate-400 block italic font-medium">No user pods running in cluster.</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {filteredPods.map(p => {
+                          const s = p.status.toLowerCase();
+                          const isHealthy = s.includes('run') || s === 'completed' || s === 'ready';
+                          const isPending = s.includes('pend') || s.includes('progress');
+                          
+                          const color = isHealthy 
+                            ? 'bg-emerald-500 shadow-emerald-500/20' 
+                            : isPending 
+                              ? 'bg-amber-500 shadow-amber-500/20 animate-pulse' 
+                              : 'bg-red-500 shadow-red-500/20 animate-pulse';
+                              
+                          return (
+                            <div
+                              key={p.name}
+                              onClick={() => {
+                                setSelectedResource({ type: 'pod', name: p.name, namespace: p.namespace });
+                                setDetailTab('overview');
+                                setActiveTab('explorer');
+                              }}
+                              title={`${p.name} (${p.status})`}
+                              className={`w-4.5 h-4.5 rounded-lg cursor-pointer hover:scale-125 hover:rotate-6 transition duration-150 shadow-md ${color}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Circular Health Donut (1/3 width) */}
+                <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 flex flex-col items-center justify-center space-y-4 shadow-sm min-h-[220px]">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Cluster Health</span>
+                  
+                  {/* SVG Donut Track */}
+                  <div className="relative flex items-center justify-center">
+                    <svg className="w-28 h-28 transform -rotate-90">
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r={radius}
+                        className="stroke-slate-100 dark:stroke-slate-800/60"
+                        strokeWidth="8"
+                        fill="transparent"
+                      />
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r={radius}
+                        className="stroke-cyan-500 transition-all duration-500"
+                        strokeWidth="8"
+                        fill="transparent"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute flex flex-col items-center justify-center">
+                      <span className="text-2xl font-black text-slate-850 dark:text-white leading-none">
+                        {healthPercentage}%
+                      </span>
+                      <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
+                        Healthy
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold text-center">
+                    {runningPodsCount} / {totalPodsCount} Pods Ready
+                  </span>
                 </div>
               </div>
 
@@ -720,7 +803,7 @@ export default function App() {
                         setActiveTab('learn');
                         handleLearnQuery(card.query);
                       }}
-                      className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-5 hover:border-cyan-500 cursor-pointer transition group shadow-sm"
+                      className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-5 hover:border-cyan-500 cursor-pointer transition group shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300"
                     >
                       <h5 className="font-bold text-slate-800 dark:text-slate-200 m-0 group-hover:text-cyan-500 transition">{card.title}</h5>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed font-semibold">{card.desc}</p>
@@ -850,7 +933,7 @@ export default function App() {
                         <tbody className="divide-y divide-slate-100 dark:divide-[#13151c] text-xs">
                           {filteredDeployments.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-bold bg-slate-50/20 dark:bg-transparent">
+                              <td colSpan={7} className="px-6 py-12 text-center text-slate-450 dark:text-slate-500 font-bold bg-slate-50/20 dark:bg-transparent">
                                 No Deployments found.
                               </td>
                             </tr>
@@ -867,15 +950,15 @@ export default function App() {
                                 }`}
                               >
                                 <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{deploy.name}</td>
-                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{deploy.namespace}</td>
+                                <td className="px-6 py-4 text-slate-500 dark:text-slate-405 font-bold">{deploy.namespace}</td>
                                 <td className="px-6 py-4">
                                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(deploy.status)}`}>
                                     {deploy.status}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{deploy.replicas_desired}</td>
-                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{deploy.replicas_ready}</td>
-                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{deploy.replicas_available}</td>
+                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-404 font-bold">{deploy.replicas_desired}</td>
+                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-404 font-bold">{deploy.replicas_ready}</td>
+                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-450 font-bold">{deploy.replicas_available}</td>
                                 <td className="px-6 py-4 text-slate-500">{deploy.age}</td>
                               </tr>
                             ))
@@ -901,7 +984,7 @@ export default function App() {
                         <tbody className="divide-y divide-slate-100 dark:divide-[#13151c] text-xs">
                           {filteredServices.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-bold bg-slate-50/20 dark:bg-transparent">
+                              <td colSpan={7} className="px-6 py-12 text-center text-slate-450 dark:text-slate-500 font-bold bg-slate-50/20 dark:bg-transparent">
                                 No Services found.
                               </td>
                             </tr>
@@ -919,11 +1002,11 @@ export default function App() {
                               >
                                 <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{svc.name}</td>
                                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{svc.namespace}</td>
-                                <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-bold">{svc.type}</td>
-                                <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono">{svc.cluster_ip}</td>
+                                <td className="px-6 py-4 text-slate-600 dark:text-slate-450 font-bold">{svc.type}</td>
+                                <td className="px-6 py-4 text-slate-650 dark:text-slate-450 font-mono">{svc.cluster_ip}</td>
                                 <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{svc.external_ip}</td>
-                                <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono">{svc.ports}</td>
-                                <td className="px-6 py-4 text-slate-500">{svc.age}</td>
+                                <td className="px-6 py-4 text-slate-650 dark:text-slate-450 font-mono">{svc.ports}</td>
+                                <td className="px-6 py-4 text-slate-505">{svc.age}</td>
                               </tr>
                             ))
                           )}
@@ -941,7 +1024,7 @@ export default function App() {
             <div className="max-w-3xl mx-auto space-y-8">
               
               <div className="text-center space-y-3">
-                <h3 className="text-2xl font-black text-slate-805 dark:text-slate-200 m-0">Ask Podex AI Anything</h3>
+                <h3 className="text-2xl font-black text-slate-800 dark:text-slate-200 m-0">Ask Podex AI Anything</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-450 max-w-lg mx-auto font-bold">
                   Type a Kubernetes concept, resource name, or error code. Your AI mentor will explain it using real-world analogies.
                 </p>
@@ -1006,7 +1089,7 @@ export default function App() {
                     
                     {/* Explanation */}
                     <div className="space-y-1.5">
-                      <h5 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">What it is</h5>
+                      <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">What it is</h5>
                       <p className="text-slate-700 dark:text-slate-300 font-bold">{aiLearning.explanation}</p>
                     </div>
 
@@ -1023,14 +1106,14 @@ export default function App() {
 
                     {/* Why it exists */}
                     <div className="space-y-1.5">
-                      <h5 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Why it exists in K8s</h5>
+                      <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">Why it exists in K8s</h5>
                       <p className="text-slate-700 dark:text-slate-300 font-bold">{aiLearning.why_it_exists}</p>
                     </div>
 
                     {/* Gotchas */}
                     {aiLearning.common_gotchas && aiLearning.common_gotchas.length > 0 && (
                       <div className="space-y-2">
-                        <h5 className="font-bold text-[10px] text-amber-600 dark:text-amber-500 uppercase tracking-wider">Common Gotchas</h5>
+                        <h5 className="font-bold text-[10px] text-amber-600 dark:text-amber-550 uppercase tracking-wider">Common Gotchas</h5>
                         <ul className="space-y-1.5 list-disc pl-5 text-slate-700 dark:text-slate-300 font-bold">
                           {aiLearning.common_gotchas.map((gotcha, idx) => (
                             <li key={idx}>{gotcha}</li>
@@ -1116,7 +1199,7 @@ export default function App() {
                     name: selectedResource.name,
                     namespace: selectedResource.namespace
                   })}
-                  className="px-3.5 py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-950/30 dark:hover:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-900/50 hover:border-cyan-300 dark:hover:border-cyan-800 text-cyan-650 dark:text-cyan-400 font-bold text-[11px] transition flex items-center space-x-1.5 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-950/30 dark:hover:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-900/50 hover:border-cyan-300 dark:hover:border-cyan-800 text-cyan-655 dark:text-cyan-400 font-bold text-[11px] transition flex items-center space-x-1.5 cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Restart Deployment</span>
@@ -1130,7 +1213,7 @@ export default function App() {
                     namespace: selectedResource.namespace,
                     scaleValue: 1
                   })}
-                  className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-950/60 border border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800 text-amber-650 dark:text-amber-400 font-bold text-[11px] transition flex items-center space-x-1.5 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-950/60 border border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800 text-amber-655 dark:text-amber-400 font-bold text-[11px] transition flex items-center space-x-1.5 cursor-pointer"
                 >
                   <Sliders className="w-3.5 h-3.5" />
                   <span>Scale Replicas</span>
@@ -1161,7 +1244,7 @@ export default function App() {
             {resourceDetailsLoading ? (
               <div className="flex flex-col items-center justify-center h-48 space-y-4">
                 <Loader2 className="w-6 h-6 animate-spin text-cyan-500" />
-                <span className="text-xs text-slate-400">Loading details...</span>
+                <span className="text-xs text-slate-405 font-bold">Loading details...</span>
               </div>
             ) : (
               <div>
@@ -1172,7 +1255,7 @@ export default function App() {
                     
                     {/* Status overview list info */}
                     <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
-                      <h4 className="font-bold text-slate-805 dark:text-slate-300">Specifications</h4>
+                      <h4 className="font-bold text-slate-800 dark:text-slate-300">Specifications</h4>
                       <div className="grid grid-cols-3 gap-2">
                         <span className="text-slate-500 font-bold">Resource:</span>
                         <span className="col-span-2 text-slate-700 dark:text-slate-350 font-bold">{selectedResource.type}</span>
@@ -1191,10 +1274,10 @@ export default function App() {
                     {/* Metadata labels */}
                     {resourceDetails.metadata?.labels && (
                       <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-2 shadow-sm">
-                        <h4 className="font-bold text-slate-805 dark:text-slate-300">Labels</h4>
+                        <h4 className="font-bold text-slate-800 dark:text-slate-300">Labels</h4>
                         <div className="flex flex-wrap gap-1.5">
                           {Object.entries(resourceDetails.metadata.labels).map(([k, v]) => (
-                            <span key={k} className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#161a25] border border-slate-200 dark:border-cyan-950 text-cyan-600 dark:text-cyan-400 font-mono text-[10px]">
+                            <span key={k} className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#161a25] border border-slate-200 dark:border-cyan-955 text-cyan-605 dark:text-cyan-400 font-mono text-[10px]">
                               {k}={String(v)}
                             </span>
                           ))}
@@ -1205,15 +1288,15 @@ export default function App() {
                     {/* Visual K8s Conditions Timeline (CNCF Observability) */}
                     {resourceDetails.status?.conditions && (
                       <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
-                        <h4 className="font-bold text-slate-805 dark:text-slate-300">Conditions</h4>
+                        <h4 className="font-bold text-slate-850 dark:text-slate-300">Conditions</h4>
                         <div className="grid grid-cols-1 gap-2">
                           {resourceDetails.status.conditions.map((cond: any) => {
                             const isTrue = cond.status === 'True';
                             const isFalse = cond.status === 'False';
                             const condBg = isTrue 
-                              ? 'bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50' 
+                              ? 'bg-emerald-50/70 dark:bg-emerald-955/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50' 
                               : isFalse 
-                                ? 'bg-red-50/70 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 animate-pulse' 
+                                ? 'bg-red-50/70 dark:bg-red-955/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 animate-pulse' 
                                 : 'bg-slate-100/70 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-250 dark:border-slate-800';
                             
                             return (
@@ -1233,7 +1316,7 @@ export default function App() {
                     {/* Clickable Related Resources Map (CNCF Connections) */}
                     {relatedList.length > 0 && (
                       <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
-                        <h4 className="font-bold text-slate-805 dark:text-slate-300 flex items-center space-x-1.5">
+                        <h4 className="font-bold text-slate-850 dark:text-slate-300 flex items-center space-x-1.5">
                           <Link2 className="w-4 h-4 text-cyan-500" />
                           <span>Connected Components</span>
                         </h4>
@@ -1247,7 +1330,7 @@ export default function App() {
                               }}
                               className="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-50 dark:bg-[#161822] border border-slate-200 dark:border-slate-800 hover:border-cyan-500 dark:hover:border-cyan-500 cursor-pointer transition select-none group"
                             >
-                              <div className="w-8 h-8 rounded bg-cyan-100 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-550 flex items-center justify-center font-bold text-[10px] uppercase">
+                              <div className="w-8 h-8 rounded bg-cyan-100 dark:bg-cyan-955/40 text-cyan-600 dark:text-cyan-550 flex items-center justify-center font-bold text-[10px] uppercase">
                                 {rel.type[0]}
                               </div>
                               <div className="min-w-0">
@@ -1269,7 +1352,7 @@ export default function App() {
                             <div className="flex justify-between font-bold text-slate-700 dark:text-slate-200">
                               <span>{container.name}</span>
                             </div>
-                            <div className="grid grid-cols-3 gap-1.5 text-slate-500">
+                            <div className="grid grid-cols-3 gap-1.5 text-slate-550">
                               <span>Image:</span>
                               <span className="col-span-2 text-slate-700 dark:text-slate-300 font-mono break-all">{container.image}</span>
 
@@ -1301,13 +1384,13 @@ export default function App() {
                       </div>
                       
                       {/* Font size + Copy + AutoScroll */}
-                      <div className="flex items-center space-x-3 text-slate-500 dark:text-slate-400 shrink-0 font-bold select-none">
+                      <div className="flex items-center space-x-3 text-slate-500 dark:text-slate-400 shrink-0 font-bold select-none font-semibold">
                         <label className="flex items-center space-x-1.5 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={autoScrollLogs}
                             onChange={(e) => setAutoScrollLogs(e.target.checked)}
-                            className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-105 dark:bg-slate-900 border-slate-300 dark:border-[#1e202a] focus:ring-0"
+                            className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-105 dark:bg-slate-900 border-slate-300 dark:border-[#1e202a] focus:ring-0 cursor-pointer"
                           />
                           <span className="text-[10px]">Auto-Scroll</span>
                         </label>
@@ -1315,15 +1398,15 @@ export default function App() {
                         <div className="flex items-center space-x-1 border border-slate-200 dark:border-[#1e202a] rounded-lg p-0.5 bg-slate-105 dark:bg-[#10121a]">
                           <button
                             onClick={() => setCodeFontSize(Math.max(10, codeFontSize - 1))}
-                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold"
+                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
                             title="Decrease text size"
                           >
                             A-
                           </button>
-                          <span className="text-[10px] px-1 font-mono font-bold text-slate-505">{codeFontSize}px</span>
+                          <span className="text-[10px] px-1 font-mono font-bold text-slate-500">{codeFontSize}px</span>
                           <button
                             onClick={() => setCodeFontSize(Math.min(18, codeFontSize + 1))}
-                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold"
+                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
                             title="Increase text size"
                           >
                             A+
@@ -1335,7 +1418,7 @@ export default function App() {
                             navigator.clipboard.writeText(logsText);
                             alert("Logs copied to clipboard!");
                           }}
-                          className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold hover:text-cyan-555 cursor-pointer"
+                          className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold hover:text-cyan-500 cursor-pointer"
                         >
                           Copy Logs
                         </button>
@@ -1345,7 +1428,7 @@ export default function App() {
                     <pre 
                       ref={logsEndRef}
                       style={{ fontSize: `${codeFontSize}px` }}
-                      className="w-full bg-slate-950 text-emerald-400 border border-slate-900 dark:border-[#161822] rounded-xl p-4 overflow-x-auto whitespace-pre font-mono h-[420px] transition-all scroll-smooth"
+                      className="w-full bg-slate-950 text-emerald-450 border border-slate-900 dark:border-[#161822] rounded-xl p-4 overflow-x-auto whitespace-pre font-mono h-[420px] transition-all scroll-smooth"
                     >
                       {logsText 
                         ? logsText
@@ -1371,21 +1454,21 @@ export default function App() {
                             key={idx}
                             className={`p-3.5 rounded-xl border flex items-start space-x-3 shadow-sm ${
                               ev.type === 'Warning'
-                                ? 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-300 animate-pulse'
+                                ? 'bg-amber-50/70 dark:bg-amber-955/20 border-amber-250 dark:border-amber-900/40 text-amber-705 dark:text-amber-300 animate-pulse'
                                 : 'bg-white dark:bg-[#10121a] border-slate-200 dark:border-[#1e202a] text-slate-700 dark:text-slate-300'
                             }`}
                           >
                             {ev.type === 'Warning' ? (
-                              <AlertTriangle className="w-4 h-4 text-amber-505 shrink-0 mt-0.5 animate-bounce" />
+                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 animate-bounce" />
                             ) : (
-                              <Info className="w-4 h-4 text-cyan-550 shrink-0 mt-0.5" />
+                              <Info className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
                             )}
                             <div className="space-y-0.5">
                               <div className="flex items-center space-x-2">
                                 <span className="font-extrabold text-[11px]">{ev.reason}</span>
                                 <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold">count: {ev.count}</span>
                               </div>
-                              <p className="text-xs text-slate-600 dark:text-slate-400 leading-normal font-bold">{ev.message}</p>
+                              <p className="text-xs text-slate-650 dark:text-slate-400 leading-normal font-bold">{ev.message}</p>
                               <span className="text-[9px] text-slate-500 block mt-1 font-bold">{ev.last_timestamp} ago</span>
                             </div>
                           </div>
@@ -1400,11 +1483,11 @@ export default function App() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center text-xs">
                       <div className="flex items-center space-x-2 font-bold">
-                        <span className="text-slate-500 dark:text-slate-400">Kubernetes YAML</span>
+                        <span className="text-slate-550 dark:text-slate-400">Kubernetes YAML</span>
                         <div className="flex items-center space-x-1 border border-slate-200 dark:border-[#1e202a] rounded-lg p-0.5 bg-slate-105 dark:bg-[#10121a]">
                           <button
                             onClick={() => setCodeFontSize(Math.max(10, codeFontSize - 1))}
-                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold"
+                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
                             title="Decrease text size"
                           >
                             A-
@@ -1412,7 +1495,7 @@ export default function App() {
                           <span className="text-[10px] px-1 font-mono font-bold text-slate-500">{codeFontSize}px</span>
                           <button
                             onClick={() => setCodeFontSize(Math.min(18, codeFontSize + 1))}
-                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold"
+                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
                             title="Increase text size"
                           >
                             A+
@@ -1463,8 +1546,8 @@ export default function App() {
                     {aiInvestigating && (
                       <div className="bg-white dark:bg-[#10121a] border border-slate-200 dark:border-[#1e202a] p-8 rounded-2xl text-center space-y-4 flex flex-col items-center shadow-sm">
                         <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
-                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">Analyzing Cluster State</h4>
-                        <p className="text-xs text-slate-505 dark:text-slate-400 font-bold animate-pulse">
+                        <h4 className="font-bold text-sm text-slate-808 dark:text-slate-200 m-0">Analyzing Cluster State</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold animate-pulse">
                           {investigationStep}
                         </p>
                       </div>
@@ -1485,7 +1568,7 @@ export default function App() {
                           {aiInvestigation.status === 'healthy' ? (
                             <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                           ) : aiInvestigation.status === 'degraded' ? (
-                            <AlertCircle className="w-5 h-5 text-amber-505 shrink-0 mt-0.5" />
+                            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                           ) : (
                             <AlertOctagon className="w-5 h-5 text-red-500 shrink-0 mt-0.5 animate-pulse" />
                           )}
@@ -1500,14 +1583,14 @@ export default function App() {
 
                         {/* Root Cause details */}
                         <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-2 shadow-sm">
-                          <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">Analysis Summary</h5>
+                          <h5 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Analysis Summary</h5>
                           <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-semibold">{aiInvestigation.explanation}</p>
                         </div>
 
                         {/* Evidence Items */}
                         {aiInvestigation.evidence && aiInvestigation.evidence.length > 0 && (
                           <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-2 shadow-sm">
-                            <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">Evidence Gathered</h5>
+                            <h5 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Evidence Gathered</h5>
                             <ul className="space-y-1.5 list-disc pl-5 text-slate-700 dark:text-slate-350 font-semibold">
                               {aiInvestigation.evidence.map((ev, idx) => (
                                 <li key={idx} className="leading-relaxed">{ev}</li>
@@ -1527,7 +1610,7 @@ export default function App() {
 
                         {/* Educational K8s Lesson */}
                         <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
-                          <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">Concept Lesson</h5>
+                          <h5 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Concept Lesson</h5>
                           <div className="border-t border-slate-100 dark:border-slate-800 pt-2 space-y-2">
                             <span className="font-extrabold text-slate-800 dark:text-slate-200 block text-xs">{aiInvestigation.k8s_lesson.concept}</span>
                             <p className="text-slate-650 dark:text-slate-400 leading-normal italic font-bold">
@@ -1566,10 +1649,10 @@ export default function App() {
             <div className="flex items-center space-x-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${
                 confirmationModal.type === 'delete' 
-                  ? 'bg-red-50 dark:bg-red-950/50 text-red-500' 
+                  ? 'bg-red-50 dark:bg-red-950/50 text-red-550' 
                   : confirmationModal.type === 'restart'
-                    ? 'bg-cyan-50 dark:bg-cyan-950/50 text-cyan-500'
-                    : 'bg-amber-50 dark:bg-amber-950/50 text-amber-500'
+                    ? 'bg-cyan-50 dark:bg-cyan-950/50 text-cyan-550'
+                    : 'bg-amber-50 dark:bg-amber-950/50 text-amber-550'
               }`}>
                 {confirmationModal.type === 'delete' ? (
                   <Trash2 className="w-5 h-5" />
@@ -1594,7 +1677,7 @@ export default function App() {
               </span>
               {confirmationModal.type === 'delete' && (
                 <p className="text-slate-650 dark:text-slate-350 m-0 font-bold">
-                  When you delete a Pod, Kubernetes sends a <code className="font-mono text-amber-500 bg-slate-100 dark:bg-slate-800 px-1 rounded">SIGTERM</code> signal to let containers shut down gracefully (defaulting to 30 seconds). Then it runs <code className="font-mono text-red-500 bg-slate-100 dark:bg-slate-800 px-1 rounded">SIGKILL</code> to remove it. Since Pods are usually managed by Deployments, **a new Pod instance will be spun up automatically** to replace it.
+                  When you delete a Pod, Kubernetes sends a <code className="font-mono text-amber-500 bg-slate-100 dark:bg-slate-850 px-1 rounded">SIGTERM</code> signal to let containers shut down gracefully (defaulting to 30 seconds). Then it runs <code className="font-mono text-red-500 bg-slate-100 dark:bg-slate-850 px-1 rounded">SIGKILL</code> to remove it. Since Pods are usually managed by Deployments, **a new Pod instance will be spun up automatically** to replace it.
                 </p>
               )}
               {confirmationModal.type === 'restart' && (
@@ -1641,7 +1724,7 @@ export default function App() {
 
             {/* Target warning */}
             <p className="text-xs text-slate-500 font-bold leading-relaxed">
-              Target resource: <span className="font-bold text-slate-700 dark:text-slate-300 font-mono bg-slate-105 dark:bg-slate-800 px-1 rounded">{confirmationModal.namespace}/{confirmationModal.name}</span>. Are you sure you want to execute this change?
+              Target resource: <span className="font-bold text-slate-700 dark:text-slate-300 font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">{confirmationModal.namespace}/{confirmationModal.name}</span>. Are you sure you want to execute this change?
             </p>
 
             {/* Modal Actions */}
@@ -1649,7 +1732,7 @@ export default function App() {
               <button
                 onClick={() => setConfirmationModal(null)}
                 disabled={operationInProgress}
-                className="px-4.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1e202a] hover:bg-slate-100 dark:hover:bg-[#13141b] text-slate-605 dark:text-slate-300 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                className="px-4.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1e202a] hover:bg-slate-105 dark:hover:bg-[#13141b] text-slate-600 dark:text-slate-300 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -1658,7 +1741,7 @@ export default function App() {
                 disabled={operationInProgress}
                 className={`px-4.5 py-2.5 rounded-xl text-white text-xs font-bold hover:shadow-md transition disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer ${
                   confirmationModal.type === 'delete' 
-                    ? 'bg-red-500 hover:bg-red-650 hover:shadow-red-500/10' 
+                    ? 'bg-red-500 hover:bg-red-600 hover:shadow-red-500/10' 
                     : confirmationModal.type === 'restart'
                       ? 'bg-cyan-500 hover:bg-cyan-600 hover:shadow-cyan-500/10'
                       : 'bg-amber-500 hover:bg-amber-600 hover:shadow-amber-500/10'
