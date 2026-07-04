@@ -52,12 +52,15 @@ RELATED RESOURCES IN CLUSTER:
 {related_str}
 
 Please perform a thorough investigation. Fill out the response schema precisely:
+- Status: One of 'healthy', 'degraded', or 'critical' based on the overall resource health.
 - Root Cause: Pinpoint the exact issue (e.g. ImagePullBackOff, wrong Port mapping, missing secret, failed liveness probe).
 - Evidence: List specific lines or entries from the status, events, or logs above that back up your conclusion.
 - Explanation: Explain the failure in simple terms for a beginner. Avoid heavy jargon without defining it first.
 - Suggested Fix: Provide actionable, step-by-step commands or actions to fix this.
-- Learning: Write a short paragraph explaining the core Kubernetes concept involved so the user learns why this happened and how Kubernetes works.
-- Confidence: Choose High, Medium, or Low with a 1-sentence reason.
+- Confidence: An integer from 0 to 100 representing how confident you are in the diagnosis.
+- K8s Lesson: An object with two keys:
+  - concept: The Kubernetes concept involved (e.g. 'CrashLoopBackOff', 'Liveness Probes').
+  - analogy: A beginner-friendly real-world analogy explaining the concept.
 """
     return prompt.strip()
 

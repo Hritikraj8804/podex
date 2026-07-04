@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from kubernetes.client.exceptions import ApiException
 from backend.services.k8s_service import K8sService
 from backend.ai import get_ai_provider, build_investigation_prompt, InvestigationResult
+from backend.ai.provider import K8sLesson
 
 class InvestigationService:
     def __init__(self):
@@ -114,31 +115,43 @@ class InvestigationService:
                     related_resources["Pod"] = matching_pods
             else:
                 return InvestigationResult(
+                    status="degraded",
                     root_cause=f"Unsupported resource type: {resource_type}",
                     evidence=[],
                     explanation="Podex currently supports Pods, Deployments, and Services for investigation.",
                     suggested_fix="Select a Pod, Deployment, or Service from the Explorer and click 'Investigate'.",
-                    learning="Kubernetes resources map to different APIs. The core ones (Pods, Deployments, and Services) compose standard workloads.",
-                    confidence="High"
+                    confidence=90,
+                    k8s_lesson=K8sLesson(
+                        concept="Kubernetes Resource Types",
+                        analogy="Kubernetes resources map to different APIs. The core ones (Pods, Deployments, and Services) compose standard workloads."
+                    )
                 )
 
         except ApiException as e:
             return InvestigationResult(
+                status="critical",
                 root_cause=f"Kubernetes API Error: {e.reason}",
                 evidence=[f"HTTP Status: {e.status}", f"Body: {e.body}"],
                 explanation="Podex was unable to retrieve the resource configuration from the cluster.",
                 suggested_fix="Ensure the resource has not been deleted and that Podex has the correct permissions.",
-                learning="FastAPI uses the official Kubernetes Python SDK to authenticate and send requests to the cluster api-server.",
-                confidence="High"
+                confidence=80,
+                k8s_lesson=K8sLesson(
+                    concept="Kubernetes API Server",
+                    analogy="FastAPI uses the official Kubernetes Python SDK to authenticate and send requests to the cluster api-server."
+                )
             )
         except Exception as e:
             return InvestigationResult(
+                status="critical",
                 root_cause=f"Unexpected System Error: {str(e)}",
                 evidence=[],
                 explanation="An unexpected error occurred while gathering Kubernetes resource context.",
-                suggested_fix="Check the backend service logs in your docker-compose console.",
-                learning="Podex backend fetches state data asynchronously and aggregates it for AI analysis.",
-                confidence="Low"
+                suggested_fix="Check the backend service logs in your console.",
+                confidence=30,
+                k8s_lesson=K8sLesson(
+                    concept="Backend Error Handling",
+                    analogy="Podex backend fetches state data asynchronously and aggregates it for AI analysis."
+                )
             )
 
         # 2. Fetch events

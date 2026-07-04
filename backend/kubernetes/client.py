@@ -23,13 +23,14 @@ def init_k8s_client() -> bool:
             
         # If running inside Docker and target is localhost/127.0.0.1, redirect to host.docker.internal
         is_docker = os.path.exists("/.dockerenv")
-        if is_docker or settings.environment == "development":
+        if is_docker:
             if "127.0.0.1" in c.host:
                 c.host = c.host.replace("127.0.0.1", "host.docker.internal")
             elif "localhost" in c.host:
                 c.host = c.host.replace("localhost", "host.docker.internal")
             
-            # Disable SSL verification for local self-signed Kind/Minikube certs mapped to host.docker.internal
+        # Disable SSL verification for local self-signed Kind/Minikube certs
+        if is_docker or settings.environment == "development":
             c.verify_ssl = False
             client.Configuration.set_default(c)
             

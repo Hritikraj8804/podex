@@ -22,7 +22,9 @@ import {
   Minimize2,
   CheckCircle2,
   AlertOctagon,
-  Link2
+  Link2,
+  Menu,
+  PanelLeftClose
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -93,6 +95,124 @@ interface ConceptExplanation {
   common_gotchas: string[];
 }
 
+function FormattedText({ text, isCode = false }: { text: string; isCode?: boolean }) {
+  if (!text) return null;
+
+  const lines = text.split('\n');
+  const regex = /(\*\*.*?\*\*|`.*?`)/g;
+
+  const parseInlineMarkdown = (str: string) => {
+    const parts = str.split(regex);
+    return parts.map((part, pIdx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={pIdx} className="font-extrabold text-slate-900 dark:text-white">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return (
+          <code key={pIdx} className="font-mono bg-slate-100 dark:bg-slate-800/80 text-cyan-600 dark:text-cyan-455 px-1 py-0.5 rounded text-[11px] font-semibold border border-slate-200/50 dark:border-slate-800">
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  return (
+    <div className="space-y-2">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} className="h-1" />;
+
+        // Detect comments
+        const isComment = trimmed.startsWith('//') || trimmed.startsWith('#');
+        let displayLine = trimmed;
+        if (isComment) {
+          displayLine = trimmed.replace(/^(\/\/|#)\s*/, '');
+        }
+
+        // Detect commands/code (using strict matching to avoid false positives on normal sentences)
+        const isCommandLine = !isComment && (
+          trimmed.startsWith('kubectl ') || 
+          trimmed.startsWith('docker ') || 
+          trimmed.startsWith('npm ') || 
+          trimmed.startsWith('cd ') ||
+          trimmed.startsWith('git ') ||
+          trimmed.startsWith('python ') ||
+          trimmed.startsWith('uvicorn ') ||
+          trimmed.startsWith('curl ') ||
+          trimmed.startsWith('export ') ||
+          trimmed.startsWith('minikube ') ||
+          trimmed.startsWith('kind ') ||
+          isCode
+        );
+
+        if (isComment) {
+          return (
+            <p key={idx} className="text-slate-400 dark:text-slate-500 italic text-[11px] font-mono pl-1">
+              // {parseInlineMarkdown(displayLine)}
+            </p>
+          );
+        }
+
+        if (isCommandLine) {
+          return (
+            <div key={idx} className="bg-slate-900 dark:bg-[#07080b] text-emerald-400 dark:text-emerald-500 font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] overflow-x-auto flex items-center justify-between group shadow-inner">
+              <span className="select-all">{displayLine}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(displayLine);
+                  alert("Copied command!");
+                }}
+                className="opacity-0 group-hover:opacity-100 text-[10px] text-cyan-500 hover:text-cyan-400 font-bold transition ml-2 shrink-0 cursor-pointer"
+                title="Copy Command"
+              >
+                Copy
+              </button>
+            </div>
+          );
+        }
+
+        // Bullet lists
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          const listContent = trimmed.slice(2);
+          return (
+            <div key={idx} className="flex items-start space-x-2 pl-1.5 my-1">
+              <span className="text-cyan-500 mt-1 shrink-0 text-xs">•</span>
+              <span className="text-slate-700 dark:text-slate-350 font-semibold">{parseInlineMarkdown(listContent)}</span>
+            </div>
+          );
+        }
+
+        // Numbered lists (e.g. 1. , 2. )
+        const numberedListMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+        if (numberedListMatch) {
+          const num = numberedListMatch[1];
+          const listContent = numberedListMatch[2];
+          return (
+            <div key={idx} className="flex items-start space-x-2.5 pl-1 my-1.5">
+              <span className="flex items-center justify-center w-4.5 h-4.5 rounded-full bg-cyan-100 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 font-bold text-[9px] shrink-0 mt-0.5 border border-cyan-200/40 dark:border-cyan-800/30">
+                {num}
+              </span>
+              <span className="text-slate-700 dark:text-slate-355 font-semibold leading-relaxed mt-0.5">{parseInlineMarkdown(listContent)}</span>
+            </div>
+          );
+        }
+
+        return (
+          <p key={idx} className="text-slate-700 dark:text-slate-350 leading-relaxed font-semibold">
+            {parseInlineMarkdown(displayLine)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn'>('dashboard');
   const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services'>('pods');
@@ -114,6 +234,9 @@ export default function App() {
   const [detailsWidth, setDetailsWidth] = useState<number>(520);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const [isDrawerMaximized, setIsDrawerMaximized] = useState<boolean>(false);
+
+  // Sidebar collapse state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   // Data states
   const [stats, setStats] = useState<ClusterStats | null>(null);
@@ -141,6 +264,7 @@ export default function App() {
   const [aiInvestigating, setAiInvestigating] = useState(false);
   const [investigationStep, setInvestigationStep] = useState('');
   const [aiInvestigation, setAiInvestigation] = useState<InvestigationResult | null>(null);
+  const [investigationSubTab, setInvestigationSubTab] = useState<'diagnosis' | 'fix' | 'lesson'>('diagnosis');
 
   // AI Learning states
   const [learnQuery, setLearnQuery] = useState('');
@@ -259,13 +383,13 @@ export default function App() {
     
     try {
       // 1. Fetch metadata overview JSON
-      const specRes = await fetch(`${API_URL}/api/resources/${type}/${namespace}/${name}`);
+      const specRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/details`);
       if (specRes.ok) {
         setResourceDetails(await specRes.json());
       }
 
       // 2. Fetch Events
-      const eventsRes = await fetch(`${API_URL}/api/resources/${type}/${namespace}/${name}/events`);
+      const eventsRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/events`);
       if (eventsRes.ok) {
         setEventsList(await eventsRes.json());
       }
@@ -277,22 +401,19 @@ export default function App() {
         setYamlText(yData.yaml || '');
       }
 
-      // 4. Fetch Logs if it's a pod
-      if (type === 'pod') {
-        const logsRes = await fetch(`${API_URL}/api/pods/${namespace}/${name}/logs`);
-        if (logsRes.ok) {
-          const lData = await logsRes.json();
-          setLogsText(lData.logs || '');
-        } else {
-          setLogsText('Failed loading logs from container.');
-        }
+      // 4. Fetch Logs (backend supports pods, deployments, and services)
+      const logsRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/logs`);
+      if (logsRes.ok) {
+        const lData = await logsRes.json();
+        setLogsText(lData.logs || '');
       } else {
-        setLogsText('');
+        setLogsText(`Failed loading logs for ${type}.`);
       }
 
       // Reset AI states when switching resources
       setAiInvestigation(null);
       setAiInvestigating(false);
+      setInvestigationSubTab('diagnosis');
     } catch (e) {
       console.error(e);
     } finally {
@@ -309,6 +430,7 @@ export default function App() {
     if (!selectedResource) return;
     setAiInvestigating(true);
     setAiInvestigation(null);
+    setInvestigationSubTab('diagnosis');
     
     const steps = [
       'Scanning container status codes...',
@@ -329,7 +451,11 @@ export default function App() {
 
     try {
       const { type, name, namespace } = selectedResource;
-      const res = await fetch(`${API_URL}/api/investigate/${type}/${namespace}/${name}`);
+      const res = await fetch(`${API_URL}/api/investigate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, name, namespace })
+      });
       clearInterval(stepInterval);
       if (res.ok) {
         setAiInvestigation(await res.json());
@@ -353,17 +479,21 @@ export default function App() {
     const { type, name, namespace, scaleValue } = confirmationModal;
     
     try {
+      const endpoint = type === 'scale' 
+        ? `${API_URL}/api/operations/scale` 
+        : type === 'restart'
+          ? `${API_URL}/api/operations/restart`
+          : `${API_URL}/api/operations/delete`;
+      
       const body: any = {
-        type,
-        resource_type: selectedResource?.type || 'pod',
-        name,
-        namespace
+        namespace,
+        name
       };
       if (type === 'scale' && scaleValue !== undefined) {
         body.replicas = scaleValue;
       }
 
-      const res = await fetch(`${API_URL}/api/operations`, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -511,6 +641,7 @@ export default function App() {
     <div className="flex h-screen bg-slate-50 dark:bg-[#07080b] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-200">
       
       {/* Sidebar NAVIGATION */}
+      {!sidebarCollapsed && (
       <aside className="w-64 bg-slate-100 dark:bg-[#0d0e12] border-r border-slate-200 dark:border-[#1e202a] flex flex-col justify-between select-none">
         <div>
           {/* Logo Brand */}
@@ -576,6 +707,7 @@ export default function App() {
           </div>
         </div>
       </aside>
+      )}
 
       {/* Main Workspace Frame */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#07080b]">
@@ -583,6 +715,14 @@ export default function App() {
         {/* Top Header Workspace */}
         <header className="h-16 border-b border-slate-200 dark:border-[#1e202a] flex items-center justify-between px-8 bg-white dark:bg-[#090b0e]">
           <div className="flex items-center space-x-4">
+            {/* Sidebar toggle button */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#12141a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+              title={sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+            >
+              {sidebarCollapsed ? <Menu className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            </button>
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 capitalize m-0 tracking-wide">
               {activeTab} Space
             </h2>
@@ -1294,9 +1434,9 @@ export default function App() {
                             const isTrue = cond.status === 'True';
                             const isFalse = cond.status === 'False';
                             const condBg = isTrue 
-                              ? 'bg-emerald-50/70 dark:bg-emerald-955/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50' 
+                              ? 'bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50' 
                               : isFalse 
-                                ? 'bg-red-50/70 dark:bg-red-955/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 animate-pulse' 
+                                ? 'bg-red-50/70 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 animate-pulse' 
                                 : 'bg-slate-100/70 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-250 dark:border-slate-800';
                             
                             return (
@@ -1428,7 +1568,7 @@ export default function App() {
                     <pre 
                       ref={logsEndRef}
                       style={{ fontSize: `${codeFontSize}px` }}
-                      className="w-full bg-slate-950 text-emerald-450 border border-slate-900 dark:border-[#161822] rounded-xl p-4 overflow-x-auto whitespace-pre font-mono h-[420px] transition-all scroll-smooth"
+                      className="w-full bg-slate-950 text-emerald-400 border border-slate-900 dark:border-[#161822] rounded-xl p-4 overflow-x-auto whitespace-pre font-mono h-[420px] transition-all scroll-smooth"
                     >
                       {logsText 
                         ? logsText
@@ -1454,7 +1594,7 @@ export default function App() {
                             key={idx}
                             className={`p-3.5 rounded-xl border flex items-start space-x-3 shadow-sm ${
                               ev.type === 'Warning'
-                                ? 'bg-amber-50/70 dark:bg-amber-955/20 border-amber-250 dark:border-amber-900/40 text-amber-705 dark:text-amber-300 animate-pulse'
+                                ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-400 animate-pulse'
                                 : 'bg-white dark:bg-[#10121a] border-slate-200 dark:border-[#1e202a] text-slate-700 dark:text-slate-300'
                             }`}
                           >
@@ -1468,7 +1608,7 @@ export default function App() {
                                 <span className="font-extrabold text-[11px]">{ev.reason}</span>
                                 <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold">count: {ev.count}</span>
                               </div>
-                              <p className="text-xs text-slate-650 dark:text-slate-400 leading-normal font-bold">{ev.message}</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-400 leading-normal font-bold">{ev.message}</p>
                               <span className="text-[9px] text-slate-500 block mt-1 font-bold">{ev.last_timestamp} ago</span>
                             </div>
                           </div>
@@ -1551,19 +1691,17 @@ export default function App() {
                           {investigationStep}
                         </p>
                       </div>
-                    )}
-
-                    {/* Investigation Result display */}
+                    )}                    {/* Investigation Result display */}
                     {aiInvestigation && (
-                      <div className="space-y-5 text-xs">
+                      <div className="space-y-5 text-xs animate-in fade-in slide-in-from-bottom-2 duration-300">
                         
                         {/* Status Callout Card */}
-                        <div className={`p-4 rounded-xl border flex items-start space-x-3 shadow-sm ${
+                        <div className={`p-4 rounded-2xl border flex items-start space-x-3 shadow-md transition duration-300 hover:scale-[1.01] ${
                           aiInvestigation.status === 'healthy'
-                            ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+                            ? 'bg-emerald-500/10 dark:bg-emerald-950/20 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
                             : aiInvestigation.status === 'degraded'
-                              ? 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-300'
-                              : 'bg-red-50/70 dark:bg-red-950/20 border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-300'
+                              ? 'bg-amber-500/10 dark:bg-amber-950/20 border-amber-500/30 text-amber-800 dark:text-amber-300'
+                              : 'bg-red-500/10 dark:bg-red-950/20 border-red-500/30 text-red-800 dark:text-red-300'
                         }`}>
                           {aiInvestigation.status === 'healthy' ? (
                             <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
@@ -1572,64 +1710,120 @@ export default function App() {
                           ) : (
                             <AlertOctagon className="w-5 h-5 text-red-500 shrink-0 mt-0.5 animate-pulse" />
                           )}
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-black text-sm uppercase tracking-wide">Diagnosis: {aiInvestigation.status}</span>
-                              <span className="text-[10px] opacity-75 font-bold">Confidence: {aiInvestigation.confidence}%</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="font-extrabold text-sm uppercase tracking-wide">Diagnosis: {aiInvestigation.status}</span>
                             </div>
-                            <p className="text-xs mt-1.5 font-bold">{aiInvestigation.root_cause}</p>
+                            <p className="text-xs mt-1.5 font-bold leading-normal">{aiInvestigation.root_cause}</p>
                           </div>
                         </div>
 
-                        {/* Root Cause details */}
-                        <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-2 shadow-sm">
-                          <h5 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Analysis Summary</h5>
-                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-semibold">{aiInvestigation.explanation}</p>
+                        {/* Sub-tabs Navigation inside Investigate Panel */}
+                        <div className="flex bg-slate-200/50 dark:bg-[#12141a] rounded-xl p-0.5 border border-slate-250/60 dark:border-[#1e202a] select-none">
+                          {([
+                            { id: 'diagnosis', label: 'Diagnosis' },
+                            { id: 'fix', label: 'Action Plan' },
+                            { id: 'lesson', label: 'Concept Lesson' }
+                          ] as const).map(tab => (
+                            <button
+                              key={tab.id}
+                              onClick={() => setInvestigationSubTab(tab.id)}
+                              className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${
+                                investigationSubTab === tab.id
+                                  ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                              }`}
+                            >
+                              {tab.label}
+                            </button>
+                          ))}
                         </div>
 
-                        {/* Evidence Items */}
-                        {aiInvestigation.evidence && aiInvestigation.evidence.length > 0 && (
-                          <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-2 shadow-sm">
-                            <h5 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Evidence Gathered</h5>
-                            <ul className="space-y-1.5 list-disc pl-5 text-slate-700 dark:text-slate-350 font-semibold">
-                              {aiInvestigation.evidence.map((ev, idx) => (
-                                <li key={idx} className="leading-relaxed">{ev}</li>
-                              ))}
-                            </ul>
+                        {/* TAB CONTENT: DIAGNOSIS */}
+                        {investigationSubTab === 'diagnosis' && (
+                          <div className="space-y-4 animate-in fade-in duration-200">
+                            {/* Confidence Score Gauge */}
+                            <div className="bg-white dark:bg-[#10121a] p-4 rounded-2xl border border-slate-200 dark:border-[#1e202a] space-y-2.5 shadow-sm">
+                              <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
+                                <span>AI Confidence</span>
+                                <span className="text-cyan-605 dark:text-cyan-400 font-extrabold text-xs">{aiInvestigation.confidence}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                                <div 
+                                  style={{ width: `${aiInvestigation.confidence}%` }} 
+                                  className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full transition-all duration-500"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Analysis Summary */}
+                            <div className="bg-white dark:bg-[#10121a] p-4 rounded-2xl border border-slate-200 dark:border-[#1e202a] space-y-2 shadow-sm">
+                              <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-550 uppercase tracking-wider">Analysis Summary</h5>
+                              <FormattedText text={aiInvestigation.explanation} />
+                            </div>
+
+                            {/* Evidence list */}
+                            {aiInvestigation.evidence && aiInvestigation.evidence.length > 0 && (
+                              <div className="bg-white dark:bg-[#10121a] p-4 rounded-2xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
+                                <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-550 uppercase tracking-wider">Evidence Gathered</h5>
+                                <div className="space-y-2">
+                                  {aiInvestigation.evidence.map((ev, idx) => (
+                                    <div key={idx} className="flex items-start space-x-2 pl-1 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                      <span className="text-cyan-500 mt-0.5 shrink-0">•</span>
+                                      <span className="text-slate-650 dark:text-slate-350 font-semibold">{ev}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
-                        {/* Suggested Fix */}
-                        <div className="bg-cyan-50/45 dark:bg-[#0c161e] p-4 rounded-xl border border-cyan-200 dark:border-cyan-900/35 space-y-2 shadow-sm">
-                          <h5 className="font-bold text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-wider flex items-center space-x-1.5">
-                            <Sliders className="w-3.5 h-3.5" />
-                            <span>Suggested Fix Action</span>
-                          </h5>
-                          <p className="text-slate-750 dark:text-slate-250 font-bold leading-normal">{aiInvestigation.suggested_fix}</p>
-                        </div>
-
-                        {/* Educational K8s Lesson */}
-                        <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
-                          <h5 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Concept Lesson</h5>
-                          <div className="border-t border-slate-100 dark:border-slate-800 pt-2 space-y-2">
-                            <span className="font-extrabold text-slate-800 dark:text-slate-200 block text-xs">{aiInvestigation.k8s_lesson.concept}</span>
-                            <p className="text-slate-650 dark:text-slate-400 leading-normal italic font-bold">
-                              "{aiInvestigation.k8s_lesson.analogy}"
-                            </p>
+                        {/* TAB CONTENT: ACTION PLAN */}
+                        {investigationSubTab === 'fix' && (
+                          <div className="space-y-4 animate-in fade-in duration-200">
+                            <div className="bg-cyan-50/45 dark:bg-[#0c161e] p-5 rounded-2xl border border-cyan-200 dark:border-cyan-900/35 space-y-3.5 shadow-sm">
+                              <h5 className="font-bold text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-wider flex items-center space-x-1.5">
+                                <Sliders className="w-3.5 h-3.5" />
+                                <span>Suggested Fix Action</span>
+                              </h5>
+                              <FormattedText text={aiInvestigation.suggested_fix} />
+                            </div>
                           </div>
-                        </div>
+                        )}
+
+                        {/* TAB CONTENT: CONCEPT LESSON */}
+                        {investigationSubTab === 'lesson' && (
+                          <div className="space-y-4 animate-in fade-in duration-200">
+                            <div className="bg-white dark:bg-[#10121a] p-5 rounded-2xl border border-slate-200 dark:border-[#1e202a] space-y-4 shadow-sm">
+                              <div className="space-y-1">
+                                <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-550 uppercase tracking-wider">Core Concept</h5>
+                                <span className="font-extrabold text-slate-850 dark:text-slate-100 block text-xs">{aiInvestigation.k8s_lesson.concept}</span>
+                              </div>
+                              
+                              <div className="border-t border-slate-100 dark:border-slate-800/80 pt-3.5 space-y-2">
+                                <h5 className="font-bold text-[10px] text-indigo-650 dark:text-indigo-400 uppercase tracking-wider flex items-center space-x-1">
+                                  <Info className="w-3.5 h-3.5" />
+                                  <span>Analogy for Beginners</span>
+                                </h5>
+                                <p className="text-slate-650 dark:text-slate-405 leading-relaxed italic font-bold">
+                                  "{aiInvestigation.k8s_lesson.analogy}"
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Re-run button */}
                         <button
                           onClick={runInvestigation}
-                          className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-[#1e202a] hover:bg-slate-100 dark:hover:bg-[#13151f] text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
+                          className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-[#1e202a] hover:bg-slate-100 dark:hover:bg-[#13151f] text-slate-700 dark:text-slate-350 font-bold text-xs transition duration-150 cursor-pointer shadow-sm"
                         >
                           Refresh Diagnosis
                         </button>
 
                       </div>
                     )}
-
                   </div>
                 )}
 
