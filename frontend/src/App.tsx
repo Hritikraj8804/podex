@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Activity,
   Terminal,
@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   RefreshCw,
   Trash2,
-  ChevronRight,
   Search,
   HelpCircle,
   Info,
@@ -16,7 +15,16 @@ import {
   Loader2,
   BookOpen,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  Sun,
+  Moon,
+  Maximize2,
+  Minimize2,
+  CheckCircle2,
+  AlertOctagon,
+  Link2,
+  Menu,
+  PanelLeftClose
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -35,8 +43,6 @@ interface PodResource {
   namespace: string;
   status: string;
   restarts: number;
-  pod_ip: string;
-  node: string;
   age: string;
 }
 
@@ -68,21 +74,143 @@ interface EventData {
   last_timestamp: string;
 }
 
-interface InvestigationResponse {
+interface InvestigationResult {
+  status: 'healthy' | 'degraded' | 'critical';
   root_cause: string;
-  evidence: string[];
   explanation: string;
+  evidence: string[];
   suggested_fix: string;
-  learning: string;
-  confidence: string;
+  confidence: number;
+  k8s_lesson: {
+    concept: string;
+    analogy: string;
+  };
 }
 
-interface LearnResponse {
+interface ConceptExplanation {
   concept: string;
   explanation: string;
   real_world_analogy: string;
   why_it_exists: string;
   common_gotchas: string[];
+}
+
+function FormattedText({ text, isCode = false }: { text: string; isCode?: boolean }) {
+  if (!text) return null;
+
+  const lines = text.split('\n');
+  const regex = /(\*\*.*?\*\*|`.*?`)/g;
+
+  const parseInlineMarkdown = (str: string) => {
+    const parts = str.split(regex);
+    return parts.map((part, pIdx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={pIdx} className="font-extrabold text-slate-900 dark:text-white">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return (
+          <code key={pIdx} className="font-mono bg-slate-100 dark:bg-slate-800/80 text-cyan-600 dark:text-cyan-455 px-1 py-0.5 rounded text-[11px] font-semibold border border-slate-200/50 dark:border-slate-800">
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  return (
+    <div className="space-y-2">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} className="h-1" />;
+
+        // Detect comments
+        const isComment = trimmed.startsWith('//') || trimmed.startsWith('#');
+        let displayLine = trimmed;
+        if (isComment) {
+          displayLine = trimmed.replace(/^(\/\/|#)\s*/, '');
+        }
+
+        // Detect commands/code (using strict matching to avoid false positives on normal sentences)
+        const isCommandLine = !isComment && (
+          trimmed.startsWith('kubectl ') || 
+          trimmed.startsWith('docker ') || 
+          trimmed.startsWith('npm ') || 
+          trimmed.startsWith('cd ') ||
+          trimmed.startsWith('git ') ||
+          trimmed.startsWith('python ') ||
+          trimmed.startsWith('uvicorn ') ||
+          trimmed.startsWith('curl ') ||
+          trimmed.startsWith('export ') ||
+          trimmed.startsWith('minikube ') ||
+          trimmed.startsWith('kind ') ||
+          isCode
+        );
+
+        if (isComment) {
+          return (
+            <p key={idx} className="text-slate-400 dark:text-slate-500 italic text-[11px] font-mono pl-1">
+              // {parseInlineMarkdown(displayLine)}
+            </p>
+          );
+        }
+
+        if (isCommandLine) {
+          return (
+            <div key={idx} className="bg-slate-900 dark:bg-[#07080b] text-emerald-400 dark:text-emerald-500 font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] overflow-x-auto flex items-center justify-between group shadow-inner">
+              <span className="select-all">{displayLine}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(displayLine);
+                  alert("Copied command!");
+                }}
+                className="opacity-0 group-hover:opacity-100 text-[10px] text-cyan-500 hover:text-cyan-400 font-bold transition ml-2 shrink-0 cursor-pointer"
+                title="Copy Command"
+              >
+                Copy
+              </button>
+            </div>
+          );
+        }
+
+        // Bullet lists
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          const listContent = trimmed.slice(2);
+          return (
+            <div key={idx} className="flex items-start space-x-2 pl-1.5 my-1">
+              <span className="text-cyan-500 mt-1 shrink-0 text-xs">•</span>
+              <span className="text-slate-700 dark:text-slate-350 font-semibold">{parseInlineMarkdown(listContent)}</span>
+            </div>
+          );
+        }
+
+        // Numbered lists (e.g. 1. , 2. )
+        const numberedListMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+        if (numberedListMatch) {
+          const num = numberedListMatch[1];
+          const listContent = numberedListMatch[2];
+          return (
+            <div key={idx} className="flex items-start space-x-2.5 pl-1 my-1.5">
+              <span className="flex items-center justify-center w-4.5 h-4.5 rounded-full bg-cyan-100 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 font-bold text-[9px] shrink-0 mt-0.5 border border-cyan-200/40 dark:border-cyan-800/30">
+                {num}
+              </span>
+              <span className="text-slate-700 dark:text-slate-355 font-semibold leading-relaxed mt-0.5">{parseInlineMarkdown(listContent)}</span>
+            </div>
+          );
+        }
+
+        return (
+          <p key={idx} className="text-slate-700 dark:text-slate-350 leading-relaxed font-semibold">
+            {parseInlineMarkdown(displayLine)}
+          </p>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function App() {
@@ -91,6 +219,24 @@ export default function App() {
   const [namespaceFilter, setNamespaceFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showSystemResources, setShowSystemResources] = useState<boolean>(false);
+
+  // Theme State
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 'dark';
+  });
+
+  // Code View Adjustments
+  const [codeFontSize, setCodeFontSize] = useState<number>(12);
+  const [logsFilter, setLogsFilter] = useState<string>('');
+  const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
+
+  // Drawer Resizing & Layout States
+  const [detailsWidth, setDetailsWidth] = useState<number>(520);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [isDrawerMaximized, setIsDrawerMaximized] = useState<boolean>(false);
+
+  // Sidebar collapse state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   // Data states
   const [stats, setStats] = useState<ClusterStats | null>(null);
@@ -114,193 +260,249 @@ export default function App() {
   const [eventsList, setEventsList] = useState<EventData[]>([]);
   const [yamlText, setYamlText] = useState<string>('');
 
-  // AI states
-  const [aiInvestigation, setAiInvestigation] = useState<InvestigationResponse | null>(null);
+  // AI Investigation states
   const [aiInvestigating, setAiInvestigating] = useState(false);
-  const [investigationStep, setInvestigationStep] = useState<string>('');
-  const [aiLearning, setAiLearning] = useState<LearnResponse | null>(null);
-  const [aiLearningLoading, setAiLearningLoading] = useState(false);
-  const [learnQuery, setLearnQuery] = useState<string>('');
+  const [investigationStep, setInvestigationStep] = useState('');
+  const [aiInvestigation, setAiInvestigation] = useState<InvestigationResult | null>(null);
+  const [investigationSubTab, setInvestigationSubTab] = useState<'diagnosis' | 'fix' | 'lesson'>('diagnosis');
 
-  // Confirmation Modals states
+  // AI Learning states
+  const [learnQuery, setLearnQuery] = useState('');
+  const [aiLearning, setAiLearning] = useState<ConceptExplanation | null>(null);
+  const [aiLearningLoading, setAiLearningLoading] = useState(false);
+
+  // Operation states
   const [confirmationModal, setConfirmationModal] = useState<{
-    type: 'restart' | 'scale' | 'delete';
+    type: 'delete' | 'restart' | 'scale';
     name: string;
     namespace: string;
     scaleValue?: number;
   } | null>(null);
   const [operationInProgress, setOperationInProgress] = useState(false);
 
-  // Fetch cluster stats
-  const fetchStats = async (isSilent = false) => {
+  const logsEndRef = useRef<HTMLPreElement>(null);
+
+  // Handle Theme classes
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  // Handle details panel mouse resize drag
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth >= 340 && newWidth <= window.innerWidth * 0.85) {
+        setDetailsWidth(newWidth);
+      }
+    };
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  // Auto-scroll logs logic
+  useEffect(() => {
+    if (autoScrollLogs && logsEndRef.current && detailTab === 'logs') {
+      logsEndRef.current.scrollTop = logsEndRef.current.scrollHeight;
+    }
+  }, [logsText, autoScrollLogs, detailTab]);
+
+  // Load Cluster Statistics
+  const fetchStats = useCallback(async (isSilent = false) => {
+    if (!isSilent) setStatsLoading(true);
     try {
-      if (!isSilent) setStatsLoading(true);
       const res = await fetch(`${API_URL}/api/stats`);
       if (res.ok) {
-        const data = await res.json();
-        setStats(data);
+        setStats(await res.json());
       }
     } catch (e) {
-      console.error("Error fetching stats:", e);
+      console.error("Failed fetching stats", e);
     } finally {
       if (!isSilent) setStatsLoading(false);
     }
-  };
+  }, []);
 
-  // Fetch resources lists
+  // Load Resources List
   const fetchResources = useCallback(async (isSilent = false) => {
+    if (!isSilent) setResourcesLoading(true);
     try {
-      if (!isSilent) setResourcesLoading(true);
-      const nsQuery = namespaceFilter ? `?namespace=${namespaceFilter}` : '';
+      const url = namespaceFilter 
+        ? `${API_URL}/api/resources?namespace=${encodeURIComponent(namespaceFilter)}`
+        : `${API_URL}/api/resources`;
       
-      const [podsRes, deployRes, svcRes] = await Promise.all([
-        fetch(`${API_URL}/api/pods${nsQuery}`),
-        fetch(`${API_URL}/api/deployments${nsQuery}`),
-        fetch(`${API_URL}/api/services${nsQuery}`)
-      ]);
-
-      if (podsRes.ok) setPods(await podsRes.json());
-      if (deployRes.ok) setDeployments(await deployRes.json());
-      if (svcRes.ok) setServices(await svcRes.json());
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setPods(data.pods || []);
+        setDeployments(data.deployments || []);
+        setServices(data.services || []);
+      }
     } catch (e) {
-      console.error("Error fetching resources:", e);
+      console.error("Failed fetching resources", e);
     } finally {
       if (!isSilent) setResourcesLoading(false);
     }
   }, [namespaceFilter]);
 
-  // Initial load
+  // Initial loading and background poll
   useEffect(() => {
-    fetchStats(false);
-    fetchResources(false);
+    fetchStats();
+    fetchResources();
+
     const interval = setInterval(() => {
       fetchStats(true);
       fetchResources(true);
-    }, 15000); // refresh lists silently every 15s
+    }, 8000);
+
     return () => clearInterval(interval);
-  }, [fetchResources]);
+  }, [fetchStats, fetchResources]);
 
-  // Fetch details when resource selected or detailTab changes
-  useEffect(() => {
+  // Fetch drawer details depending on active sub-tab
+  const fetchResourceDetails = useCallback(async () => {
     if (!selectedResource) return;
-
-    const fetchDetailsData = async () => {
-      setResourceDetailsLoading(true);
-      const { type, name, namespace } = selectedResource;
-      
-      try {
-        if (detailTab === 'overview') {
-          const res = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/details`);
-          if (res.ok) setResourceDetails(await res.json());
-        } else if (detailTab === 'logs') {
-          const res = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/logs`);
-          if (res.ok) {
-            const data = await res.json();
-            setLogsText(data.logs);
-          }
-        } else if (detailTab === 'events') {
-          const res = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/events`);
-          if (res.ok) setEventsList(await res.json());
-        } else if (detailTab === 'yaml') {
-          const res = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/yaml`);
-          if (res.ok) {
-            const data = await res.json();
-            setYamlText(data.yaml);
-          }
-        }
-      } catch (e) {
-        console.error("Error fetching resource details:", e);
-      } finally {
-        setResourceDetailsLoading(false);
+    setResourceDetailsLoading(true);
+    const { type, name, namespace } = selectedResource;
+    
+    try {
+      // 1. Fetch metadata overview JSON
+      const specRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/details`);
+      if (specRes.ok) {
+        setResourceDetails(await specRes.json());
       }
-    };
 
-    fetchDetailsData();
-  }, [selectedResource, detailTab]);
+      // 2. Fetch Events
+      const eventsRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/events`);
+      if (eventsRes.ok) {
+        setEventsList(await eventsRes.json());
+      }
 
-  // Trigger AI investigation
+      // 3. Fetch YAML Config
+      const yamlRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/yaml`);
+      if (yamlRes.ok) {
+        const yData = await yamlRes.json();
+        setYamlText(yData.yaml || '');
+      }
+
+      // 4. Fetch Logs (backend supports pods, deployments, and services)
+      const logsRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/logs`);
+      if (logsRes.ok) {
+        const lData = await logsRes.json();
+        setLogsText(lData.logs || '');
+      } else {
+        setLogsText(`Failed loading logs for ${type}.`);
+      }
+
+      // Reset AI states when switching resources
+      setAiInvestigation(null);
+      setAiInvestigating(false);
+      setInvestigationSubTab('diagnosis');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResourceDetailsLoading(false);
+    }
+  }, [selectedResource]);
+
+  useEffect(() => {
+    fetchResourceDetails();
+  }, [selectedResource, fetchResourceDetails]);
+
+  // AI Diagnostic triggers
   const runInvestigation = async () => {
     if (!selectedResource) return;
     setAiInvestigating(true);
     setAiInvestigation(null);
-
+    setInvestigationSubTab('diagnosis');
+    
     const steps = [
-      '🔍 Inspecting resource specifications...',
-      '📋 Reading active container logs...',
-      '🔔 Auditing cluster namespace events...',
-      '🧠 Formulating diagnosis context...',
-      '⚡ Querying AI tutor model...'
+      'Scanning container status codes...',
+      'Retrieving Pod manifest attributes...',
+      'Analyzing recent Kubernetes events stream...',
+      'Parsing container crash logs...',
+      'Consulting DevOps AI knowledge base...'
     ];
 
-    // Simulate steps in UI for beginner experience
-    for (let i = 0; i < steps.length - 1; i++) {
-      setInvestigationStep(steps[i]);
-      await new Promise(r => setTimeout(r, 700));
-    }
-    setInvestigationStep(steps[steps.length - 1]);
+    let currentStep = 0;
+    setInvestigationStep(steps[0]);
+    const stepInterval = setInterval(() => {
+      currentStep++;
+      if (currentStep < steps.length) {
+        setInvestigationStep(steps[currentStep]);
+      }
+    }, 1200);
 
     try {
+      const { type, name, namespace } = selectedResource;
       const res = await fetch(`${API_URL}/api/investigate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: selectedResource.type,
-          name: selectedResource.name,
-          namespace: selectedResource.namespace
-        })
+        body: JSON.stringify({ type, name, namespace })
       });
+      clearInterval(stepInterval);
       if (res.ok) {
-        const data = await res.json();
-        setAiInvestigation(data);
+        setAiInvestigation(await res.json());
       } else {
-        throw new Error("Failed to investigate");
+        const err = await res.json();
+        alert(`Diagnostic failed: ${err.detail || 'Unknown server error'}`);
       }
     } catch (e) {
       console.error(e);
-      setAiInvestigation({
-        root_cause: "Investigation API failed",
-        evidence: ["Failed to connect to AI server."],
-        explanation: "The backend server was unable to contact the Gemini provider.",
-        suggested_fix: "Check your internet connectivity or key config in backend console.",
-        learning: "AI investigations require external API configurations.",
-        confidence: "Low"
-      });
+      alert('Network failure reaching AI diagnostic server.');
     } finally {
+      clearInterval(stepInterval);
       setAiInvestigating(false);
     }
   };
 
-  // Scale, restart or delete actions
-  const handleOperation = async () => {
+  // Kubernetes operations executors
+  const executeOperation = async () => {
     if (!confirmationModal) return;
     setOperationInProgress(true);
     const { type, name, namespace, scaleValue } = confirmationModal;
-
+    
     try {
-      let endpoint = '';
-      let body: any = { name, namespace };
+      const endpoint = type === 'scale' 
+        ? `${API_URL}/api/operations/scale` 
+        : type === 'restart'
+          ? `${API_URL}/api/operations/restart`
+          : `${API_URL}/api/operations/delete`;
       
-      if (type === 'scale') {
-        endpoint = '/api/operations/scale';
+      const body: any = {
+        namespace,
+        name
+      };
+      if (type === 'scale' && scaleValue !== undefined) {
         body.replicas = scaleValue;
-      } else if (type === 'restart') {
-        endpoint = '/api/operations/restart';
-      } else if (type === 'delete') {
-        endpoint = '/api/operations/delete';
       }
 
-      const res = await fetch(`${API_URL}${endpoint}`, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
       if (res.ok) {
-        // Success
         setConfirmationModal(null);
         fetchResources();
         fetchStats();
-        // If we deleted pod, close sidebar
         if (type === 'delete' && selectedResource?.name === name) {
           setSelectedResource(null);
         }
@@ -334,13 +536,19 @@ export default function App() {
     }
   };
 
-  // Resource styling helper
+  // Status badges helper
   const getStatusColor = (status: string) => {
     const s = status.toLowerCase();
-    if (s.includes('run') || s === 'ready' || s === 'completed' || s.includes('active')) return 'bg-emerald-950 text-emerald-400 border border-emerald-800';
-    if (s.includes('backoff') || s.includes('fail') || s.includes('error') || s.includes('unhealthy')) return 'bg-red-950 text-red-400 border border-red-800';
-    if (s.includes('pend') || s.includes('progress') || s.includes('terminat') || s.includes('creat')) return 'bg-amber-950 text-amber-400 border border-amber-800';
-    return 'bg-slate-900 text-slate-400 border border-slate-700';
+    if (s.includes('run') || s === 'ready' || s === 'completed' || s.includes('active')) {
+      return 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-450 border border-emerald-250 dark:border-emerald-900/40';
+    }
+    if (s.includes('backoff') || s.includes('fail') || s.includes('error') || s.includes('unhealthy')) {
+      return 'bg-red-50/80 dark:bg-red-950/40 text-red-700 dark:text-red-450 border border-red-250 dark:border-red-900/40';
+    }
+    if (s.includes('pend') || s.includes('progress') || s.includes('terminat') || s.includes('creat')) {
+      return 'bg-amber-50/80 dark:bg-amber-950/40 text-amber-700 dark:text-amber-450 border border-amber-250 dark:border-amber-900/40';
+    }
+    return 'bg-slate-50 dark:bg-slate-900 text-slate-650 dark:text-slate-400 border border-slate-200 dark:border-slate-800';
   };
 
   // System namespaces that should be hidden from beginners by default
@@ -366,128 +574,191 @@ export default function App() {
     return matchesSearch && matchesSystem;
   });
 
+  // Client-side resource relations mapper (traced dynamically in explorer)
+  const getRelatedResources = () => {
+    if (!selectedResource || !resourceDetails) return [];
+    const related: { type: 'pod' | 'deployment' | 'service'; name: string; namespace: string; description: string }[] = [];
+    const ns = selectedResource.namespace;
+
+    if (selectedResource.type === 'pod') {
+      const podLabels = resourceDetails.metadata?.labels || {};
+      const podName = selectedResource.name;
+      
+      const parentDeploy = deployments.find(d => d.namespace === ns && podName.startsWith(d.name));
+      if (parentDeploy) {
+        related.push({
+          type: 'deployment',
+          name: parentDeploy.name,
+          namespace: parentDeploy.namespace,
+          description: 'Parent Controller'
+        });
+      }
+      
+      services.forEach(s => {
+        if (s.namespace === ns) {
+          const appLabel = podLabels['app'] || podLabels['run'] || podLabels['app.kubernetes.io/name'];
+          if (appLabel && s.name.includes(appLabel)) {
+            related.push({
+              type: 'service',
+              name: s.name,
+              namespace: s.namespace,
+              description: 'Routing Service'
+            });
+          }
+        }
+      });
+    } else if (selectedResource.type === 'deployment') {
+      pods.forEach(p => {
+        if (p.namespace === ns && p.name.startsWith(selectedResource.name)) {
+          related.push({
+            type: 'pod',
+            name: p.name,
+            namespace: p.namespace,
+            description: 'Managed Pod replica'
+          });
+        }
+      });
+    }
+    return related;
+  };
+
+  const relatedList = getRelatedResources();
+
+  // Metrics for Circular Health Donut
+  const runningPodsCount = filteredPods.filter(p => {
+    const s = p.status.toLowerCase();
+    return s.includes('run') || s === 'completed' || s === 'ready';
+  }).length;
+  const totalPodsCount = filteredPods.length;
+  const healthPercentage = totalPodsCount > 0 ? Math.round((runningPodsCount / totalPodsCount) * 100) : 100;
+  
+  // SVG properties for Donut Chart
+  const radius = 34;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (healthPercentage / 100) * circumference;
+
   return (
-    <div className="flex h-screen bg-[#07080b] text-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 dark:bg-[#07080b] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-200">
       
       {/* Sidebar NAVIGATION */}
-      <aside className="w-64 bg-[#0d0e12] border-r border-[#1e202a] flex flex-col justify-between select-none">
+      {!sidebarCollapsed && (
+      <aside className="w-64 bg-slate-100 dark:bg-[#0d0e12] border-r border-slate-200 dark:border-[#1e202a] flex flex-col justify-between select-none">
         <div>
           {/* Logo Brand */}
-          <div className="p-6 flex items-center space-x-3 border-b border-[#1e202a]">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-cyan-500/20">
+          <div className="p-6 flex items-center space-x-3 border-b border-slate-200 dark:border-[#1e202a]">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-cyan-500/10">
               P
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent m-0">
-                Podex
-              </h1>
-              <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">
-                K8s AI Mentor
-              </span>
+              <h1 className="text-sm font-extrabold text-slate-800 dark:text-white m-0 tracking-wide">PODEX</h1>
+              <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold tracking-wider block">K8S AI MENTOR</span>
             </div>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="p-4 space-y-1">
-            <button
-              onClick={() => { setActiveTab('dashboard'); setSelectedResource(null); }}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition duration-200 text-sm font-medium ${
-                activeTab === 'dashboard'
-                  ? 'bg-gradient-to-r from-cyan-950/40 to-indigo-950/20 border border-cyan-800/40 text-cyan-400'
-                  : 'text-slate-400 hover:bg-[#15171f] hover:text-slate-200'
-              }`}
-            >
-              <Cpu className="w-4 h-4" />
-              <span>Dashboard</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('explorer'); }}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition duration-200 text-sm font-medium ${
-                activeTab === 'explorer'
-                  ? 'bg-gradient-to-r from-cyan-950/40 to-indigo-950/20 border border-cyan-800/40 text-cyan-400'
-                  : 'text-slate-400 hover:bg-[#15171f] hover:text-slate-200'
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              <span>Explorer</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('learn'); setSelectedResource(null); }}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition duration-200 text-sm font-medium ${
-                activeTab === 'learn'
-                  ? 'bg-gradient-to-r from-cyan-950/40 to-indigo-950/20 border border-cyan-800/40 text-cyan-400'
-                  : 'text-slate-400 hover:bg-[#15171f] hover:text-slate-200'
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>AI Learning</span>
-            </button>
+          {/* Nav List */}
+          <nav className="p-4 space-y-1.5">
+            {[
+              { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
+              { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+              { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id as any);
+                    setSelectedResource(null);
+                  }}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${
+                    isActive
+                      ? 'bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-l-4 border-cyan-500'
+                      : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-500' : 'text-slate-405'}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </nav>
         </div>
 
-        {/* Cluster Status Footer Widget */}
-        <div className="p-4 border-t border-[#1e202a]">
-          <div className="bg-[#111319] rounded-2xl p-4 border border-[#1e202a]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold">Local Kind Cluster</span>
-              <span className={`w-2.5 h-2.5 rounded-full ${stats?.status === 'healthy' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            </div>
-            <div className="text-xs text-slate-400 flex items-center justify-between">
-              <span>Status:</span>
-              <span className="font-semibold text-slate-200 uppercase">{stats?.status || 'Offline'}</span>
-            </div>
-            <div className="text-xs text-slate-400 flex items-center justify-between mt-1">
-              <span>API nodes:</span>
-              <span className="font-semibold text-slate-200">{stats?.node_count ?? 0} active</span>
-            </div>
+        {/* Sidebar Footer */}
+        <div className="p-6 border-t border-slate-200 dark:border-[#1e202a] space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500 font-bold">Theme Mode</span>
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-1.5 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+              title="Toggle Light/Dark Theme"
+            >
+              {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          <div className="bg-slate-200/50 dark:bg-[#111319] p-3.5 rounded-xl border border-slate-350/40 dark:border-slate-800/60">
+            <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-widest block font-bold mb-1">
+              Active Connection
+            </span>
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
+              {stats?.status === 'healthy' ? 'kind-podex' : 'Connecting...'}
+            </span>
           </div>
         </div>
       </aside>
+      )}
 
       {/* Main Workspace Frame */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#07080b]">
+      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#07080b]">
         
         {/* Top Header Workspace */}
-        <header className="h-16 border-b border-[#1e202a] flex items-center justify-between px-8 bg-[#090b0e]">
+        <header className="h-16 border-b border-slate-200 dark:border-[#1e202a] flex items-center justify-between px-8 bg-white dark:bg-[#090b0e]">
           <div className="flex items-center space-x-4">
-            <h2 className="text-lg font-bold text-slate-200 capitalize m-0">
+            {/* Sidebar toggle button */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#12141a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+              title={sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+            >
+              {sidebarCollapsed ? <Menu className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+            </button>
+            <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 capitalize m-0 tracking-wide">
               {activeTab} Space
             </h2>
             
             {/* Namespace Filter for Explorer */}
             {activeTab === 'explorer' && (
-              <div className="flex items-center bg-[#111319] border border-[#1e202a] rounded-xl px-3 py-1">
-                <Sliders className="w-3.5 h-3.5 text-slate-400 mr-2" />
-                <span className="text-[11px] text-slate-500 mr-2 font-medium">Namespace:</span>
+              <div className="flex items-center bg-slate-100 dark:bg-[#111319] border border-slate-200 dark:border-[#1e202a] rounded-xl px-3 py-1">
+                <Sliders className="w-3.5 h-3.5 text-slate-405 mr-2" />
+                <span className="text-[11px] text-slate-500 dark:text-slate-500 mr-2 font-bold">Namespace:</span>
                 <input
                   type="text"
                   placeholder="all / default / etc."
                   value={namespaceFilter}
                   onChange={(e) => setNamespaceFilter(e.target.value)}
-                  className="bg-transparent text-xs text-slate-200 border-none outline-none focus:ring-0 p-0 w-24 font-semibold"
+                  className="bg-transparent text-xs text-slate-750 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-24 font-bold"
                 />
               </div>
             )}
 
             {/* Show System Resources Toggle */}
             {(activeTab === 'explorer' || activeTab === 'dashboard') && (
-              <label className="flex items-center space-x-2 bg-[#111319] border border-[#1e202a] rounded-xl px-3 py-1 cursor-pointer select-none">
+              <label className="flex items-center space-x-2 bg-slate-100 dark:bg-[#111319] border border-slate-200 dark:border-[#1e202a] rounded-xl px-3 py-1 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={showSystemResources}
                   onChange={(e) => setShowSystemResources(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-900 border-[#1e202a]"
+                  className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-350 dark:border-[#1e202a] focus:ring-0 cursor-pointer"
                 />
-                <span className="text-[11px] font-semibold text-slate-400">Show System Resources</span>
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Show System</span>
               </label>
             )}
           </div>
 
-          <div className="flex items-center space-x-3 text-xs text-slate-400">
-            <span>Kind Dev Mode</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+          <div className="flex items-center space-x-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
+            <span>Kind Cluster Dev</span>
+            <span className={`w-2 h-2 rounded-full ${stats?.status === 'healthy' ? 'bg-cyan-400 animate-pulse shadow-md' : 'bg-amber-450'}`} />
           </div>
         </header>
 
@@ -498,149 +769,190 @@ export default function App() {
           {activeTab === 'dashboard' && (
             <div className="max-w-5xl mx-auto space-y-8">
               
-              {/* Welcome Banner */}
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-950/80 via-cyan-950/20 to-slate-950 border border-indigo-900/40 p-8">
-                <div className="absolute right-0 top-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl" />
-                <div className="relative z-10 space-y-2">
-                  <span className="text-xs font-semibold text-cyan-400 tracking-widest uppercase">Beginner Workspace</span>
-                  <h3 className="text-3xl font-extrabold text-white">Understand Kubernetes. Step by Step.</h3>
-                  <p className="text-slate-400 max-w-xl text-sm leading-relaxed">
-                    Welcome to Podex. We read your local Kind cluster's pods, deployments, and logs to explain errors in plain English. No complicated commands required.
-                  </p>
-                  <div className="pt-4 flex items-center space-x-3">
-                    <button
-                      onClick={() => setActiveTab('explorer')}
-                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-medium text-xs hover:shadow-lg hover:shadow-cyan-500/20 hover:scale-[1.02] active:scale-[0.98] transition duration-200 flex items-center"
-                    >
-                      <span>Explore Active Cluster</span>
-                      <ChevronRight className="w-3.5 h-3.5 ml-1.5" />
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('learn')}
-                      className="px-5 py-2.5 rounded-xl bg-[#111319] hover:bg-[#151821] text-slate-300 border border-[#1e202a] font-medium text-xs transition duration-200 flex items-center"
-                    >
-                      <span>Ask AI Tutor</span>
-                    </button>
+              {/* CNCF Style Top Hero Split Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Left Welcome Content (2/3 width) */}
+                <div className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-slate-800 p-8 shadow-sm flex flex-col justify-between min-h-[220px]">
+                  <div className="absolute right-0 top-0 w-64 h-64 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-3xl" />
+                  <div className="relative z-10 space-y-3">
+                    <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 tracking-widest uppercase">Kubernetes AI Mentor</span>
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white leading-tight">Inspect container states & diagnose errors reactively.</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed font-semibold max-w-lg">
+                      Podex fetches live logs, details, and events from your Kind cluster, highlighting degraded pods. Click on the live status grid below to troubleshoot.
+                    </p>
                   </div>
+                  
+                  {/* Interactive Status Grid (CNCF K9s Cell Graphic) */}
+                  <div className="relative z-10 pt-6 border-t border-slate-100 dark:border-slate-800/80 mt-6">
+                    <div className="flex justify-between items-center mb-2.5">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        Cluster Pod Map ({filteredPods.length} total)
+                      </span>
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold italic">Click cell to inspect</span>
+                    </div>
+                    {filteredPods.length === 0 ? (
+                      <span className="text-xs text-slate-400 block italic font-medium">No user pods running in cluster.</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {filteredPods.map(p => {
+                          const s = p.status.toLowerCase();
+                          const isHealthy = s.includes('run') || s === 'completed' || s === 'ready';
+                          const isPending = s.includes('pend') || s.includes('progress');
+                          
+                          const color = isHealthy 
+                            ? 'bg-emerald-500 shadow-emerald-500/20' 
+                            : isPending 
+                              ? 'bg-amber-500 shadow-amber-500/20 animate-pulse' 
+                              : 'bg-red-500 shadow-red-500/20 animate-pulse';
+                              
+                          return (
+                            <div
+                              key={p.name}
+                              onClick={() => {
+                                setSelectedResource({ type: 'pod', name: p.name, namespace: p.namespace });
+                                setDetailTab('overview');
+                                setActiveTab('explorer');
+                              }}
+                              title={`${p.name} (${p.status})`}
+                              className={`w-4.5 h-4.5 rounded-lg cursor-pointer hover:scale-125 hover:rotate-6 transition duration-150 shadow-md ${color}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Circular Health Donut (1/3 width) */}
+                <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 flex flex-col items-center justify-center space-y-4 shadow-sm min-h-[220px]">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Cluster Health</span>
+                  
+                  {/* SVG Donut Track */}
+                  <div className="relative flex items-center justify-center">
+                    <svg className="w-28 h-28 transform -rotate-90">
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r={radius}
+                        className="stroke-slate-100 dark:stroke-slate-800/60"
+                        strokeWidth="8"
+                        fill="transparent"
+                      />
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r={radius}
+                        className="stroke-cyan-500 transition-all duration-500"
+                        strokeWidth="8"
+                        fill="transparent"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute flex flex-col items-center justify-center">
+                      <span className="text-2xl font-black text-slate-850 dark:text-white leading-none">
+                        {healthPercentage}%
+                      </span>
+                      <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
+                        Healthy
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold text-center">
+                    {runningPodsCount} / {totalPodsCount} Pods Ready
+                  </span>
                 </div>
               </div>
 
               {/* Stats Counters Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 
-                {/* Stat item */}
-                <div className="bg-[#0c0e13] border border-[#1e202a] rounded-2xl p-6 hover:border-cyan-800/40 transition duration-200">
+                {/* Nodes Stat */}
+                <div className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-6 hover:border-cyan-500/30 transition duration-200 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Nodes</span>
-                    <Cpu className="w-5 h-5 text-cyan-400" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nodes</span>
+                    <Cpu className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
                   </div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-4xl font-extrabold text-white">
-                      {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-500" /> : stats?.node_count ?? 0}
+                    <span className="text-3xl font-black text-slate-800 dark:text-white">
+                      {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : stats?.node_count ?? 0}
                     </span>
-                    <span className="text-xs text-slate-500">running</span>
+                    <span className="text-xs text-slate-500">active</span>
                   </div>
                 </div>
 
-                <div className="bg-[#0c0e13] border border-[#1e202a] rounded-2xl p-6 hover:border-violet-850/40 transition duration-200">
+                {/* Pods Stat */}
+                <div className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-6 hover:border-violet-500/30 transition duration-200 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Pods</span>
-                    <Layers className="w-5 h-5 text-violet-400" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pods</span>
+                    <Layers className="w-5 h-5 text-violet-500 dark:text-violet-400" />
                   </div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-4xl font-extrabold text-white">
-                      {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-500" /> : (showSystemResources ? (stats?.pod_count ?? 0) : filteredPods.length)}
+                    <span className="text-3xl font-black text-slate-800 dark:text-white">
+                      {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : (showSystemResources ? (stats?.pod_count ?? 0) : filteredPods.length)}
                     </span>
                     <span className="text-xs text-slate-500">instances</span>
                   </div>
                 </div>
 
-                <div className="bg-[#0c0e13] border border-[#1e202a] rounded-2xl p-6 hover:border-indigo-800/40 transition duration-200">
+                {/* Deployments Stat */}
+                <div className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-6 hover:border-indigo-500/30 transition duration-200 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Deployments</span>
-                    <Activity className="w-5 h-5 text-indigo-400" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deployments</span>
+                    <Activity className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
                   </div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-4xl font-extrabold text-white">
-                      {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-500" /> : (showSystemResources ? (stats?.deployment_count ?? 0) : filteredDeployments.length)}
+                    <span className="text-3xl font-black text-slate-800 dark:text-white">
+                      {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : (showSystemResources ? (stats?.deployment_count ?? 0) : filteredDeployments.length)}
                     </span>
-                    <span className="text-xs text-slate-500">specifications</span>
+                    <span className="text-xs text-slate-500">specs</span>
                   </div>
                 </div>
 
-                <div className="bg-[#0c0e13] border border-[#1e202a] rounded-2xl p-6 hover:border-emerald-800/40 transition duration-200">
+                {/* Services Stat */}
+                <div className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-6 hover:border-emerald-500/30 transition duration-200 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Services</span>
-                    <Terminal className="w-5 h-5 text-emerald-400" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Services</span>
+                    <Terminal className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
                   </div>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-4xl font-extrabold text-white">
-                      {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-500" /> : (showSystemResources ? (stats?.service_count ?? 0) : filteredServices.length)}
+                    <span className="text-3xl font-black text-slate-800 dark:text-white">
+                      {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : (showSystemResources ? (stats?.service_count ?? 0) : filteredServices.length)}
                     </span>
-                    <span className="text-xs text-slate-500">routing entries</span>
+                    <span className="text-xs text-slate-500">endpoints</span>
                   </div>
                 </div>
               </div>
 
-              {/* Educational Getting Started Card */}
-              <div className="bg-[#0a0c10] border border-[#1e202a] rounded-3xl p-8 space-y-6">
-                <h4 className="text-lg font-bold text-slate-200 flex items-center space-x-2">
-                  <HelpCircle className="w-5 h-5 text-cyan-400" />
-                  <span>Kubernetes Crash Course</span>
-                </h4>
+              {/* Freshers Quick Help Cards */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kubernetes Concept Shortcuts</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  
-                  <div className="bg-[#0e1017] border border-[#1e202a] p-5 rounded-2xl space-y-3">
-                    <span className="w-8 h-8 rounded-full bg-cyan-950/60 border border-cyan-800 text-cyan-400 flex items-center justify-center font-bold text-sm">
-                      1
-                    </span>
-                    <h5 className="font-bold text-sm text-slate-200">What is a Pod?</h5>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      A Pod is the smallest runnable container instance. It runs your application logic. If a Pod turns red, it usually means the application code inside crashed or could not boot.
-                    </p>
-                    <button
-                      onClick={() => { setActiveTab('learn'); handleLearnQuery('What is a Pod?'); }}
-                      className="text-xs text-cyan-400 hover:text-cyan-300 font-medium flex items-center"
+                  {[
+                    { title: 'Pod Lifecycle', desc: 'Pods are ephemeral running containers. Learn about Pending, Running, and CrashLoopBackOff.', query: 'What is a Pod?' },
+                    { title: 'Routing & Services', desc: 'Kubernetes Services proxy traffic to matching Pod labels. Learn ClusterIP vs NodePort.', query: 'What is a Service?' },
+                    { title: 'Health Checking Probes', desc: 'How Kubernetes monitors container health using Liveness and Readiness probes.', query: 'What is Liveness Probe?' }
+                  ].map((card, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setLearnQuery(card.query);
+                        setActiveTab('learn');
+                        handleLearnQuery(card.query);
+                      }}
+                      className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-5 hover:border-cyan-500 cursor-pointer transition group shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300"
                     >
-                      <span>Learn Analogy</span>
-                      <ArrowRight className="w-3 h-3 ml-1" />
-                    </button>
-                  </div>
-
-                  <div className="bg-[#0e1017] border border-[#1e202a] p-5 rounded-2xl space-y-3">
-                    <span className="w-8 h-8 rounded-full bg-indigo-950/60 border border-indigo-800 text-indigo-400 flex items-center justify-center font-bold text-sm">
-                      2
-                    </span>
-                    <h5 className="font-bold text-sm text-slate-200">What is a Deployment?</h5>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      A Deployment supervises Pods. It makes sure you have the exact number of Pods you wanted. If you ask for 3 replicas, it automatically replaces any Pod that crashes.
-                    </p>
-                    <button
-                      onClick={() => { setActiveTab('learn'); handleLearnQuery('What is a Deployment?'); }}
-                      className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center"
-                    >
-                      <span>Learn Analogy</span>
-                      <ArrowRight className="w-3 h-3 ml-1" />
-                    </button>
-                  </div>
-
-                  <div className="bg-[#0e1017] border border-[#1e202a] p-5 rounded-2xl space-y-3">
-                    <span className="w-8 h-8 rounded-full bg-emerald-950/60 border border-emerald-800 text-emerald-400 flex items-center justify-center font-bold text-sm">
-                      3
-                    </span>
-                    <h5 className="font-bold text-sm text-slate-200">What is a Service?</h5>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      A Service is like a phone operator. Since Pods get restarted and change IP addresses constantly, a Service provides a single, unchanging IP address to routing calls to them.
-                    </p>
-                    <button
-                      onClick={() => { setActiveTab('learn'); handleLearnQuery('What is a Service?'); }}
-                      className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center"
-                    >
-                      <span>Learn Analogy</span>
-                      <ArrowRight className="w-3 h-3 ml-1" />
-                    </button>
-                  </div>
-
+                      <h5 className="font-bold text-slate-800 dark:text-slate-200 m-0 group-hover:text-cyan-500 transition">{card.title}</h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed font-semibold">{card.desc}</p>
+                      <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold flex items-center mt-3">
+                        <span>Explain concept</span>
+                        <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition duration-150" />
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -649,64 +961,51 @@ export default function App() {
 
           {/* TAB 2: EXPLORER */}
           {activeTab === 'explorer' && (
-            <div className="max-w-6xl mx-auto space-y-6">
+            <div className="bg-white dark:bg-[#090b0f] border border-slate-200 dark:border-[#1e202a] rounded-3xl overflow-hidden shadow-sm">
               
-              {/* Explorer Tabs & Filters */}
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              {/* Explorer Table Header tabs */}
+              <div className="border-b border-slate-200 dark:border-[#1e202a] bg-slate-50/50 dark:bg-[#0c0e13] p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
                 
-                {/* Resource SubTabs */}
-                <div className="flex space-x-1 bg-[#10121a] p-1 border border-[#1e202a] rounded-xl select-none">
-                  <button
-                    onClick={() => { setExplorerSubTab('pods'); setSelectedResource(null); }}
-                    className={`px-4 py-2 rounded-lg font-semibold text-xs transition duration-200 ${
-                      explorerSubTab === 'pods'
-                        ? 'bg-[#1e2030] text-slate-100'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Pods
-                  </button>
-                  <button
-                    onClick={() => { setExplorerSubTab('deployments'); setSelectedResource(null); }}
-                    className={`px-4 py-2 rounded-lg font-semibold text-xs transition duration-200 ${
-                      explorerSubTab === 'deployments'
-                        ? 'bg-[#1e2030] text-slate-100'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Deployments
-                  </button>
-                  <button
-                    onClick={() => { setExplorerSubTab('services'); setSelectedResource(null); }}
-                    className={`px-4 py-2 rounded-lg font-semibold text-xs transition duration-200 ${
-                      explorerSubTab === 'services'
-                        ? 'bg-[#1e2030] text-slate-100'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Services
-                  </button>
+                {/* Selector Buttons */}
+                <div className="flex bg-slate-200/60 dark:bg-[#12141a] rounded-xl p-0.5 border border-slate-250 dark:border-[#1e202a] select-none shrink-0">
+                  {([
+                    { id: 'pods', label: 'Pods', count: filteredPods.length },
+                    { id: 'deployments', label: 'Deployments', count: filteredDeployments.length },
+                    { id: 'services', label: 'Services', count: filteredServices.length }
+                  ] as const).map(sub => (
+                    <button
+                      key={sub.id}
+                      onClick={() => setExplorerSubTab(sub.id)}
+                      className={`px-4 py-2 rounded-lg font-bold text-xs transition cursor-pointer ${
+                        explorerSubTab === sub.id
+                          ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      {sub.label} <span className="ml-1 text-[10px] opacity-70 font-bold">({sub.count})</span>
+                    </button>
+                  ))}
                 </div>
 
-                {/* Search Resource Bar */}
-                <div className="flex items-center bg-[#10121a] border border-[#1e202a] rounded-xl px-3 py-2 w-full md:w-64">
-                  <Search className="w-4 h-4 text-slate-400 mr-2" />
+                {/* Live Filter input search */}
+                <div className="flex items-center bg-slate-100 dark:bg-[#111319] border border-slate-200 dark:border-[#1e202a] rounded-xl px-3 py-2 w-full max-w-xs">
+                  <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search by name..."
+                    placeholder={`Search ${explorerSubTab}...`}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-transparent text-xs text-slate-200 border-none outline-none focus:ring-0 p-0 w-full"
+                    className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-full font-bold"
                   />
                 </div>
               </div>
 
-              {/* Resource Table Render */}
-              <div className="bg-[#0b0c10] border border-[#1e202a] rounded-2xl overflow-hidden">
+              {/* Data Lists Table */}
+              <div className="overflow-x-auto">
                 {resourcesLoading ? (
-                  <div className="p-12 flex flex-col items-center justify-center space-y-4">
-                    <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-                    <span className="text-xs text-slate-400">Loading resources from cluster...</span>
+                  <div className="flex flex-col items-center justify-center py-24 space-y-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+                    <span className="text-xs text-slate-500 font-bold">Fetching Kubernetes resources...</span>
                   </div>
                 ) : (
                   <div>
@@ -714,21 +1013,19 @@ export default function App() {
                     {explorerSubTab === 'pods' && (
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="border-b border-[#1e202a] text-slate-500 text-[10px] uppercase font-bold tracking-wider bg-[#0d0f14]">
+                          <tr className="border-b border-slate-200 dark:border-[#1e202a] text-slate-500 text-[10px] uppercase font-bold tracking-wider bg-slate-50 dark:bg-[#0d0f14]">
                             <th className="px-6 py-4">Name</th>
                             <th className="px-6 py-4">Namespace</th>
                             <th className="px-6 py-4">Status</th>
                             <th className="px-6 py-4 text-center">Restarts</th>
-                            <th className="px-6 py-4">Pod IP</th>
-                            <th className="px-6 py-4">Node</th>
                             <th className="px-6 py-4">Age</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#13151c] text-xs">
+                        <tbody className="divide-y divide-slate-100 dark:divide-[#13151c] text-xs">
                           {filteredPods.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-12 text-center text-slate-500 font-medium">
-                                No Pods found in namespace.
+                              <td colSpan={5} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-bold bg-slate-50/20 dark:bg-transparent">
+                                No Pods found. Deploy some workloads to test Podex!
                               </td>
                             </tr>
                           ) : (
@@ -739,20 +1036,18 @@ export default function App() {
                                   setSelectedResource({ type: 'pod', name: pod.name, namespace: pod.namespace });
                                   setDetailTab('overview');
                                 }}
-                                className={`hover:bg-[#10121c]/60 cursor-pointer transition ${
-                                  selectedResource?.name === pod.name ? 'bg-[#10121c]' : ''
+                                className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${
+                                  selectedResource?.name === pod.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''
                                 }`}
                               >
-                                <td className="px-6 py-4 font-semibold text-slate-200">{pod.name}</td>
-                                <td className="px-6 py-4 text-slate-400">{pod.namespace}</td>
+                                <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{pod.name}</td>
+                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{pod.namespace}</td>
                                 <td className="px-6 py-4">
                                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(pod.status)}`}>
                                     {pod.status}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 text-center text-slate-400 font-semibold">{pod.restarts}</td>
-                                <td className="px-6 py-4 text-slate-400">{pod.pod_ip}</td>
-                                <td className="px-6 py-4 text-slate-400">{pod.node}</td>
+                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-mono font-bold">{pod.restarts}</td>
                                 <td className="px-6 py-4 text-slate-500">{pod.age}</td>
                               </tr>
                             ))
@@ -765,7 +1060,7 @@ export default function App() {
                     {explorerSubTab === 'deployments' && (
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="border-b border-[#1e202a] text-slate-500 text-[10px] uppercase font-bold tracking-wider bg-[#0d0f14]">
+                          <tr className="border-b border-slate-200 dark:border-[#1e202a] text-slate-500 text-[10px] uppercase font-bold tracking-wider bg-slate-50 dark:bg-[#0d0f14]">
                             <th className="px-6 py-4">Name</th>
                             <th className="px-6 py-4">Namespace</th>
                             <th className="px-6 py-4">Status</th>
@@ -775,10 +1070,10 @@ export default function App() {
                             <th className="px-6 py-4">Age</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#13151c] text-xs">
+                        <tbody className="divide-y divide-slate-100 dark:divide-[#13151c] text-xs">
                           {filteredDeployments.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-12 text-center text-slate-500 font-medium">
+                              <td colSpan={7} className="px-6 py-12 text-center text-slate-450 dark:text-slate-500 font-bold bg-slate-50/20 dark:bg-transparent">
                                 No Deployments found.
                               </td>
                             </tr>
@@ -790,20 +1085,20 @@ export default function App() {
                                   setSelectedResource({ type: 'deployment', name: deploy.name, namespace: deploy.namespace });
                                   setDetailTab('overview');
                                 }}
-                                className={`hover:bg-[#10121c]/60 cursor-pointer transition ${
-                                  selectedResource?.name === deploy.name ? 'bg-[#10121c]' : ''
+                                className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${
+                                  selectedResource?.name === deploy.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''
                                 }`}
                               >
-                                <td className="px-6 py-4 font-semibold text-slate-200">{deploy.name}</td>
-                                <td className="px-6 py-4 text-slate-400">{deploy.namespace}</td>
+                                <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{deploy.name}</td>
+                                <td className="px-6 py-4 text-slate-500 dark:text-slate-405 font-bold">{deploy.namespace}</td>
                                 <td className="px-6 py-4">
                                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(deploy.status)}`}>
                                     {deploy.status}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 text-center text-slate-400 font-semibold">{deploy.replicas_desired}</td>
-                                <td className="px-6 py-4 text-center text-slate-400 font-semibold">{deploy.replicas_ready}</td>
-                                <td className="px-6 py-4 text-center text-slate-400 font-semibold">{deploy.replicas_available}</td>
+                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-404 font-bold">{deploy.replicas_desired}</td>
+                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-404 font-bold">{deploy.replicas_ready}</td>
+                                <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-450 font-bold">{deploy.replicas_available}</td>
                                 <td className="px-6 py-4 text-slate-500">{deploy.age}</td>
                               </tr>
                             ))
@@ -816,7 +1111,7 @@ export default function App() {
                     {explorerSubTab === 'services' && (
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="border-b border-[#1e202a] text-slate-500 text-[10px] uppercase font-bold tracking-wider bg-[#0d0f14]">
+                          <tr className="border-b border-slate-200 dark:border-[#1e202a] text-slate-500 text-[10px] uppercase font-bold tracking-wider bg-slate-50 dark:bg-[#0d0f14]">
                             <th className="px-6 py-4">Name</th>
                             <th className="px-6 py-4">Namespace</th>
                             <th className="px-6 py-4">Type</th>
@@ -826,10 +1121,10 @@ export default function App() {
                             <th className="px-6 py-4">Age</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#13151c] text-xs">
+                        <tbody className="divide-y divide-slate-100 dark:divide-[#13151c] text-xs">
                           {filteredServices.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-12 text-center text-slate-500 font-medium">
+                              <td colSpan={7} className="px-6 py-12 text-center text-slate-450 dark:text-slate-500 font-bold bg-slate-50/20 dark:bg-transparent">
                                 No Services found.
                               </td>
                             </tr>
@@ -841,17 +1136,17 @@ export default function App() {
                                   setSelectedResource({ type: 'service', name: svc.name, namespace: svc.namespace });
                                   setDetailTab('overview');
                                 }}
-                                className={`hover:bg-[#10121c]/60 cursor-pointer transition ${
-                                  selectedResource?.name === svc.name ? 'bg-[#10121c]' : ''
+                                className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${
+                                  selectedResource?.name === svc.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''
                                 }`}
                               >
-                                <td className="px-6 py-4 font-semibold text-slate-200">{svc.name}</td>
-                                <td className="px-6 py-4 text-slate-400">{svc.namespace}</td>
-                                <td className="px-6 py-4 text-slate-400 font-medium">{svc.type}</td>
-                                <td className="px-6 py-4 text-slate-400 font-mono">{svc.cluster_ip}</td>
-                                <td className="px-6 py-4 text-slate-400">{svc.external_ip}</td>
-                                <td className="px-6 py-4 text-slate-400 font-mono">{svc.ports}</td>
-                                <td className="px-6 py-4 text-slate-500">{svc.age}</td>
+                                <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{svc.name}</td>
+                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{svc.namespace}</td>
+                                <td className="px-6 py-4 text-slate-600 dark:text-slate-450 font-bold">{svc.type}</td>
+                                <td className="px-6 py-4 text-slate-650 dark:text-slate-450 font-mono">{svc.cluster_ip}</td>
+                                <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{svc.external_ip}</td>
+                                <td className="px-6 py-4 text-slate-650 dark:text-slate-450 font-mono">{svc.ports}</td>
+                                <td className="px-6 py-4 text-slate-505">{svc.age}</td>
                               </tr>
                             ))
                           )}
@@ -866,29 +1161,29 @@ export default function App() {
 
           {/* TAB 3: LEARN TEACHER */}
           {activeTab === 'learn' && (
-            <div className="max-w-4xl mx-auto space-y-8">
+            <div className="max-w-3xl mx-auto space-y-8">
               
               <div className="text-center space-y-3">
-                <h3 className="text-2xl font-bold text-slate-200 m-0">Ask Podex AI Anything</h3>
-                <p className="text-xs text-slate-400 max-w-lg mx-auto">
+                <h3 className="text-2xl font-black text-slate-800 dark:text-slate-200 m-0">Ask Podex AI Anything</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-450 max-w-lg mx-auto font-bold">
                   Type a Kubernetes concept, resource name, or error code. Your AI mentor will explain it using real-world analogies.
                 </p>
               </div>
 
               {/* Chat Input query */}
-              <div className="flex bg-[#10121a] border border-[#1e202a] rounded-2xl p-2 max-w-2xl mx-auto">
+              <div className="flex bg-white dark:bg-[#10121a] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-2 max-w-2xl mx-auto shadow-sm">
                 <input
                   type="text"
                   placeholder="Explain: Port Forwarding / CrashLoopBackOff / ConfigMap..."
                   value={learnQuery}
                   onChange={(e) => setLearnQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleLearnQuery(''); }}
-                  className="bg-transparent text-sm text-slate-200 border-none outline-none focus:ring-0 p-3 flex-grow"
+                  className="bg-transparent text-sm text-slate-800 dark:text-slate-200 border-none outline-none focus:ring-0 p-3 flex-grow font-bold"
                 />
                 <button
                   onClick={() => handleLearnQuery('')}
                   disabled={aiLearningLoading}
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:shadow-lg hover:shadow-cyan-500/10 font-bold text-xs text-white transition disabled:opacity-50 flex items-center space-x-2"
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:shadow-md hover:shadow-cyan-500/10 font-bold text-xs text-white transition disabled:opacity-50 flex items-center space-x-2 cursor-pointer"
                 >
                   {aiLearningLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Explain</span>}
                 </button>
@@ -900,7 +1195,7 @@ export default function App() {
                   <button
                     key={tag}
                     onClick={() => { setLearnQuery(tag); handleLearnQuery(tag); }}
-                    className="px-3.5 py-1.5 rounded-full bg-[#111319] hover:bg-[#161a24] border border-[#1e202a] text-xs text-slate-400 hover:text-slate-200 transition"
+                    className="px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 dark:bg-[#111319] dark:hover:bg-[#161a24] border border-slate-200 dark:border-[#1e202a] text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition font-bold shadow-sm cursor-pointer"
                   >
                     {tag}
                   </button>
@@ -909,102 +1204,116 @@ export default function App() {
 
               {/* AI Explanation Card Render */}
               {aiLearningLoading && (
-                <div className="bg-[#0b0c10] border border-[#1e202a] rounded-3xl p-12 flex flex-col items-center justify-center space-y-4 max-w-2xl mx-auto">
-                  <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-                  <span className="text-xs text-slate-400 font-medium">Tutor is compiling explanation...</span>
+                <div className="bg-white dark:bg-[#0b0c10] border border-slate-200 dark:border-[#1e202a] rounded-3xl p-12 flex flex-col items-center justify-center space-y-4 max-w-2xl mx-auto shadow-sm animate-pulse">
+                  <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">Tutor is compiling explanation...</span>
                 </div>
               )}
 
               {aiLearning && (
-                <div className="bg-[#0c0e15] border border-[#1e202d] rounded-3xl p-8 space-y-6 max-w-2xl mx-auto">
+                <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-8 space-y-6 max-w-2xl mx-auto shadow-sm">
                   
                   {/* Topic Title */}
-                  <div className="flex items-center space-x-3 border-b border-[#1e202a] pb-4">
-                    <div className="w-10 h-10 rounded-xl bg-cyan-950/50 border border-cyan-800 text-cyan-400 flex items-center justify-center font-bold">
+                  <div className="flex items-center space-x-3 border-b border-slate-200 dark:border-[#1e202a] pb-4">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/50 border border-cyan-200 dark:border-cyan-800 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-black">
                       ?
                     </div>
                     <div>
-                      <h4 className="text-lg font-bold text-slate-100 m-0">{aiLearning.concept}</h4>
-                      <span className="text-[10px] text-slate-500 uppercase tracking-wider block">AI-Powered Explanation</span>
+                      <h4 className="text-base font-black text-slate-850 dark:text-slate-100 m-0">{aiLearning.concept}</h4>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-wider block font-bold mt-0.5">AI-Powered Explanation</span>
                     </div>
                   </div>
 
                   {/* Body Sections */}
-                  <div className="space-y-6 text-sm leading-relaxed">
+                  <div className="space-y-6 text-xs leading-relaxed">
                     
                     {/* Explanation */}
                     <div className="space-y-1.5">
-                      <h5 className="font-bold text-xs text-slate-400 uppercase tracking-wider">What it is</h5>
-                      <p className="text-slate-300">{aiLearning.explanation}</p>
+                      <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">What it is</h5>
+                      <p className="text-slate-700 dark:text-slate-300 font-bold">{aiLearning.explanation}</p>
                     </div>
 
                     {/* Analogy */}
-                    <div className="bg-[#0f121d] border border-indigo-900/30 rounded-2xl p-5 space-y-2">
-                      <h5 className="font-bold text-xs text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
+                    <div className="bg-indigo-50/50 dark:bg-[#0f121d] border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-5 space-y-2">
+                      <h5 className="font-bold text-[10px] text-indigo-650 dark:text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
                         <Info className="w-3.5 h-3.5" />
                         <span>Analogy for Beginners</span>
                       </h5>
-                      <p className="text-slate-300 italic">
+                      <p className="text-slate-700 dark:text-slate-300 italic font-bold">
                         "{aiLearning.real_world_analogy}"
                       </p>
                     </div>
 
                     {/* Why it exists */}
                     <div className="space-y-1.5">
-                      <h5 className="font-bold text-xs text-slate-400 uppercase tracking-wider">Why it exists in K8s</h5>
-                      <p className="text-slate-300">{aiLearning.why_it_exists}</p>
+                      <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">Why it exists in K8s</h5>
+                      <p className="text-slate-700 dark:text-slate-300 font-bold">{aiLearning.why_it_exists}</p>
                     </div>
 
                     {/* Gotchas */}
                     {aiLearning.common_gotchas && aiLearning.common_gotchas.length > 0 && (
                       <div className="space-y-2">
-                        <h5 className="font-bold text-xs text-amber-500 uppercase tracking-wider">Common Gotchas</h5>
-                        <ul className="space-y-1.5 list-disc pl-5 text-slate-300">
+                        <h5 className="font-bold text-[10px] text-amber-600 dark:text-amber-550 uppercase tracking-wider">Common Gotchas</h5>
+                        <ul className="space-y-1.5 list-disc pl-5 text-slate-700 dark:text-slate-300 font-bold">
                           {aiLearning.common_gotchas.map((gotcha, idx) => (
                             <li key={idx}>{gotcha}</li>
                           ))}
                         </ul>
                       </div>
                     )}
-
                   </div>
-
                 </div>
               )}
-
             </div>
           )}
-
         </div>
       </main>
 
       {/* RESOURCE DETAILS Slide-Over Panel */}
       {selectedResource && (
-        <aside className="w-[500px] border-l border-[#1e202a] bg-[#090a0e] flex flex-col z-20 shadow-2xl">
-          
+        <aside 
+          style={{ width: isDrawerMaximized ? '90vw' : `${detailsWidth}px` }}
+          className="relative border-l border-slate-200 dark:border-[#1e202a] bg-white dark:bg-[#090a0e] flex flex-col z-20 shadow-2xl transition-all duration-75"
+        >
+          {/* Resize Handle Drag Border */}
+          <div
+            onMouseDown={handleResizeMouseDown}
+            className="absolute top-0 left-0 w-1.5 h-full cursor-ew-resize hover:bg-cyan-500/50 active:bg-cyan-500 z-50 transition-colors"
+          />
+
           {/* Header */}
-          <div className="p-6 border-b border-[#1e202a] flex items-center justify-between">
+          <div className="p-6 border-b border-slate-200 dark:border-[#1e202a] flex items-center justify-between">
             <div className="min-w-0">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest block mb-1">
                 {selectedResource.type} Details
               </span>
-              <h3 className="text-base font-bold text-slate-200 truncate m-0">
+              <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-200 truncate m-0">
                 {selectedResource.name}
               </h3>
-              <span className="text-xs text-slate-400 truncate block mt-0.5">
+              <span className="text-xs text-slate-550 dark:text-slate-400 truncate block mt-0.5 font-bold">
                 Namespace: {selectedResource.namespace}
               </span>
             </div>
-            <button
-              onClick={() => setSelectedResource(null)}
-              className="p-1.5 rounded-lg hover:bg-[#1a1c25] text-slate-500 hover:text-slate-300 transition"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            
+            <div className="flex items-center space-x-1 shrink-0">
+              <button
+                onClick={() => setIsDrawerMaximized(!isDrawerMaximized)}
+                className="p-1.5 rounded-lg hover:bg-slate-105 dark:hover:bg-[#1a1c25] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                title={isDrawerMaximized ? "Restore Width" : "Maximize Panel"}
+              >
+                {isDrawerMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => setSelectedResource(null)}
+                className="p-1.5 rounded-lg hover:bg-slate-105 dark:hover:bg-[#1a1c25] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Quick Operations Confirmation triggers */}
-          <div className="px-6 py-4 bg-[#0d0f15] border-b border-[#1e202a] flex items-center justify-start space-x-2">
+          <div className="px-6 py-4 bg-slate-50 dark:bg-[#0d0f15] border-b border-slate-200 dark:border-[#1e202a] flex items-center justify-start space-x-2">
             
             {/* Delete Pod */}
             {selectedResource.type === 'pod' && (
@@ -1014,7 +1323,7 @@ export default function App() {
                   name: selectedResource.name,
                   namespace: selectedResource.namespace
                 })}
-                className="px-3.5 py-2 rounded-xl bg-red-950/30 hover:bg-red-950/60 border border-red-900/50 hover:border-red-800 text-red-400 font-bold text-[11px] transition flex items-center space-x-1.5"
+                className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-950/60 border border-red-200 dark:border-red-900/50 hover:border-red-300 dark:hover:border-red-800 text-red-650 dark:text-red-400 font-bold text-[11px] transition flex items-center space-x-1.5 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete Pod</span>
@@ -1030,7 +1339,7 @@ export default function App() {
                     name: selectedResource.name,
                     namespace: selectedResource.namespace
                   })}
-                  className="px-3.5 py-2 rounded-xl bg-cyan-950/30 hover:bg-cyan-950/60 border border-cyan-900/50 hover:border-cyan-800 text-cyan-400 font-bold text-[11px] transition flex items-center space-x-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-950/30 dark:hover:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-900/50 hover:border-cyan-300 dark:hover:border-cyan-800 text-cyan-655 dark:text-cyan-400 font-bold text-[11px] transition flex items-center space-x-1.5 cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Restart Deployment</span>
@@ -1044,7 +1353,7 @@ export default function App() {
                     namespace: selectedResource.namespace,
                     scaleValue: 1
                   })}
-                  className="px-3.5 py-2 rounded-xl bg-amber-950/30 hover:bg-amber-950/60 border border-amber-900/50 hover:border-amber-800 text-amber-400 font-bold text-[11px] transition flex items-center space-x-1.5"
+                  className="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-950/60 border border-amber-200 dark:border-amber-900/50 hover:border-amber-300 dark:hover:border-amber-800 text-amber-655 dark:text-amber-400 font-bold text-[11px] transition flex items-center space-x-1.5 cursor-pointer"
                 >
                   <Sliders className="w-3.5 h-3.5" />
                   <span>Scale Replicas</span>
@@ -1054,15 +1363,15 @@ export default function App() {
           </div>
 
           {/* Sub-tab Select for Resource details */}
-          <div className="flex border-b border-[#1e202a] text-xs select-none">
+          <div className="flex border-b border-slate-200 dark:border-[#1e202a] text-xs select-none">
             {(['overview', 'logs', 'events', 'yaml', 'investigate'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setDetailTab(tab)}
-                className={`flex-1 py-3 font-semibold text-center border-b-2 capitalize transition duration-150 ${
+                className={`flex-1 py-3 font-bold text-center border-b-2 capitalize transition duration-150 cursor-pointer ${
                   detailTab === tab
-                    ? 'border-cyan-500 text-cyan-400 bg-cyan-950/5'
-                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                    ? 'border-cyan-500 text-cyan-650 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/5'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                 }`}
               >
                 {tab}
@@ -1071,44 +1380,44 @@ export default function App() {
           </div>
 
           {/* Details Content Render */}
-          <div className="flex-1 overflow-y-auto p-6 min-h-0 bg-[#090b0f]">
+          <div className="flex-1 overflow-y-auto p-6 min-h-0 bg-slate-50/50 dark:bg-[#090b0f]">
             {resourceDetailsLoading ? (
               <div className="flex flex-col items-center justify-center h-48 space-y-4">
-                <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-                <span className="text-xs text-slate-400">Loading details...</span>
+                <Loader2 className="w-6 h-6 animate-spin text-cyan-500" />
+                <span className="text-xs text-slate-405 font-bold">Loading details...</span>
               </div>
             ) : (
               <div>
                 
                 {/* TAB: OVERVIEW */}
                 {detailTab === 'overview' && resourceDetails && (
-                  <div className="space-y-4 text-xs">
+                  <div className="space-y-5 text-xs">
                     
                     {/* Status overview list info */}
-                    <div className="bg-[#10121a] p-4 rounded-xl border border-[#1e202a] space-y-3">
-                      <h4 className="font-bold text-slate-300">Specifications</h4>
+                    <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
+                      <h4 className="font-bold text-slate-800 dark:text-slate-300">Specifications</h4>
                       <div className="grid grid-cols-3 gap-2">
-                        <span className="text-slate-500">Resource:</span>
-                        <span className="col-span-2 text-slate-300 font-semibold">{selectedResource.type}</span>
+                        <span className="text-slate-500 font-bold">Resource:</span>
+                        <span className="col-span-2 text-slate-700 dark:text-slate-350 font-bold">{selectedResource.type}</span>
                         
-                        <span className="text-slate-500">Kind:</span>
-                        <span className="col-span-2 text-slate-300 font-mono">{resourceDetails.kind}</span>
+                        <span className="text-slate-500 font-bold">Kind:</span>
+                        <span className="col-span-2 text-slate-700 dark:text-slate-350 font-mono font-bold">{resourceDetails.kind}</span>
 
-                        <span className="text-slate-500">API Version:</span>
-                        <span className="col-span-2 text-slate-300 font-mono">{resourceDetails.api_version}</span>
+                        <span className="text-slate-500 font-bold">API Version:</span>
+                        <span className="col-span-2 text-slate-700 dark:text-slate-350 font-mono font-bold">{resourceDetails.api_version}</span>
                         
-                        <span className="text-slate-500">Created:</span>
-                        <span className="col-span-2 text-slate-300">{resourceDetails.metadata?.creation_timestamp}</span>
+                        <span className="text-slate-500 font-bold">Created:</span>
+                        <span className="col-span-2 text-slate-700 dark:text-slate-350 font-bold">{resourceDetails.metadata?.creation_timestamp}</span>
                       </div>
                     </div>
 
                     {/* Metadata labels */}
                     {resourceDetails.metadata?.labels && (
-                      <div className="bg-[#10121a] p-4 rounded-xl border border-[#1e202a] space-y-2">
-                        <h4 className="font-bold text-slate-300">Labels</h4>
+                      <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-2 shadow-sm">
+                        <h4 className="font-bold text-slate-800 dark:text-slate-300">Labels</h4>
                         <div className="flex flex-wrap gap-1.5">
                           {Object.entries(resourceDetails.metadata.labels).map(([k, v]) => (
-                            <span key={k} className="px-2.5 py-0.5 rounded-md bg-[#161a25] border border-cyan-950 text-cyan-400 font-mono text-[10px]">
+                            <span key={k} className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#161a25] border border-slate-200 dark:border-cyan-955 text-cyan-605 dark:text-cyan-400 font-mono text-[10px]">
                               {k}={String(v)}
                             </span>
                           ))}
@@ -1116,21 +1425,79 @@ export default function App() {
                       </div>
                     )}
 
+                    {/* Visual K8s Conditions Timeline (CNCF Observability) */}
+                    {resourceDetails.status?.conditions && (
+                      <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
+                        <h4 className="font-bold text-slate-850 dark:text-slate-300">Conditions</h4>
+                        <div className="grid grid-cols-1 gap-2">
+                          {resourceDetails.status.conditions.map((cond: any) => {
+                            const isTrue = cond.status === 'True';
+                            const isFalse = cond.status === 'False';
+                            const condBg = isTrue 
+                              ? 'bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50' 
+                              : isFalse 
+                                ? 'bg-red-50/70 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 animate-pulse' 
+                                : 'bg-slate-100/70 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-250 dark:border-slate-800';
+                            
+                            return (
+                              <div key={cond.type} className={`flex justify-between items-center p-3 rounded-xl ${condBg}`}>
+                                <div className="min-w-0">
+                                  <span className="font-bold text-[11px] block truncate">{cond.type}</span>
+                                  <span className="text-[10px] opacity-75 block truncate mt-0.5 font-bold">{cond.message || cond.reason || 'No description available.'}</span>
+                                </div>
+                                <span className="text-[10px] font-bold uppercase tracking-wider shrink-0 ml-3">{cond.status}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Clickable Related Resources Map (CNCF Connections) */}
+                    {relatedList.length > 0 && (
+                      <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
+                        <h4 className="font-bold text-slate-850 dark:text-slate-300 flex items-center space-x-1.5">
+                          <Link2 className="w-4 h-4 text-cyan-500" />
+                          <span>Connected Components</span>
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          {relatedList.map((rel, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                setSelectedResource({ type: rel.type, name: rel.name, namespace: rel.namespace });
+                                setDetailTab('overview');
+                              }}
+                              className="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-50 dark:bg-[#161822] border border-slate-200 dark:border-slate-800 hover:border-cyan-500 dark:hover:border-cyan-500 cursor-pointer transition select-none group"
+                            >
+                              <div className="w-8 h-8 rounded bg-cyan-100 dark:bg-cyan-955/40 text-cyan-600 dark:text-cyan-550 flex items-center justify-center font-bold text-[10px] uppercase">
+                                {rel.type[0]}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-bold text-[11px] text-slate-750 dark:text-slate-200 block truncate group-hover:text-cyan-500 transition">{rel.name}</span>
+                                <span className="text-[9px] text-slate-500 block uppercase tracking-wider mt-0.5 font-bold">{rel.description}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Container details if Pod */}
                     {selectedResource.type === 'pod' && resourceDetails.spec?.containers && (
-                      <div className="bg-[#10121a] p-4 rounded-xl border border-[#1e202a] space-y-3">
-                        <h4 className="font-bold text-slate-300">Containers</h4>
+                      <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
+                        <h4 className="font-bold text-slate-805 dark:text-slate-300">Containers</h4>
                         {resourceDetails.spec.containers.map((container: any) => (
-                          <div key={container.name} className="border-t border-[#1e202a] pt-2 mt-2 first:border-none first:pt-0 first:mt-0 space-y-1">
-                            <div className="flex justify-between font-semibold text-slate-200">
+                          <div key={container.name} className="border-t border-slate-200 dark:border-[#1e202a] pt-3 mt-3 first:border-none first:pt-0 first:mt-0 space-y-1.5">
+                            <div className="flex justify-between font-bold text-slate-700 dark:text-slate-200">
                               <span>{container.name}</span>
                             </div>
-                            <div className="grid grid-cols-3 gap-1.5 text-slate-400">
+                            <div className="grid grid-cols-3 gap-1.5 text-slate-550">
                               <span>Image:</span>
-                              <span className="col-span-2 text-slate-300 font-mono break-all">{container.image}</span>
+                              <span className="col-span-2 text-slate-700 dark:text-slate-300 font-mono break-all">{container.image}</span>
 
                               <span>Pull Policy:</span>
-                              <span className="col-span-2 text-slate-300">{container.image_pull_policy}</span>
+                              <span className="col-span-2 text-slate-700 dark:text-slate-300 font-bold">{container.image_pull_policy}</span>
                             </div>
                           </div>
                         ))}
@@ -1143,20 +1510,72 @@ export default function App() {
                 {/* TAB: LOGS */}
                 {detailTab === 'logs' && (
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400 font-medium">Last 100 log entries</span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(logsText);
-                          alert("Logs copied to clipboard!");
-                        }}
-                        className="text-[10px] text-cyan-400 font-bold hover:text-cyan-300"
-                      >
-                        Copy Logs
-                      </button>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                      {/* Search log filter */}
+                      <div className="flex items-center bg-white dark:bg-[#10121a] border border-slate-200 dark:border-[#1e202a] rounded-xl px-2.5 py-1.5 flex-grow max-w-xs shadow-sm">
+                        <Search className="w-3.5 h-3.5 text-slate-400 mr-2 shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Filter logs..."
+                          value={logsFilter}
+                          onChange={(e) => setLogsFilter(e.target.value)}
+                          className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-full font-bold"
+                        />
+                      </div>
+                      
+                      {/* Font size + Copy + AutoScroll */}
+                      <div className="flex items-center space-x-3 text-slate-500 dark:text-slate-400 shrink-0 font-bold select-none font-semibold">
+                        <label className="flex items-center space-x-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoScrollLogs}
+                            onChange={(e) => setAutoScrollLogs(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-105 dark:bg-slate-900 border-slate-300 dark:border-[#1e202a] focus:ring-0 cursor-pointer"
+                          />
+                          <span className="text-[10px]">Auto-Scroll</span>
+                        </label>
+                        
+                        <div className="flex items-center space-x-1 border border-slate-200 dark:border-[#1e202a] rounded-lg p-0.5 bg-slate-105 dark:bg-[#10121a]">
+                          <button
+                            onClick={() => setCodeFontSize(Math.max(10, codeFontSize - 1))}
+                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
+                            title="Decrease text size"
+                          >
+                            A-
+                          </button>
+                          <span className="text-[10px] px-1 font-mono font-bold text-slate-500">{codeFontSize}px</span>
+                          <button
+                            onClick={() => setCodeFontSize(Math.min(18, codeFontSize + 1))}
+                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
+                            title="Increase text size"
+                          >
+                            A+
+                          </button>
+                        </div>
+                        
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(logsText);
+                            alert("Logs copied to clipboard!");
+                          }}
+                          className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold hover:text-cyan-500 cursor-pointer"
+                        >
+                          Copy Logs
+                        </button>
+                      </div>
                     </div>
-                    <pre className="w-full bg-[#050608] border border-[#161822] rounded-xl p-4 text-[11px] text-slate-300 overflow-x-auto whitespace-pre-wrap font-mono h-96">
-                      {logsText || "No logs generated by container or unavailable."}
+                    
+                    <pre 
+                      ref={logsEndRef}
+                      style={{ fontSize: `${codeFontSize}px` }}
+                      className="w-full bg-slate-950 text-emerald-400 border border-slate-900 dark:border-[#161822] rounded-xl p-4 overflow-x-auto whitespace-pre font-mono h-[420px] transition-all scroll-smooth"
+                    >
+                      {logsText 
+                        ? logsText
+                            .split('\n')
+                            .filter(line => line.toLowerCase().includes(logsFilter.toLowerCase()))
+                            .join('\n') || "No logs matching current filter."
+                        : "No logs generated by container or unavailable."}
                     </pre>
                   </div>
                 )}
@@ -1165,7 +1584,7 @@ export default function App() {
                 {detailTab === 'events' && (
                   <div className="space-y-3 text-xs">
                     {eventsList.length === 0 ? (
-                      <div className="text-center py-12 text-slate-500 font-medium">
+                      <div className="text-center py-12 text-slate-500 font-bold">
                         No events recorded for this resource.
                       </div>
                     ) : (
@@ -1173,24 +1592,24 @@ export default function App() {
                         {eventsList.map((ev, idx) => (
                           <div
                             key={idx}
-                            className={`p-3.5 rounded-xl border flex items-start space-x-3 ${
+                            className={`p-3.5 rounded-xl border flex items-start space-x-3 shadow-sm ${
                               ev.type === 'Warning'
-                                ? 'bg-amber-950/20 border-amber-900/40 text-amber-300'
-                                : 'bg-[#10121a] border-[#1e202a] text-slate-300'
+                                ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-400 animate-pulse'
+                                : 'bg-white dark:bg-[#10121a] border-slate-200 dark:border-[#1e202a] text-slate-700 dark:text-slate-300'
                             }`}
                           >
                             {ev.type === 'Warning' ? (
-                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 animate-bounce" />
                             ) : (
                               <Info className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
                             )}
                             <div className="space-y-0.5">
                               <div className="flex items-center space-x-2">
-                                <span className="font-bold text-[11px]">{ev.reason}</span>
-                                <span className="text-[10px] text-slate-500">count: {ev.count}</span>
+                                <span className="font-extrabold text-[11px]">{ev.reason}</span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold">count: {ev.count}</span>
                               </div>
-                              <p className="text-xs text-slate-400 leading-normal">{ev.message}</p>
-                              <span className="text-[9px] text-slate-500 block">{ev.last_timestamp} ago</span>
+                              <p className="text-xs text-slate-600 dark:text-slate-400 leading-normal font-bold">{ev.message}</p>
+                              <span className="text-[9px] text-slate-500 block mt-1 font-bold">{ev.last_timestamp} ago</span>
                             </div>
                           </div>
                         ))}
@@ -1203,18 +1622,40 @@ export default function App() {
                 {detailTab === 'yaml' && (
                   <div className="space-y-3">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-400 font-medium">Kubernetes YAML Manifest</span>
+                      <div className="flex items-center space-x-2 font-bold">
+                        <span className="text-slate-550 dark:text-slate-400">Kubernetes YAML</span>
+                        <div className="flex items-center space-x-1 border border-slate-200 dark:border-[#1e202a] rounded-lg p-0.5 bg-slate-105 dark:bg-[#10121a]">
+                          <button
+                            onClick={() => setCodeFontSize(Math.max(10, codeFontSize - 1))}
+                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
+                            title="Decrease text size"
+                          >
+                            A-
+                          </button>
+                          <span className="text-[10px] px-1 font-mono font-bold text-slate-500">{codeFontSize}px</span>
+                          <button
+                            onClick={() => setCodeFontSize(Math.min(18, codeFontSize + 1))}
+                            className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
+                            title="Increase text size"
+                          >
+                            A+
+                          </button>
+                        </div>
+                      </div>
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(yamlText);
                           alert("YAML copied to clipboard!");
                         }}
-                        className="text-[10px] text-cyan-400 font-bold hover:text-cyan-300"
+                        className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold hover:text-cyan-500 cursor-pointer"
                       >
                         Copy YAML
                       </button>
                     </div>
-                    <pre className="w-full bg-[#050608] border border-[#161822] rounded-xl p-4 text-[10px] text-slate-300 overflow-auto whitespace-pre font-mono h-96">
+                    <pre 
+                      style={{ fontSize: `${codeFontSize}px` }}
+                      className="w-full bg-slate-100 dark:bg-[#050608] text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-[#161822] rounded-xl p-4 overflow-auto whitespace-pre font-mono h-[420px] transition-all"
+                    >
                       {yamlText || "Fetching YAML spec..."}
                     </pre>
                   </div>
@@ -1226,15 +1667,15 @@ export default function App() {
                     
                     {/* Explain workflow trigger */}
                     {!aiInvestigating && !aiInvestigation && (
-                      <div className="bg-[#10121a] border border-[#1e202a] p-6 rounded-2xl text-center space-y-4">
-                        <HelpCircle className="w-8 h-8 text-cyan-400 mx-auto" />
-                        <h4 className="font-bold text-sm text-slate-200">Run AI Diagnosis</h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">
+                      <div className="bg-white dark:bg-[#10121a] border border-slate-200 dark:border-[#1e202a] p-6 rounded-2xl text-center space-y-4 shadow-sm">
+                        <HelpCircle className="w-8 h-8 text-cyan-500 dark:text-cyan-400 mx-auto" />
+                        <h4 className="font-bold text-sm text-slate-800 dark:text-slate-250 m-0">Run AI Diagnosis</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
                           Click below to have Podex analyze logs, recent events, and configuration parameters of this resource.
                         </p>
                         <button
                           onClick={runInvestigation}
-                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-xs text-white hover:shadow-lg hover:shadow-cyan-500/10 transition"
+                          className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-xs text-white hover:shadow-md hover:shadow-cyan-500/10 transition cursor-pointer"
                         >
                           Investigate with AI Mentor
                         </button>
@@ -1243,178 +1684,265 @@ export default function App() {
 
                     {/* Investigation Loading states */}
                     {aiInvestigating && (
-                      <div className="bg-[#10121a] border border-[#1e202a] p-8 rounded-2xl text-center space-y-4 flex flex-col items-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-                        <h4 className="font-bold text-sm text-slate-200">Analyzing Cluster State</h4>
-                        <p className="text-xs text-slate-400 font-medium animate-pulse">
+                      <div className="bg-white dark:bg-[#10121a] border border-slate-200 dark:border-[#1e202a] p-8 rounded-2xl text-center space-y-4 flex flex-col items-center shadow-sm">
+                        <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+                        <h4 className="font-bold text-sm text-slate-808 dark:text-slate-200 m-0">Analyzing Cluster State</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold animate-pulse">
                           {investigationStep}
                         </p>
                       </div>
-                    )}
-
-                    {/* Diagnosis Report Result */}
+                    )}                    {/* Investigation Result display */}
                     {aiInvestigation && (
-                      <div className="space-y-6 text-xs text-slate-300 leading-relaxed">
+                      <div className="space-y-5 text-xs animate-in fade-in slide-in-from-bottom-2 duration-300">
                         
-                        {/* Root cause Banner */}
-                        <div className="bg-red-950/20 border border-red-900/40 rounded-2xl p-5 space-y-2">
-                          <h5 className="font-bold text-[11px] text-red-400 uppercase tracking-widest flex items-center space-x-1.5">
-                            <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                            <span>Root Cause</span>
-                          </h5>
-                          <p className="text-slate-100 font-semibold text-sm">
-                            {aiInvestigation.root_cause}
-                          </p>
+                        {/* Status Callout Card */}
+                        <div className={`p-4 rounded-2xl border flex items-start space-x-3 shadow-md transition duration-300 hover:scale-[1.01] ${
+                          aiInvestigation.status === 'healthy'
+                            ? 'bg-emerald-500/10 dark:bg-emerald-950/20 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                            : aiInvestigation.status === 'degraded'
+                              ? 'bg-amber-500/10 dark:bg-amber-950/20 border-amber-500/30 text-amber-800 dark:text-amber-300'
+                              : 'bg-red-500/10 dark:bg-red-950/20 border-red-500/30 text-red-800 dark:text-red-300'
+                        }`}>
+                          {aiInvestigation.status === 'healthy' ? (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                          ) : aiInvestigation.status === 'degraded' ? (
+                            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertOctagon className="w-5 h-5 text-red-500 shrink-0 mt-0.5 animate-pulse" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="font-extrabold text-sm uppercase tracking-wide">Diagnosis: {aiInvestigation.status}</span>
+                            </div>
+                            <p className="text-xs mt-1.5 font-bold leading-normal">{aiInvestigation.root_cause}</p>
+                          </div>
                         </div>
 
-                        {/* Evidence block */}
-                        {aiInvestigation.evidence && aiInvestigation.evidence.length > 0 && (
-                          <div className="space-y-2">
-                            <h5 className="font-bold text-[11px] text-slate-400 uppercase tracking-wider">Supporting Evidence</h5>
-                            <div className="bg-[#0b0c10] border border-[#1b1c24] rounded-xl p-4 font-mono text-[10px] space-y-1.5">
-                              {aiInvestigation.evidence.map((line, idx) => (
-                                <div key={idx} className="flex items-start text-red-300/80">
-                                  <span className="text-red-500 mr-2 font-bold select-none">&gt;</span>
-                                  <span>{line}</span>
+                        {/* Sub-tabs Navigation inside Investigate Panel */}
+                        <div className="flex bg-slate-200/50 dark:bg-[#12141a] rounded-xl p-0.5 border border-slate-250/60 dark:border-[#1e202a] select-none">
+                          {([
+                            { id: 'diagnosis', label: 'Diagnosis' },
+                            { id: 'fix', label: 'Action Plan' },
+                            { id: 'lesson', label: 'Concept Lesson' }
+                          ] as const).map(tab => (
+                            <button
+                              key={tab.id}
+                              onClick={() => setInvestigationSubTab(tab.id)}
+                              className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${
+                                investigationSubTab === tab.id
+                                  ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                              }`}
+                            >
+                              {tab.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* TAB CONTENT: DIAGNOSIS */}
+                        {investigationSubTab === 'diagnosis' && (
+                          <div className="space-y-4 animate-in fade-in duration-200">
+                            {/* Confidence Score Gauge */}
+                            <div className="bg-white dark:bg-[#10121a] p-4 rounded-2xl border border-slate-200 dark:border-[#1e202a] space-y-2.5 shadow-sm">
+                              <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
+                                <span>AI Confidence</span>
+                                <span className="text-cyan-605 dark:text-cyan-400 font-extrabold text-xs">{aiInvestigation.confidence}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                                <div 
+                                  style={{ width: `${aiInvestigation.confidence}%` }} 
+                                  className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full transition-all duration-500"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Analysis Summary */}
+                            <div className="bg-white dark:bg-[#10121a] p-4 rounded-2xl border border-slate-200 dark:border-[#1e202a] space-y-2 shadow-sm">
+                              <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-550 uppercase tracking-wider">Analysis Summary</h5>
+                              <FormattedText text={aiInvestigation.explanation} />
+                            </div>
+
+                            {/* Evidence list */}
+                            {aiInvestigation.evidence && aiInvestigation.evidence.length > 0 && (
+                              <div className="bg-white dark:bg-[#10121a] p-4 rounded-2xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
+                                <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-550 uppercase tracking-wider">Evidence Gathered</h5>
+                                <div className="space-y-2">
+                                  {aiInvestigation.evidence.map((ev, idx) => (
+                                    <div key={idx} className="flex items-start space-x-2 pl-1 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                      <span className="text-cyan-500 mt-0.5 shrink-0">•</span>
+                                      <span className="text-slate-650 dark:text-slate-350 font-semibold">{ev}</span>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* TAB CONTENT: ACTION PLAN */}
+                        {investigationSubTab === 'fix' && (
+                          <div className="space-y-4 animate-in fade-in duration-200">
+                            <div className="bg-cyan-50/45 dark:bg-[#0c161e] p-5 rounded-2xl border border-cyan-200 dark:border-cyan-900/35 space-y-3.5 shadow-sm">
+                              <h5 className="font-bold text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-wider flex items-center space-x-1.5">
+                                <Sliders className="w-3.5 h-3.5" />
+                                <span>Suggested Fix Action</span>
+                              </h5>
+                              <FormattedText text={aiInvestigation.suggested_fix} />
                             </div>
                           </div>
                         )}
 
-                        {/* Description explanation */}
-                        <div className="space-y-1.5">
-                          <h5 className="font-bold text-[11px] text-slate-400 uppercase tracking-wider">Explanation</h5>
-                          <p className="text-slate-300">{aiInvestigation.explanation}</p>
-                        </div>
-
-                        {/* Suggested Fix */}
-                        <div className="space-y-2">
-                          <h5 className="font-bold text-[11px] text-cyan-400 uppercase tracking-wider">Suggested Fix</h5>
-                          <div className="bg-[#050608] border border-[#161822] rounded-xl p-4 whitespace-pre-wrap font-mono text-[10px] text-emerald-400 leading-relaxed">
-                            {aiInvestigation.suggested_fix}
+                        {/* TAB CONTENT: CONCEPT LESSON */}
+                        {investigationSubTab === 'lesson' && (
+                          <div className="space-y-4 animate-in fade-in duration-200">
+                            <div className="bg-white dark:bg-[#10121a] p-5 rounded-2xl border border-slate-200 dark:border-[#1e202a] space-y-4 shadow-sm">
+                              <div className="space-y-1">
+                                <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-550 uppercase tracking-wider">Core Concept</h5>
+                                <span className="font-extrabold text-slate-850 dark:text-slate-100 block text-xs">{aiInvestigation.k8s_lesson.concept}</span>
+                              </div>
+                              
+                              <div className="border-t border-slate-100 dark:border-slate-800/80 pt-3.5 space-y-2">
+                                <h5 className="font-bold text-[10px] text-indigo-650 dark:text-indigo-400 uppercase tracking-wider flex items-center space-x-1">
+                                  <Info className="w-3.5 h-3.5" />
+                                  <span>Analogy for Beginners</span>
+                                </h5>
+                                <p className="text-slate-650 dark:text-slate-405 leading-relaxed italic font-bold">
+                                  "{aiInvestigation.k8s_lesson.analogy}"
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        )}
 
-                        {/* Concept learning */}
-                        <div className="bg-[#0f121d] border border-indigo-900/30 rounded-2xl p-5 space-y-2">
-                          <h5 className="font-bold text-[11px] text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
-                            <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                            <span>Tutor Lesson</span>
-                          </h5>
-                          <p className="text-slate-300 italic">
-                            {aiInvestigation.learning}
-                          </p>
-                          <div className="flex items-center justify-between pt-2 border-t border-indigo-950/60 mt-2">
-                            <span className="text-[10px] text-slate-500">Confidence Analysis</span>
-                            <span className="px-2 py-0.5 rounded bg-indigo-950 border border-indigo-800 text-indigo-300 font-bold text-[9px]">
-                              {aiInvestigation.confidence}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Re-investigate Button */}
+                        {/* Re-run button */}
                         <button
                           onClick={runInvestigation}
-                          className="w-full py-2 px-4 rounded-xl bg-[#111319] hover:bg-[#161a24] text-slate-400 hover:text-slate-200 border border-[#1e202a] text-xs font-semibold transition"
+                          className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-[#1e202a] hover:bg-slate-100 dark:hover:bg-[#13151f] text-slate-700 dark:text-slate-350 font-bold text-xs transition duration-150 cursor-pointer shadow-sm"
                         >
-                          Run Diagnosis Again
+                          Refresh Diagnosis
                         </button>
 
                       </div>
                     )}
-
                   </div>
                 )}
 
               </div>
             )}
           </div>
+
         </aside>
       )}
 
-      {/* CONFIRMATION OPERATIONAL ACTION MODAL */}
+      {/* CONFIRMATION / EDUCATION MODAL FRAME */}
       {confirmationModal && (
-        <div className="fixed inset-0 bg-[#000000]/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#0a0c10] border border-[#1e202e] rounded-3xl p-6 space-y-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm select-none p-4">
+          <div className="w-full max-w-md bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             
-            {/* Header info */}
-            <div className="flex items-start space-x-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-amber-950/60 border border-amber-800 text-amber-500 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5" />
+            {/* Modal Header */}
+            <div className="flex items-center space-x-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${
+                confirmationModal.type === 'delete' 
+                  ? 'bg-red-50 dark:bg-red-950/50 text-red-550' 
+                  : confirmationModal.type === 'restart'
+                    ? 'bg-cyan-50 dark:bg-cyan-950/50 text-cyan-550'
+                    : 'bg-amber-50 dark:bg-amber-950/50 text-amber-550'
+              }`}>
+                {confirmationModal.type === 'delete' ? (
+                  <Trash2 className="w-5 h-5" />
+                ) : confirmationModal.type === 'restart' ? (
+                  <RefreshCw className="w-5 h-5" />
+                ) : (
+                  <Sliders className="w-5 h-5" />
+                )}
               </div>
-              <div className="space-y-1">
-                <h4 className="text-base font-bold text-slate-100 m-0">Confirm Destructive Action</h4>
-                <p className="text-xs text-slate-400 leading-normal">
-                  You are requested to execute <strong>{confirmationModal.type}</strong> on the resource <strong>{confirmationModal.name}</strong>.
-                </p>
+              <div>
+                <h4 className="text-base font-extrabold text-slate-850 dark:text-slate-100 capitalize m-0">
+                  {confirmationModal.type} {selectedResource?.type}
+                </h4>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5 block">Action Confirmation</span>
               </div>
             </div>
 
-            {/* Explanation section for beginners before executing action */}
-            <div className="bg-[#0f1118] border border-[#1e202a] p-4 rounded-2xl text-xs space-y-2 text-slate-300 leading-relaxed">
-              <span className="font-bold text-[10px] text-cyan-400 uppercase tracking-wider block">Explain before Execute</span>
+            {/* Educational content - What Kubernetes does behind the scenes */}
+            <div className="bg-slate-50 dark:bg-[#11131c] border border-slate-200 dark:border-slate-800 p-4.5 rounded-2xl text-xs leading-relaxed space-y-2">
+              <span className="font-bold text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-widest block">
+                🧠 Behind The Scenes (Kubernetes Lifecycle)
+              </span>
               {confirmationModal.type === 'delete' && (
-                <p>
-                  Deleting a Pod tells Kubernetes to terminate the container. If this Pod is managed by a Deployment, the Deployment will detect the missing Pod and immediately launch a brand new instance in its place (self-healing).
+                <p className="text-slate-650 dark:text-slate-350 m-0 font-bold">
+                  When you delete a Pod, Kubernetes sends a <code className="font-mono text-amber-500 bg-slate-100 dark:bg-slate-850 px-1 rounded">SIGTERM</code> signal to let containers shut down gracefully (defaulting to 30 seconds). Then it runs <code className="font-mono text-red-500 bg-slate-100 dark:bg-slate-850 px-1 rounded">SIGKILL</code> to remove it. Since Pods are usually managed by Deployments, **a new Pod instance will be spun up automatically** to replace it.
                 </p>
               )}
               {confirmationModal.type === 'restart' && (
-                <p>
-                  Restarting a Deployment does a "rolling restart". It launches a new Pod first, checks if it is healthy, and only then deletes the old Pod. This ensures your app stays online during the process with zero downtime.
+                <p className="text-slate-650 dark:text-slate-350 m-0 font-bold">
+                  Restarting a Deployment triggers a **Rolling Update**. Kubernetes spins up a new pod replica first, waits for it to become ready, and then kills the old replica. This guarantees **zero downtime** for your web applications.
                 </p>
               )}
               {confirmationModal.type === 'scale' && (
-                <p>
-                  Scaling changes the number of replicas (identical workers). Kubernetes will automatically spin up additional container instances or tear down extra ones to match your new setting.
+                <p className="text-slate-650 dark:text-slate-350 m-0 font-bold">
+                  Scaling tells the Controller Manager to adjust the number of active Pod replicas. Scaling up starts new pods matching your specs; scaling down gracefully terminates excess replicas using a descending rank list.
                 </p>
               )}
             </div>
 
-            {/* Scale Value adjust parameter if scaling */}
+            {/* Inputs if Scale */}
             {confirmationModal.type === 'scale' && (
               <div className="space-y-2 text-xs">
-                <label className="font-bold text-slate-400">Desired Replicas Count:</label>
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={confirmationModal.scaleValue ?? 1}
-                    onChange={(e) => setConfirmationModal({
+                <label className="font-bold text-slate-500 dark:text-slate-450 block">Target Replica Count:</label>
+                <div className="flex items-center space-x-3 bg-slate-50 dark:bg-[#10121a] border border-slate-200 dark:border-[#1e202a] rounded-xl p-2 max-w-[140px] select-none">
+                  <button
+                    onClick={() => setConfirmationModal({
                       ...confirmationModal,
-                      scaleValue: parseInt(e.target.value) || 0
+                      scaleValue: Math.max(0, (confirmationModal.scaleValue ?? 1) - 1)
                     })}
-                    className="w-20 bg-[#11131a] border border-[#1e202a] rounded-xl px-3 py-2 text-sm text-slate-200 font-bold font-mono focus:outline-none"
-                  />
-                  <span className="text-[11px] text-slate-500">(Limits: 0 to 10 for local Kind)</span>
+                    className="w-7 h-7 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-black text-sm flex items-center justify-center cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100 flex-grow text-center">
+                    {confirmationModal.scaleValue ?? 1}
+                  </span>
+                  <button
+                    onClick={() => setConfirmationModal({
+                      ...confirmationModal,
+                      scaleValue: Math.min(20, (confirmationModal.scaleValue ?? 1) + 1)
+                    })}
+                    className="w-7 h-7 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-black text-sm flex items-center justify-center cursor-pointer"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* Action buttons */}
-            <div className="flex items-center space-x-3.5">
+            {/* Target warning */}
+            <p className="text-xs text-slate-500 font-bold leading-relaxed">
+              Target resource: <span className="font-bold text-slate-700 dark:text-slate-300 font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">{confirmationModal.namespace}/{confirmationModal.name}</span>. Are you sure you want to execute this change?
+            </p>
+
+            {/* Modal Actions */}
+            <div className="flex justify-end items-center space-x-3 border-t border-slate-200 dark:border-[#1e202a] pt-4">
               <button
                 onClick={() => setConfirmationModal(null)}
                 disabled={operationInProgress}
-                className="flex-1 py-2.5 rounded-xl bg-[#111319] border border-[#1e202a] text-slate-400 hover:text-slate-200 text-xs font-semibold transition disabled:opacity-50"
+                className="px-4.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1e202a] hover:bg-slate-105 dark:hover:bg-[#13141b] text-slate-600 dark:text-slate-300 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                onClick={handleOperation}
+                onClick={executeOperation}
                 disabled={operationInProgress}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-xs text-white transition disabled:opacity-50 flex items-center justify-center space-x-2 ${
-                  confirmationModal.type === 'delete'
-                    ? 'bg-red-600 hover:bg-red-500'
-                    : 'bg-cyan-500 hover:bg-cyan-400'
+                className={`px-4.5 py-2.5 rounded-xl text-white text-xs font-bold hover:shadow-md transition disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer ${
+                  confirmationModal.type === 'delete' 
+                    ? 'bg-red-500 hover:bg-red-600 hover:shadow-red-500/10' 
+                    : confirmationModal.type === 'restart'
+                      ? 'bg-cyan-500 hover:bg-cyan-600 hover:shadow-cyan-500/10'
+                      : 'bg-amber-500 hover:bg-amber-600 hover:shadow-amber-500/10'
                 }`}
               >
-                {operationInProgress ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <span>Execute Action</span>
-                )}
+                {operationInProgress && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Execute Action</span>
               </button>
             </div>
 

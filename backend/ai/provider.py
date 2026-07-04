@@ -1,17 +1,22 @@
 import json
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 from backend.config.settings import settings
 
 # Pydantic models for structured AI output
+class K8sLesson(BaseModel):
+    concept: str = Field(description="The Kubernetes concept involved (e.g., 'CrashLoopBackOff', 'Liveness Probes').")
+    analogy: str = Field(description="A beginner-friendly real-world analogy explaining the concept.")
+
 class InvestigationResult(BaseModel):
+    status: str = Field(description="Overall health status: 'healthy', 'degraded', or 'critical'.")
     root_cause: str = Field(description="The primary reason why the resource is failing or in its current state.")
     evidence: List[str] = Field(description="List of specific logs, events, or status indicators that support the root cause.")
     explanation: str = Field(description="A beginner-friendly explanation of the technical components and mechanisms involved in this failure.")
     suggested_fix: str = Field(description="Step-by-step instructions on how to resolve the issue (e.g. kubectl commands, YAML edits).")
-    learning: str = Field(description="Educational content explaining the underlying Kubernetes concepts (e.g., 'What is CrashLoopBackOff', 'How Probes work').")
-    confidence: str = Field(description="Confidence level of the analysis (High, Medium, Low) with a brief justification.")
+    confidence: int = Field(description="Confidence percentage of the analysis (0-100).")
+    k8s_lesson: K8sLesson = Field(description="Educational content explaining the underlying Kubernetes concepts involved.")
 
 class ConceptExplanation(BaseModel):
     concept: str = Field(description="The Kubernetes concept being explained.")
@@ -102,6 +107,7 @@ class MockProvider(AIProvider):
     """
     async def investigate(self, context_prompt: str) -> InvestigationResult:
         return InvestigationResult(
+            status="degraded",
             root_cause="Mock Mode: Gemini/OpenAI API key was not detected in settings or environment variables.",
             evidence=[
                 "Settings: AI_PROVIDER set, but credentials missing.",
@@ -112,12 +118,15 @@ class MockProvider(AIProvider):
                 "In Mock Mode, we generate static educational responses based on your cluster resource context."
             ),
             suggested_fix=(
-                "1. Open `docker-compose.yml`.\n"
+                "1. Open `docker-compose.yml` or `.env`.\n"
                 "2. Set the `GEMINI_API_KEY` or `OPENAI_API_KEY` environment variable.\n"
-                "3. Restart the workspace using `docker compose down && docker compose up`."
+                "3. Restart the workspace."
             ),
-            learning="Kubernetes resources communicate state using Conditions, Events, and Logs. Podex aggregates these to pinpoint container crashes, configuration mismatches, or resource constraints.",
-            confidence="High (Refers to Podex Setup)"
+            confidence=85,
+            k8s_lesson=K8sLesson(
+                concept="Kubernetes Observability",
+                analogy="Think of observability like a car dashboard — Conditions are warning lights, Events are the trip log, and Logs are the engine diagnostics printout. Podex reads all three to diagnose issues."
+            )
         )
 
     async def explain_concept(self, concept_prompt: str) -> ConceptExplanation:

@@ -49,6 +49,17 @@ def get_deployments(namespace: Optional[str] = Query(None)):
 def get_services(namespace: Optional[str] = Query(None)):
     return k8s_service.list_services(namespace)
 
+@router.get("/resources")
+def get_resources(namespace: Optional[str] = Query(None)):
+    try:
+        return {
+            "pods": k8s_service.list_pods(namespace),
+            "deployments": k8s_service.list_deployments(namespace),
+            "services": k8s_service.list_services(namespace)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # 3. Resource Tabs
 @router.get("/{resource_type}/{namespace}/{name}/details")
 def get_details(resource_type: str, namespace: str, name: str):
