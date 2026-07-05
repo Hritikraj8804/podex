@@ -12,6 +12,7 @@ import {
   Info,
   X,
   Sliders,
+  Settings,
   Loader2,
   BookOpen,
   ArrowRight,
@@ -267,7 +268,153 @@ function FormattedText({ text, isCode = false, onShowToast }: { text: string; is
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings'>('dashboard');
+
+  // settings configuration states
+  const [aiProvider, setAiProviderState] = useState<'gemini' | 'openai'>(() => {
+    return (localStorage.getItem('aiProvider') as 'gemini' | 'openai') || 'gemini';
+  });
+  const [geminiKey, setGeminiKeyState] = useState<string>(() => {
+    return localStorage.getItem('geminiKey') || '';
+  });
+  const [openaiKey, setOpenaiKeyState] = useState<string>(() => {
+    return localStorage.getItem('openaiKey') || '';
+  });
+  const [customNamespaces, setCustomNamespacesState] = useState<string>(() => {
+    return localStorage.getItem('customNamespaces') || 'kube-system, kube-public, kube-node-lease, local-path-storage';
+  });
+  const [refreshInterval, setRefreshIntervalState] = useState<number>(() => {
+    return Number(localStorage.getItem('refreshInterval')) || 8;
+  });
+
+  const setAiProvider = (val: 'gemini' | 'openai') => {
+    setAiProviderState(val);
+    localStorage.setItem('aiProvider', val);
+    // Reset default model on provider switch
+    setAiModel(val === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini');
+  };
+  const setGeminiKey = (val: string) => {
+    setGeminiKeyState(val);
+    localStorage.setItem('geminiKey', val);
+  };
+  const setOpenaiKey = (val: string) => {
+    setOpenaiKeyState(val);
+    localStorage.setItem('openaiKey', val);
+  };
+  const setCustomNamespaces = (val: string) => {
+    setCustomNamespacesState(val);
+    localStorage.setItem('customNamespaces', val);
+  };
+  const setRefreshInterval = (val: number) => {
+    setRefreshIntervalState(val);
+    localStorage.setItem('refreshInterval', String(val));
+  };
+
+  // Context states
+  const [contexts, setContexts] = useState<string[]>([]);
+  const [activeContext, setActiveContextState] = useState<string>('');
+
+  // AI advanced parameter states
+  const [aiModel, setAiModelState] = useState<string>(() => {
+    return localStorage.getItem('aiModel') || 'gemini-2.5-flash';
+  });
+  const [aiTemperature, setAiTemperatureState] = useState<number>(() => {
+    const val = localStorage.getItem('aiTemperature');
+    return val !== null ? Number(val) : 0.2;
+  });
+  const [mockModeForced, setMockModeForcedState] = useState<boolean>(() => {
+    return localStorage.getItem('mockModeForced') === 'true';
+  });
+
+  // Logs preference states
+  const [logsLineWrap, setLogsLineWrapState] = useState<boolean>(() => {
+    return (localStorage.getItem('logsLineWrap') !== 'false');
+  });
+  const [logsShowTimestamps, setLogsShowTimestampsState] = useState<boolean>(() => {
+    return (localStorage.getItem('logsShowTimestamps') === 'true');
+  });
+  const [logsTailLimit, setLogsTailLimitState] = useState<number>(() => {
+    return Number(localStorage.getItem('logsTailLimit')) || 100;
+  });
+
+  // Theme Accent presets
+  const [accentColor, setAccentColorState] = useState<'cyan' | 'indigo' | 'violet' | 'emerald' | 'amber'>(() => {
+    return (localStorage.getItem('accentColor') as any) || 'cyan';
+  });
+
+  const setAiModel = (val: string) => {
+    setAiModelState(val);
+    localStorage.setItem('aiModel', val);
+  };
+  const setAiTemperature = (val: number) => {
+    setAiTemperatureState(val);
+    localStorage.setItem('aiTemperature', String(val));
+  };
+  const setMockModeForced = (val: boolean) => {
+    setMockModeForcedState(val);
+    localStorage.setItem('mockModeForced', String(val));
+  };
+  const setLogsLineWrap = (val: boolean) => {
+    setLogsLineWrapState(val);
+    localStorage.setItem('logsLineWrap', String(val));
+  };
+  const setLogsShowTimestamps = (val: boolean) => {
+    setLogsShowTimestampsState(val);
+    localStorage.setItem('logsShowTimestamps', String(val));
+  };
+  const setLogsTailLimit = (val: number) => {
+    setLogsTailLimitState(val);
+    localStorage.setItem('logsTailLimit', String(val));
+  };
+  const setAccentColor = (val: 'cyan' | 'indigo' | 'violet' | 'emerald' | 'amber') => {
+    setAccentColorState(val);
+    localStorage.setItem('accentColor', val);
+  };
+
+  const getAccentColor = (type: 'text' | 'bg' | 'bgMuted' | 'border' | 'hoverText' | 'focusRing' | 'glow') => {
+    switch (accentColor) {
+      case 'indigo':
+        if (type === 'text') return 'text-indigo-650 dark:text-indigo-400';
+        if (type === 'bg') return 'bg-indigo-600';
+        if (type === 'bgMuted') return 'bg-indigo-500/10 dark:bg-indigo-500/5';
+        if (type === 'border') return 'border-indigo-500';
+        if (type === 'hoverText') return 'hover:text-indigo-650 dark:hover:text-indigo-400';
+        if (type === 'glow') return 'shadow-indigo-500/10';
+        return 'focus:ring-indigo-500';
+      case 'violet':
+        if (type === 'text') return 'text-violet-650 dark:text-violet-400';
+        if (type === 'bg') return 'bg-violet-600';
+        if (type === 'bgMuted') return 'bg-violet-500/10 dark:bg-violet-500/5';
+        if (type === 'border') return 'border-violet-500';
+        if (type === 'hoverText') return 'hover:text-violet-655 dark:hover:text-violet-400';
+        if (type === 'glow') return 'shadow-violet-500/10';
+        return 'focus:ring-violet-500';
+      case 'emerald':
+        if (type === 'text') return 'text-emerald-650 dark:text-emerald-400';
+        if (type === 'bg') return 'bg-emerald-600';
+        if (type === 'bgMuted') return 'bg-emerald-500/10 dark:bg-emerald-500/5';
+        if (type === 'border') return 'border-emerald-500';
+        if (type === 'hoverText') return 'hover:text-emerald-650 dark:hover:text-emerald-400';
+        if (type === 'glow') return 'shadow-emerald-500/10';
+        return 'focus:ring-emerald-500';
+      case 'amber':
+        if (type === 'text') return 'text-amber-650 dark:text-amber-400';
+        if (type === 'bg') return 'bg-amber-600';
+        if (type === 'bgMuted') return 'bg-amber-500/10 dark:bg-amber-500/5';
+        if (type === 'border') return 'border-amber-500';
+        if (type === 'hoverText') return 'hover:text-amber-650 dark:hover:text-amber-400';
+        if (type === 'glow') return 'shadow-amber-500/10';
+        return 'focus:ring-amber-500';
+      default: // cyan
+        if (type === 'text') return 'text-cyan-650 dark:text-cyan-400';
+        if (type === 'bg') return 'bg-cyan-500';
+        if (type === 'bgMuted') return 'bg-cyan-500/10 dark:bg-cyan-500/5';
+        if (type === 'border') return 'border-cyan-500';
+        if (type === 'hoverText') return 'hover:text-cyan-650 dark:hover:text-cyan-400';
+        if (type === 'glow') return 'shadow-cyan-500/10';
+        return 'focus:ring-cyan-500';
+    }
+  };
   const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services'>('pods');
   const [namespaceFilter, setNamespaceFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -389,6 +536,47 @@ export default function App() {
     }
   }, [logsText, autoScrollLogs, detailTab]);
 
+  // Kubeconfig contexts loader and switcher
+  const fetchContexts = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/kube/contexts`);
+      if (res.ok) {
+        const data = await res.json();
+        setContexts(data.contexts || []);
+        setActiveContextState(data.active_context || '');
+      }
+    } catch (e) {
+      console.error("Failed to load kube contexts:", e);
+    }
+  }, []);
+
+  const handleSwitchContext = async (contextName: string) => {
+    try {
+      const res = await fetch(`${API_URL}/api/kube/switch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: contextName })
+      });
+      if (res.ok) {
+        setActiveContextState(contextName);
+        setToast({ message: `Successfully switched to Kubernetes context: ${contextName}`, type: 'success' });
+        // Trigger refresh
+        fetchStats(true);
+        fetchResources(true);
+      } else {
+        const err = await res.json();
+        setToast({ message: `Context switch failed: ${err.detail || 'Unknown error'}`, type: 'error' });
+      }
+    } catch (e) {
+      console.error(e);
+      setToast({ message: "Network error switching cluster context.", type: 'error' });
+    }
+  };
+
+  useEffect(() => {
+    fetchContexts();
+  }, [fetchContexts]);
+
   // Load Cluster Statistics
   const fetchStats = useCallback(async (isSilent = false) => {
     if (!isSilent) setStatsLoading(true);
@@ -434,10 +622,10 @@ export default function App() {
     const interval = setInterval(() => {
       fetchStats(true);
       fetchResources(true);
-    }, 8000);
+    }, refreshInterval * 1000);
 
     return () => clearInterval(interval);
-  }, [fetchStats, fetchResources]);
+  }, [fetchStats, fetchResources, refreshInterval]);
 
   // Fetch drawer details depending on active sub-tab
   const fetchResourceDetails = useCallback(async () => {
@@ -466,7 +654,7 @@ export default function App() {
       }
 
       // 4. Fetch Logs (backend supports pods, deployments, and services)
-      const logsRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/logs`);
+      const logsRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/logs?tail=${logsTailLimit}&timestamps=${logsShowTimestamps}`);
       if (logsRes.ok) {
         const lData = await logsRes.json();
         setLogsText(lData.logs || '');
@@ -483,7 +671,7 @@ export default function App() {
     } finally {
       setResourceDetailsLoading(false);
     }
-  }, [selectedResource]);
+  }, [selectedResource, logsTailLimit, logsShowTimestamps]);
 
   useEffect(() => {
     fetchResourceDetails();
@@ -515,9 +703,17 @@ export default function App() {
 
     try {
       const { type, name, namespace } = selectedResource;
+      const provider = mockModeForced ? 'mock' : aiProvider;
+      const key = provider === 'gemini' ? geminiKey : openaiKey;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (provider) headers['X-AI-Provider'] = provider;
+      if (key) headers['X-AI-Key'] = key;
+      if (aiModel) headers['X-AI-Model'] = aiModel;
+      if (aiTemperature !== undefined) headers['X-AI-Temperature'] = String(aiTemperature);
+
       const res = await fetch(`${API_URL}/api/investigate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ type, name, namespace })
       });
       clearInterval(stepInterval);
@@ -525,11 +721,11 @@ export default function App() {
         setAiInvestigation(await res.json());
       } else {
         const err = await res.json();
-        alert(`Diagnostic failed: ${err.detail || 'Unknown server error'}`);
+        setToast({ message: `Diagnostic failed: ${err.detail || 'Unknown server error'}`, type: 'error' });
       }
     } catch (e) {
       console.error(e);
-      alert('Network failure reaching AI diagnostic server.');
+      setToast({ message: 'Network failure reaching AI diagnostic server.', type: 'error' });
     } finally {
       clearInterval(stepInterval);
       setAiInvestigating(false);
@@ -592,7 +788,17 @@ export default function App() {
     setAiLearning(null);
     setLearnSubTab('concept');
     try {
-      const res = await fetch(`${API_URL}/api/learn?concept=${encodeURIComponent(q)}`);
+      const provider = mockModeForced ? 'mock' : aiProvider;
+      const key = provider === 'gemini' ? geminiKey : openaiKey;
+      const headers: Record<string, string> = {};
+      if (provider) headers['X-AI-Provider'] = provider;
+      if (key) headers['X-AI-Key'] = key;
+      if (aiModel) headers['X-AI-Model'] = aiModel;
+      if (aiTemperature !== undefined) headers['X-AI-Temperature'] = String(aiTemperature);
+
+      const res = await fetch(`${API_URL}/api/learn?concept=${encodeURIComponent(q)}`, {
+        headers
+      });
       if (res.ok) {
         setAiLearning(await res.json());
       }
@@ -619,8 +825,10 @@ export default function App() {
   };
 
   // System namespaces that should be hidden from beginners by default
-  const SYSTEM_NAMESPACES = ['kube-system', 'kube-public', 'kube-node-lease', 'local-path-storage'];
-  const isSystemNamespace = (ns: string) => SYSTEM_NAMESPACES.includes(ns.toLowerCase());
+  const isSystemNamespace = (ns: string) => {
+    const list = customNamespaces.split(',').map(s => s.trim().toLowerCase());
+    return list.includes(ns.toLowerCase());
+  };
 
   // Filter resources by search and namespace
   const filteredPods = pods.filter(p => {
@@ -743,11 +951,11 @@ export default function App() {
                       }}
                       title={tab.label}
                       className={`w-12 h-12 flex items-center justify-center rounded-xl transition cursor-pointer relative group ${isActive
-                          ? 'bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-l-4 border-cyan-500'
+                          ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
                           : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                     >
-                      <Icon className={`w-5 h-5 ${isActive ? 'text-cyan-500' : 'text-slate-405'}`} />
+                      <Icon className={`w-5 h-5 ${isActive ? getAccentColor('text') : 'text-slate-405'}`} />
                       
                       {/* Tooltip */}
                       <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
@@ -761,6 +969,24 @@ export default function App() {
 
             {/* Footer Utilities */}
             <div className="flex flex-col items-center space-y-4 w-full">
+              {/* Settings button */}
+              <button
+                onClick={() => {
+                  setActiveTab('settings');
+                  setSelectedResource(null);
+                }}
+                className={`w-12 h-12 flex items-center justify-center rounded-xl transition cursor-pointer relative group ${activeTab === 'settings'
+                    ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
+                    : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                title="Settings"
+              >
+                <Settings className={`w-5 h-5 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-405'}`} />
+                <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
+                  Settings
+                </div>
+              </button>
+
               {/* Theme Toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -828,11 +1054,11 @@ export default function App() {
                         setSelectedResource(null);
                       }}
                       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${isActive
-                        ? 'bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-l-4 border-cyan-500'
+                        ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
                         : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                     >
-                      <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-500' : 'text-slate-405'}`} />
+                      <Icon className={`w-4 h-4 ${isActive ? getAccentColor('text') : 'text-slate-405'}`} />
                       <span>{tab.label}</span>
                     </button>
                   );
@@ -842,11 +1068,26 @@ export default function App() {
 
             {/* Sidebar Footer */}
             <div className="p-6 border-t border-slate-200 dark:border-[#1e202a] space-y-3">
-              <div className="flex items-center justify-between text-xs">
+              {/* Settings button */}
+              <button
+                onClick={() => {
+                  setActiveTab('settings');
+                  setSelectedResource(null);
+                }}
+                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition cursor-pointer ${activeTab === 'settings'
+                    ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
+                    : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-205'
+                  }`}
+              >
+                <Settings className={`w-4 h-4 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-405'}`} />
+                <span>Settings</span>
+              </button>
+
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/50 dark:border-[#1e202a]/50">
                 <span className="text-slate-500 font-bold">Theme Mode</span>
                 <button
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="p-1.5 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                  className="p-1.5 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-605 dark:text-slate-300 transition cursor-pointer"
                   title="Toggle Light/Dark Theme"
                 >
                   {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
@@ -1457,6 +1698,343 @@ export default function App() {
               )}
             </div>
           )}
+
+          {/* TAB 4: SETTINGS */}
+          {activeTab === 'settings' && (
+            <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-200">
+              
+              {/* Header */}
+              <div className="space-y-2">
+                <h3 className="text-xl font-black text-slate-805 dark:text-slate-200 m-0">Project Settings & Overrides</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-450 font-bold">
+                  Customize namespaces filters, log displays, cluster targets, and configure custom Gemini/OpenAI parameters directly in the browser.
+                </p>
+              </div>
+
+              {/* Cluster Connection Settings */}
+              <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-6 space-y-6 shadow-sm">
+                <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e202a]">
+                  <Cpu className={`w-5 h-5 ${getAccentColor('text')}`} />
+                  <h4 className="text-sm font-extrabold text-slate-850 dark:text-slate-100 m-0">Kubernetes Cluster Context Switcher</h4>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex flex-col space-y-2">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">Select Active Context:</label>
+                    {contexts.length === 0 ? (
+                      <div className="text-xs text-slate-400 dark:text-slate-550 italic p-3.5 bg-slate-50 dark:bg-[#111319] rounded-xl border border-slate-200/50 dark:border-slate-800/40 font-semibold">
+                        No external kubeconfig contexts found. Using default/in-cluster client.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {contexts.map(ctx => {
+                          const isCtxActive = ctx === activeContext;
+                          return (
+                            <button
+                              key={ctx}
+                              onClick={() => handleSwitchContext(ctx)}
+                              className={`flex items-center justify-between p-3.5 rounded-xl border text-xs font-bold text-left transition cursor-pointer ${
+                                isCtxActive
+                                  ? `${getAccentColor('border')} ${getAccentColor('bgMuted')} ${getAccentColor('text')}`
+                                  : 'border-slate-200 dark:border-[#1e202a] bg-slate-50 hover:bg-slate-100 dark:bg-[#111319] dark:hover:bg-[#151821] text-slate-700 dark:text-slate-350'
+                              }`}
+                            >
+                              <span className="truncate mr-2">{ctx}</span>
+                              {isCtxActive && (
+                                <span className={`w-2 h-2 rounded-full ${getAccentColor('bg')}`} />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Service Provider Settings */}
+              <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-6 space-y-6 shadow-sm">
+                <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e202a]">
+                  <Sliders className={`w-5 h-5 ${getAccentColor('text')}`} />
+                  <h4 className="text-sm font-extrabold text-slate-850 dark:text-slate-100 m-0">AI Engine Parameters</h4>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Select Provider */}
+                  <div className="flex flex-col space-y-2">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">Target AI Engine:</label>
+                    <div className="flex space-x-4">
+                      {[
+                        { id: 'gemini', label: 'Google Gemini (default)' },
+                        { id: 'openai', label: 'OpenAI GPT' }
+                      ].map(prov => (
+                        <label key={prov.id} className="flex items-center space-x-2 text-xs font-bold text-slate-700 dark:text-slate-350 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="aiProvider"
+                            checked={aiProvider === prov.id}
+                            onChange={() => setAiProvider(prov.id as any)}
+                            className="w-4 h-4 text-cyan-500 border-slate-300 dark:border-slate-800 focus:ring-0 cursor-pointer"
+                          />
+                          <span>{prov.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Force Mock Mode */}
+                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#111319] rounded-2xl border border-slate-205 dark:border-slate-800/80">
+                    <div className="space-y-0.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-305">Force Offline Sandbox Mode</label>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Uses local mock answers. Saves credits & works without Internet.</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={mockModeForced}
+                        onChange={(e) => setMockModeForced(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-250 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-cyan-500"></div>
+                    </label>
+                  </div>
+
+                  {/* Keys overrides */}
+                  {!mockModeForced && (
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      {aiProvider === 'gemini' ? (
+                        <>
+                          {/* Gemini Key Config */}
+                          <div className="flex flex-col space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-500 dark:text-slate-400">Gemini API Key Override:</label>
+                              <span className={`text-[10px] ${getAccentColor('text')} font-semibold italic`}>Local Browser Storage</span>
+                            </div>
+                            <input
+                              type="password"
+                              placeholder="Enter GEMINI_API_KEY..."
+                              value={geminiKey}
+                              onChange={(e) => setGeminiKey(e.target.value)}
+                              className="bg-slate-50 dark:bg-[#111319] border border-slate-205 dark:border-[#1e202a] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
+                            />
+                          </div>
+
+                          {/* Gemini Model */}
+                          <div className="flex flex-col space-y-2">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400">Gemini Model Type:</label>
+                            <select
+                              value={aiModel}
+                              onChange={(e) => setAiModel(e.target.value)}
+                              className="bg-slate-50 dark:bg-[#111319] border border-slate-205 dark:border-[#1e202a] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-850 dark:text-slate-200"
+                            >
+                              <option value="gemini-2.5-flash">gemini-2.5-flash (Fast & cost-efficient)</option>
+                              <option value="gemini-2.5-pro">gemini-2.5-pro (High intelligence, complex diagnostics)</option>
+                            </select>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* OpenAI Key Config */}
+                          <div className="flex flex-col space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-slate-500 dark:text-slate-400">OpenAI API Key Override:</label>
+                              <span className={`text-[10px] ${getAccentColor('text')} font-semibold italic`}>Local Browser Storage</span>
+                            </div>
+                            <input
+                              type="password"
+                              placeholder="Enter OPENAI_API_KEY..."
+                              value={openaiKey}
+                              onChange={(e) => setOpenaiKey(e.target.value)}
+                              className="bg-slate-50 dark:bg-[#111319] border border-slate-205 dark:border-[#1e202a] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
+                            />
+                          </div>
+
+                          {/* OpenAI Model */}
+                          <div className="flex flex-col space-y-2">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400">OpenAI Model Type:</label>
+                            <select
+                              value={aiModel}
+                              onChange={(e) => setAiModel(e.target.value)}
+                              className="bg-slate-50 dark:bg-[#111319] border border-slate-205 dark:border-[#1e202a] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-850 dark:text-slate-200"
+                            >
+                              <option value="gpt-4o-mini">gpt-4o-mini (Default high performance)</option>
+                              <option value="gpt-4o">gpt-4o (Strict reasoning & analysis)</option>
+                            </select>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Temperature slider */}
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center space-x-1">
+                            <span>LLM Temperature:</span>
+                            <span className={`font-mono ${getAccentColor('text')}`}>{aiTemperature}</span>
+                          </label>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500">Lower = focused & predictable, Higher = creative analogies</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.0"
+                          max="1.0"
+                          step="0.1"
+                          value={aiTemperature}
+                          onChange={(e) => setAiTemperature(Number(e.target.value))}
+                          className="w-full h-1.5 bg-slate-200 dark:bg-slate-850 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Connection indicator */}
+                  <div className="bg-slate-50 dark:bg-[#11131c]/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 font-semibold space-y-1.5">
+                    <span className={`font-extrabold ${getAccentColor('text')} block`}>💡 API Override Information:</span>
+                    <p className="m-0">
+                      If overrides are left blank, Podex will automatically look for environmental variables (<code className="font-mono text-cyan-600 dark:text-cyan-400">GEMINI_API_KEY</code> / <code className="font-mono text-cyan-600 dark:text-cyan-400">OPENAI_API_KEY</code>) set in your docker-compose parameters or host settings. If none are present, the workspace runs in Sandbox Fallback Mode automatically.
+                    </p>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Log Display Preferences */}
+              <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-6 space-y-6 shadow-sm">
+                <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e202a]">
+                  <Terminal className={`w-5 h-5 ${getAccentColor('text')}`} />
+                  <h4 className="text-sm font-extrabold text-slate-850 dark:text-slate-100 m-0">Terminal Logs Preferences</h4>
+                </div>
+
+                <div className="space-y-4 text-xs font-bold">
+                  {/* Line Wrapping */}
+                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#111319] rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                    <div className="space-y-0.5">
+                      <span className="text-slate-750 dark:text-slate-300 block">Log Line Wrap</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-normal">Wraps text inside the log screen instead of scrolling horizontally.</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={logsLineWrap}
+                        onChange={(e) => setLogsLineWrap(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-250 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-cyan-500"></div>
+                    </label>
+                  </div>
+
+                  {/* Show Timestamps */}
+                  <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#111319] rounded-2xl border border-slate-100 dark:border-slate-800/80">
+                    <div className="space-y-0.5">
+                      <span className="text-slate-750 dark:text-slate-300 block">Show Container Timestamps</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-normal">Toggles Kubernetes log timestamps (`kubectl logs --timestamps`).</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={logsShowTimestamps}
+                        onChange={(e) => setLogsShowTimestamps(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-250 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-cyan-500"></div>
+                    </label>
+                  </div>
+
+                  {/* Logs Tail Limit */}
+                  <div className="flex flex-col space-y-2">
+                    <label className="text-xs text-slate-500 dark:text-slate-400">Log Tail Depth:</label>
+                    <select
+                      value={logsTailLimit}
+                      onChange={(e) => setLogsTailLimit(Number(e.target.value))}
+                      className="bg-slate-50 dark:bg-[#111319] border border-slate-205 dark:border-[#1e202a] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-805 dark:text-slate-200"
+                    >
+                      <option value={50}>50 lines</option>
+                      <option value={100}>100 lines (recommended)</option>
+                      <option value={200}>200 lines</option>
+                      <option value={500}>500 lines</option>
+                      <option value={1000}>1000 lines (requires more network memory)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* UI Customization Preferences */}
+              <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-6 space-y-6 shadow-sm">
+                <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e202a]">
+                  <Sun className={`w-5 h-5 ${getAccentColor('text')}`} />
+                  <h4 className="text-sm font-extrabold text-slate-850 dark:text-slate-100 m-0">Theme Accent Configurations</h4>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Select Theme Accent */}
+                  <div className="flex flex-col space-y-2">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">Select Accent Color Highlight:</label>
+                    <div className="flex space-x-3.5 pt-1">
+                      {([
+                        { id: 'cyan', color: 'bg-cyan-500' },
+                        { id: 'indigo', color: 'bg-indigo-600' },
+                        { id: 'violet', color: 'bg-violet-600' },
+                        { id: 'emerald', color: 'bg-emerald-600' },
+                        { id: 'amber', color: 'bg-amber-600' }
+                      ] as const).map(item => {
+                        const isSelected = accentColor === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => setAccentColor(item.id)}
+                            className={`w-7 h-7 rounded-full ${item.color} flex items-center justify-center cursor-pointer transition active:scale-90 border-2 ${
+                              isSelected ? 'border-slate-800 dark:border-white scale-110 shadow-lg' : 'border-transparent opacity-80 hover:opacity-100'
+                            }`}
+                            title={`Use ${item.id} accent color`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kubernetes settings */}
+              <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-6 space-y-6 shadow-sm">
+                <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e202a]">
+                  <Cpu className={`w-5 h-5 ${getAccentColor('text')}`} />
+                  <h4 className="text-sm font-extrabold text-slate-850 dark:text-slate-100 m-0">Cluster Workspace Configurations</h4>
+                </div>
+
+                <div className="space-y-4 text-xs">
+                  {/* System Namespaces */}
+                  <div className="flex flex-col space-y-2">
+                    <label className="font-bold text-slate-500 dark:text-slate-400">Hide Namespaces (comma-separated):</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. kube-system, kube-public, local-path-storage"
+                      value={customNamespaces}
+                      onChange={(e) => setCustomNamespaces(e.target.value)}
+                      className="bg-slate-50 dark:bg-[#111319] border border-slate-205 dark:border-[#1e202a] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
+                    />
+                    <span className="text-[10px] text-slate-405 dark:text-slate-500 font-medium">Namespaces added here will be hidden by default in the explorer layout to keep noise low.</span>
+                  </div>
+
+                  {/* Refresh Rate */}
+                  <div className="flex flex-col space-y-2">
+                    <label className="font-bold text-slate-500 dark:text-slate-400 flex items-center space-x-1">
+                      <span>Auto-refresh Poll Rate:</span>
+                      <span className={`font-mono ${getAccentColor('text')}`}>{refreshInterval} seconds</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="2"
+                      max="30"
+                      value={refreshInterval}
+                      onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                      className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                    />
+                    <span className="text-[10px] text-slate-405 dark:text-slate-500 font-medium">Sets the duration between background updates of nodes, pods, and statistics.</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
         </div>
       </main>
 
@@ -1758,7 +2336,9 @@ export default function App() {
                     <pre
                       ref={logsEndRef}
                       style={{ fontSize: `${codeFontSize}px` }}
-                      className="w-full bg-slate-950 text-emerald-400 border border-slate-900 dark:border-[#161822] rounded-xl p-4 overflow-x-auto whitespace-pre font-mono h-[420px] transition-all scroll-smooth"
+                      className={`w-full bg-slate-950 text-emerald-400 border border-slate-900 dark:border-[#161822] rounded-xl p-4 font-mono h-[420px] transition-all scroll-smooth ${
+                        logsLineWrap ? 'whitespace-pre-wrap break-all' : 'overflow-x-auto whitespace-pre'
+                      }`}
                     >
                       {logsText
                         ? logsText

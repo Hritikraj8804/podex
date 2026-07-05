@@ -37,11 +37,12 @@ class AIProvider(ABC):
 
 
 class GeminiProvider(AIProvider):
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: Optional[str] = None, temperature: Optional[float] = None):
         from google import genai
         from google.genai import types
         self.client = genai.Client(api_key=api_key)
-        self.model = "gemini-2.5-flash"
+        self.model = model or "gemini-2.5-flash"
+        self.temperature = temperature if temperature is not None else 0.2
         self.types = types
 
     async def investigate(self, context_prompt: str) -> InvestigationResult:
@@ -51,7 +52,7 @@ class GeminiProvider(AIProvider):
             config=self.types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=InvestigationResult,
-                temperature=0.2,
+                temperature=self.temperature,
             ),
         )
         return InvestigationResult.model_validate_json(response.text)
@@ -65,17 +66,18 @@ class GeminiProvider(AIProvider):
             config=self.types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=ConceptExplanation,
-                temperature=0.4,
+                temperature=self.temperature + 0.2 if self.temperature <= 0.8 else 1.0,
             ),
         )
         return ConceptExplanation.model_validate_json(response.text)
 
 
 class OpenAIProvider(AIProvider):
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: Optional[str] = None, temperature: Optional[float] = None):
         from openai import OpenAI
         self.client = OpenAI(api_key=api_key)
-        self.model = "gpt-4o-mini"
+        self.model = model or "gpt-4o-mini"
+        self.temperature = temperature if temperature is not None else 0.2
 
     async def investigate(self, context_prompt: str) -> InvestigationResult:
         response = self.client.beta.chat.completions.parse(
@@ -85,7 +87,7 @@ class OpenAIProvider(AIProvider):
                 {"role": "user", "content": context_prompt}
             ],
             response_format=InvestigationResult,
-            temperature=0.2,
+            temperature=self.temperature,
         )
         return response.choices[0].message.parsed
 
@@ -99,7 +101,7 @@ class OpenAIProvider(AIProvider):
                 {"role": "user", "content": concept_prompt}
             ],
             response_format=ConceptExplanation,
-            temperature=0.4,
+            temperature=self.temperature + 0.2 if self.temperature <= 0.8 else 1.0,
         )
         return response.choices[0].message.parsed
 
@@ -202,22 +204,31 @@ class MockProvider(AIProvider):
             )
 
 
-def get_ai_provider() -> AIProvider:
+def get_ai_provider(
+    provider_override: Optional[str] = None, 
+    api_key_override: Optional[str] = None,
+    model_override: Optional[str] = None,
+    temperature_override: Optional[float] = None
+) -> AIProvider:
     """
     Factory function to retrieve the configured AI provider.
     """
-    provider_name = settings.ai_provider.lower()
+    provider_name = (provider_override or settings.ai_provider or "gemini").lower()
     
-    if provider_name == "gemini" and settings.gemini_api_key:
-        try:
-            return GeminiProvider(settings.gemini_api_key)
-        except ImportError:
-            print("Warning: google-genai is not installed properly. Falling back to Mock.")
-    elif provider_name == "openai" and settings.openai_api_key:
-        try:
-            return OpenAIProvider(settings.openai_api_key)
-        except ImportError:
-            print("Warning: openai is not installed properly. Falling back to Mock.")
+    if provider_name == "gemini":
+        key = api_key_override or settings.gemini_api_key
+        if key:
+            try:
+                return GeminiProvider(key, model=model_override, temperature=temperature_override)
+            except ImportError:
+                print("Warning: google-genai is not installed properly. Falling back to Mock.")
+    elif provider_name == "openai":
+        key = api_key_override or settings.openai_api_key
+        if key:
+            try:
+                return OpenAIProvider(key, model=model_override, temperature=temperature_override)
+            except ImportError:
+                print("Warning: openai is not installed properly. Falling back to Mock.")
             
     # Default fallback to Mock Sandbox Provider
     return MockProvider()
