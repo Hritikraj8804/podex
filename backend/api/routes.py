@@ -1,11 +1,12 @@
 import yaml
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Header
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
 from backend.services.k8s_service import K8sService
 from backend.services.investigation_service import InvestigationService
 from backend.ai import get_ai_provider, build_concept_prompt, InvestigationResult, ConceptExplanation
+from backend.kubernetes.client import list_contexts, switch_context
 from backend.utils import clean_kubernetes_dict
 
 router = APIRouter()
@@ -30,6 +31,9 @@ class RestartRequest(BaseModel):
 class DeleteRequest(BaseModel):
     namespace: str
     name: str
+
+class SwitchContextRequest(BaseModel):
+    context: str
 
 # 1. Dashboard Stats
 @router.get("/stats")
@@ -97,15 +101,15 @@ def get_yaml(resource_type: str, namespace: str, name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{resource_type}/{namespace}/{name}/logs")
-def get_logs(resource_type: str, namespace: str, name: str, tail: int = 100):
+def get_logs(resource_type: str, namespace: str, name: str, tail: int = 100, timestamps: bool = False):
     rt = resource_type.lower()
     try:
         if rt == "pod":
-            return {"logs": k8s_service.get_pod_logs(namespace, name, tail_lines=tail)}
+            return {"logs": k8s_service.get_pod_logs(namespace, name, tail_lines=tail, timestamps=timestamps)}
         elif rt == "deployment":
-            return {"logs": k8s_service.get_deployment_logs(namespace, name, tail_lines=tail)}
+            return {"logs": k8s_service.get_deployment_logs(namespace, name, tail_lines=tail, timestamps=timestamps)}
         elif rt == "service":
-            return {"logs": k8s_service.get_service_logs(namespace, name, tail_lines=tail)}
+            return {"logs": k8s_service.get_service_logs(namespace, name, tail_lines=tail, timestamps=timestamps)}
         else:
             raise HTTPException(status_code=400, detail=f"Invalid resource type: {resource_type}")
     except Exception as e:
@@ -117,17 +121,38 @@ def get_events(resource_type: str, namespace: str, name: str):
 
 # 4. Investigate Endpoint
 @router.post("/investigate", response_model=InvestigationResult)
-async def investigate(req: InvestigateRequest):
+async def investigate(
+    req: InvestigateRequest,
+    x_ai_provider: Optional[str] = Header(None),
+    x_ai_key: Optional[str] = Header(None),
+    x_ai_model: Optional[str] = Header(None),
+    x_ai_temperature: Optional[float] = Header(None)
+):
     return await investigation_service.investigate_resource(
         resource_type=req.type,
         name=req.name,
-        namespace=req.namespace
+        namespace=req.namespace,
+        provider_override=x_ai_provider,
+        api_key_override=x_ai_key,
+        model_override=x_ai_model,
+        temperature_override=x_ai_temperature
     )
 
 # 5. Concept Learning Endpoint
 @router.get("/learn", response_model=ConceptExplanation)
-async def learn_concept(concept: str = Query(..., description="The Kubernetes resource or topic to explain")):
-    ai_provider = get_ai_provider()
+async def learn_concept(
+    concept: str = Query(..., description="The Kubernetes resource or topic to explain"),
+    x_ai_provider: Optional[str] = Header(None),
+    x_ai_key: Optional[str] = Header(None),
+    x_ai_model: Optional[str] = Header(None),
+    x_ai_temperature: Optional[float] = Header(None)
+):
+    ai_provider = get_ai_provider(
+        provider_override=x_ai_provider,
+        api_key_override=x_ai_key,
+        model_override=x_ai_model,
+        temperature_override=x_ai_temperature
+    )
     return await ai_provider.explain_concept(concept)
 
 # 6. Operations (Restart, Scale, Delete)
@@ -151,3 +176,15 @@ def delete_resource(req: DeleteRequest):
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("message"))
     return result
+
+# 7. Kubeconfig Context Switchers
+@router.get("/kube/contexts")
+def get_kube_contexts():
+    return list_contexts()
+
+@router.post("/kube/switch")
+def post_switch_context(req: SwitchContextRequest):
+    success = switch_context(req.context)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to switch to context: {req.context}")
+    return {"success": True, "message": f"Successfully switched to context: {req.context}"}

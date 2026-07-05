@@ -191,7 +191,7 @@ class K8sService:
         svc = self.core_api.read_namespaced_service(name, namespace)
         return client.ApiClient().sanitize_for_serialization(svc)
 
-    def get_pod_logs(self, namespace: str, name: str, container: Optional[str] = None, tail_lines: int = 100) -> str:
+    def get_pod_logs(self, namespace: str, name: str, container: Optional[str] = None, tail_lines: int = 100, timestamps: bool = False) -> str:
         """
         Reads container logs for a pod.
         """
@@ -200,14 +200,15 @@ class K8sService:
                 name=name,
                 namespace=namespace,
                 container=container,
-                tail_lines=tail_lines
+                tail_lines=tail_lines,
+                timestamps=timestamps
             )
         except ApiException as e:
             return f"Error reading logs: {e.reason}\nDetail: {e.body}"
         except Exception as e:
             return f"Error reading logs: {str(e)}"
 
-    def get_deployment_logs(self, namespace: str, name: str, tail_lines: int = 100) -> str:
+    def get_deployment_logs(self, namespace: str, name: str, tail_lines: int = 100, timestamps: bool = False) -> str:
         """
         Aggregates logs for pods managed by this deployment by finding the pods first.
         """
@@ -226,11 +227,11 @@ class K8sService:
             # Read first pod logs as representation
             pod_name = pods.items[0].metadata.name
             log_header = f"--- Logs for Pod {pod_name} (managed by Deployment {name}) ---\n"
-            return log_header + self.get_pod_logs(namespace, pod_name, tail_lines=tail_lines)
+            return log_header + self.get_pod_logs(namespace, pod_name, tail_lines=tail_lines, timestamps=timestamps)
         except Exception as e:
             return f"Error fetching deployment logs: {str(e)}"
 
-    def get_service_logs(self, namespace: str, name: str, tail_lines: int = 100) -> str:
+    def get_service_logs(self, namespace: str, name: str, tail_lines: int = 100, timestamps: bool = False) -> str:
         """
         Aggregates logs for pods targeted by this service.
         """
@@ -248,7 +249,7 @@ class K8sService:
                 
             pod_name = pods.items[0].metadata.name
             log_header = f"--- Logs for Pod {pod_name} (targeted by Service {name}) ---\n"
-            return log_header + self.get_pod_logs(namespace, pod_name, tail_lines=tail_lines)
+            return log_header + self.get_pod_logs(namespace, pod_name, tail_lines=tail_lines, timestamps=timestamps)
         except Exception as e:
             return f"Error fetching service logs: {str(e)}"
 

@@ -10,7 +10,16 @@ class InvestigationService:
         self.k8s_service = K8sService()
         self.ai_provider = get_ai_provider()
 
-    async def investigate_resource(self, resource_type: str, name: str, namespace: str) -> InvestigationResult:
+    async def investigate_resource(
+        self, 
+        resource_type: str, 
+        name: str, 
+        namespace: str, 
+        provider_override: Optional[str] = None, 
+        api_key_override: Optional[str] = None,
+        model_override: Optional[str] = None,
+        temperature_override: Optional[float] = None
+    ) -> InvestigationResult:
         """
         Gathers complete Kubernetes context for the resource under investigation,
         compiles it into a structured prompt, and queries the AI provider.
@@ -169,4 +178,10 @@ class InvestigationService:
         )
 
         # 4. Invoke LLM client
-        return await self.ai_provider.investigate(prompt)
+        ai_provider = get_ai_provider(
+            provider_override=provider_override,
+            api_key_override=api_key_override,
+            model_override=model_override,
+            temperature_override=temperature_override
+        )
+        return await ai_provider.investigate(prompt)
