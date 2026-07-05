@@ -98,7 +98,29 @@ interface ConceptExplanation {
 function FormattedText({ text, isCode = false }: { text: string; isCode?: boolean }) {
   if (!text) return null;
 
-  const lines = text.split('\n');
+  // Preprocess text to handle formatting errors like missing newlines between numbered items.
+  // 1. Convert merged list patterns like "Error!2. Examine" to "Error!\n2. Examine"
+  let processed = text.replace(/([.!?]['"]?)\s*(\d+)\.\s*/g, '$1\n$2. ');
+
+  // 2. Convert standalone numbers followed by a newline and text: "1\nInspect" to "1. Inspect"
+  processed = processed.replace(/^(\d+)\s*\n\s*([a-zA-Z])/gm, '$1. $2');
+
+  const rawLines = processed.split('\n');
+  const lines: string[] = [];
+
+  for (let line of rawLines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Check if the line has multiple inline numbers like "2. Some text 3. Other text" and split them
+    const inlineMatches = trimmed.split(/\s+(?=\d+\.\s+)/);
+    if (inlineMatches.length > 1) {
+      lines.push(...inlineMatches);
+    } else {
+      lines.push(trimmed);
+    }
+  }
+
   const regex = /(\*\*.*?\*\*|`.*?`)/g;
 
   const parseInlineMarkdown = (str: string) => {
@@ -106,15 +128,35 @@ function FormattedText({ text, isCode = false }: { text: string; isCode?: boolea
     return parts.map((part, pIdx) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return (
-          <strong key={pIdx} className="font-extrabold text-slate-900 dark:text-white">
+          <strong key={pIdx} className="font-bold text-slate-900 dark:text-white">
             {part.slice(2, -2)}
           </strong>
         );
       }
       if (part.startsWith('`') && part.endsWith('`')) {
+        const codeText = part.slice(1, -1);
+        const isCmd = codeText.startsWith('kubectl ') || codeText.startsWith('docker ') || codeText.startsWith('minikube ') || codeText.startsWith('kind ');
+        if (isCmd) {
+          return (
+            <span key={pIdx} className="inline-flex items-center space-x-1.5 bg-slate-950 dark:bg-slate-900 text-emerald-400 dark:text-emerald-400 font-mono px-2 py-0.5 rounded border border-slate-205 dark:border-slate-800 mx-1 text-[11px] shadow-sm select-all">
+              <span>{codeText}</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(codeText);
+                  alert("Copied command!");
+                }}
+                className="text-[9px] text-cyan-500 hover:text-cyan-400 font-bold ml-1 cursor-pointer select-none hover:underline"
+                title="Copy Command"
+              >
+                Copy
+              </button>
+            </span>
+          );
+        }
         return (
-          <code key={pIdx} className="font-mono bg-slate-100 dark:bg-slate-800/80 text-cyan-600 dark:text-cyan-455 px-1 py-0.5 rounded text-[11px] font-semibold border border-slate-200/50 dark:border-slate-800">
-            {part.slice(1, -1)}
+          <code key={pIdx} className="font-mono bg-slate-100 dark:bg-slate-800/80 text-cyan-600 dark:text-cyan-400 px-1 py-0.5 rounded text-[11px] font-semibold border border-slate-200/50 dark:border-slate-800">
+            {codeText}
           </code>
         );
       }
@@ -123,7 +165,7 @@ function FormattedText({ text, isCode = false }: { text: string; isCode?: boolea
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {lines.map((line, idx) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={idx} className="h-1" />;
@@ -135,7 +177,7 @@ function FormattedText({ text, isCode = false }: { text: string; isCode?: boolea
           displayLine = trimmed.replace(/^(\/\/|#)\s*/, '');
         }
 
-        // Detect commands/code (using strict matching to avoid false positives on normal sentences)
+        // Detect commands/code
         const isCommandLine = !isComment && (
           trimmed.startsWith('kubectl ') || 
           trimmed.startsWith('docker ') || 
@@ -161,8 +203,11 @@ function FormattedText({ text, isCode = false }: { text: string; isCode?: boolea
 
         if (isCommandLine) {
           return (
-            <div key={idx} className="bg-slate-900 dark:bg-[#07080b] text-emerald-400 dark:text-emerald-500 font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] overflow-x-auto flex items-center justify-between group shadow-inner">
-              <span className="select-all">{displayLine}</span>
+            <div key={idx} className="bg-slate-950 dark:bg-[#040507] text-emerald-400 dark:text-emerald-500 font-mono px-4 py-3 rounded-xl border border-slate-205 dark:border-slate-850 text-[11px] overflow-x-auto flex items-center justify-between group shadow-inner my-2">
+              <div className="flex items-center space-x-2 min-w-0">
+                <span className="text-slate-650 dark:text-slate-500 select-none font-bold">$</span>
+                <span className="select-all truncate">{displayLine}</span>
+              </div>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(displayLine);
@@ -181,9 +226,9 @@ function FormattedText({ text, isCode = false }: { text: string; isCode?: boolea
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           const listContent = trimmed.slice(2);
           return (
-            <div key={idx} className="flex items-start space-x-2 pl-1.5 my-1">
-              <span className="text-cyan-500 mt-1 shrink-0 text-xs">•</span>
-              <span className="text-slate-700 dark:text-slate-350 font-semibold">{parseInlineMarkdown(listContent)}</span>
+            <div key={idx} className="flex items-start space-x-2 pl-1.5 my-1.5">
+              <span className="text-cyan-500 mt-1.5 shrink-0 text-xs font-bold">•</span>
+              <span className="text-slate-650 dark:text-slate-300 font-medium text-xs leading-relaxed">{parseInlineMarkdown(listContent)}</span>
             </div>
           );
         }
@@ -194,17 +239,17 @@ function FormattedText({ text, isCode = false }: { text: string; isCode?: boolea
           const num = numberedListMatch[1];
           const listContent = numberedListMatch[2];
           return (
-            <div key={idx} className="flex items-start space-x-2.5 pl-1 my-1.5">
-              <span className="flex items-center justify-center w-4.5 h-4.5 rounded-full bg-cyan-100 dark:bg-cyan-950/50 text-cyan-600 dark:text-cyan-400 font-bold text-[9px] shrink-0 mt-0.5 border border-cyan-200/40 dark:border-cyan-800/30">
+            <div key={idx} className="flex items-start space-x-3 pl-1 my-2">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 font-extrabold text-[10px] shrink-0 mt-0.5 border border-cyan-200/40 dark:border-cyan-800/30">
                 {num}
               </span>
-              <span className="text-slate-700 dark:text-slate-355 font-semibold leading-relaxed mt-0.5">{parseInlineMarkdown(listContent)}</span>
+              <span className="text-slate-650 dark:text-slate-300 font-medium text-xs leading-relaxed mt-0.5">{parseInlineMarkdown(listContent)}</span>
             </div>
           );
         }
 
         return (
-          <p key={idx} className="text-slate-700 dark:text-slate-350 leading-relaxed font-semibold">
+          <p key={idx} className="text-slate-655 dark:text-slate-300 leading-relaxed font-medium text-xs">
             {parseInlineMarkdown(displayLine)}
           </p>
         );
@@ -270,6 +315,7 @@ export default function App() {
   const [learnQuery, setLearnQuery] = useState('');
   const [aiLearning, setAiLearning] = useState<ConceptExplanation | null>(null);
   const [aiLearningLoading, setAiLearningLoading] = useState(false);
+  const [learnSubTab, setLearnSubTab] = useState<'concept' | 'why' | 'gotchas'>('concept');
 
   // Operation states
   const [confirmationModal, setConfirmationModal] = useState<{
@@ -524,6 +570,7 @@ export default function App() {
     if (!q.trim()) return;
     setAiLearningLoading(true);
     setAiLearning(null);
+    setLearnSubTab('concept');
     try {
       const res = await fetch(`${API_URL}/api/learn?concept=${encodeURIComponent(q)}`);
       if (res.ok) {
@@ -1208,9 +1255,7 @@ export default function App() {
                   <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
                   <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">Tutor is compiling explanation...</span>
                 </div>
-              )}
-
-              {aiLearning && (
+              )}              {aiLearning && (
                 <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-8 space-y-6 max-w-2xl mx-auto shadow-sm">
                   
                   {/* Topic Title */}
@@ -1224,43 +1269,83 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Sub-tabs Selection */}
+                  <div className="flex bg-slate-200/50 dark:bg-[#12141a] rounded-xl p-0.5 border border-slate-250/60 dark:border-[#1e202a] select-none">
+                    {([
+                      { id: 'concept', label: 'Concept Overview' },
+                      { id: 'why', label: 'Why it Exists' },
+                      { id: 'gotchas', label: 'Common Gotchas' }
+                    ] as const).map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setLearnSubTab(tab.id)}
+                        className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${
+                          learnSubTab === tab.id
+                            ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
                   {/* Body Sections */}
                   <div className="space-y-6 text-xs leading-relaxed">
                     
-                    {/* Explanation */}
-                    <div className="space-y-1.5">
-                      <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">What it is</h5>
-                      <p className="text-slate-700 dark:text-slate-300 font-bold">{aiLearning.explanation}</p>
-                    </div>
+                    {/* SUBTAB: CONCEPT OVERVIEW */}
+                    {learnSubTab === 'concept' && (
+                      <div className="space-y-5 animate-in fade-in duration-200">
+                        <div className="space-y-1.5">
+                          <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">What it is</h5>
+                          <p className="text-slate-700 dark:text-slate-300 font-medium text-xs leading-relaxed">{aiLearning.explanation}</p>
+                        </div>
 
-                    {/* Analogy */}
-                    <div className="bg-indigo-50/50 dark:bg-[#0f121d] border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-5 space-y-2">
-                      <h5 className="font-bold text-[10px] text-indigo-650 dark:text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
-                        <Info className="w-3.5 h-3.5" />
-                        <span>Analogy for Beginners</span>
-                      </h5>
-                      <p className="text-slate-700 dark:text-slate-300 italic font-bold">
-                        "{aiLearning.real_world_analogy}"
-                      </p>
-                    </div>
-
-                    {/* Why it exists */}
-                    <div className="space-y-1.5">
-                      <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">Why it exists in K8s</h5>
-                      <p className="text-slate-700 dark:text-slate-300 font-bold">{aiLearning.why_it_exists}</p>
-                    </div>
-
-                    {/* Gotchas */}
-                    {aiLearning.common_gotchas && aiLearning.common_gotchas.length > 0 && (
-                      <div className="space-y-2">
-                        <h5 className="font-bold text-[10px] text-amber-600 dark:text-amber-550 uppercase tracking-wider">Common Gotchas</h5>
-                        <ul className="space-y-1.5 list-disc pl-5 text-slate-700 dark:text-slate-300 font-bold">
-                          {aiLearning.common_gotchas.map((gotcha, idx) => (
-                            <li key={idx}>{gotcha}</li>
-                          ))}
-                        </ul>
+                        {aiLearning.real_world_analogy && aiLearning.real_world_analogy !== 'N/A' && (
+                          <div className="bg-indigo-50/50 dark:bg-[#0f121d] border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-5 space-y-2">
+                            <h5 className="font-bold text-[10px] text-indigo-650 dark:text-indigo-405 uppercase tracking-wider flex items-center space-x-1.5">
+                              <Info className="w-3.5 h-3.5" />
+                              <span>Analogy for Beginners</span>
+                            </h5>
+                            <p className="text-slate-700 dark:text-slate-300 italic font-medium leading-relaxed">
+                              "{aiLearning.real_world_analogy}"
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    {/* SUBTAB: WHY IT EXISTS */}
+                    {learnSubTab === 'why' && (
+                      <div className="space-y-2 animate-in fade-in duration-200">
+                        <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">Why it exists in K8s</h5>
+                        <p className="text-slate-700 dark:text-slate-300 font-medium text-xs leading-relaxed">{aiLearning.why_it_exists}</p>
+                      </div>
+                    )}
+
+                    {/* SUBTAB: GOTCHAS */}
+                    {learnSubTab === 'gotchas' && (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        {aiLearning.common_gotchas && aiLearning.common_gotchas.length > 0 && aiLearning.common_gotchas[0] !== 'N/A' ? (
+                          <div className="space-y-2">
+                            <h5 className="font-bold text-[10px] text-amber-600 dark:text-amber-550 uppercase tracking-wider mb-2">Gotchas & Pitfalls to Avoid</h5>
+                            <div className="space-y-2.5">
+                              {aiLearning.common_gotchas.map((gotcha, idx) => (
+                                <div key={idx} className="flex items-start space-x-3 p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/10 text-slate-700 dark:text-slate-300">
+                                  <AlertCircle className="w-4 h-4 text-amber-550 shrink-0 mt-0.5" />
+                                  <span className="text-xs font-medium leading-relaxed">{gotcha}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-slate-500 font-medium">
+                            No common gotchas identified.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                   </div>
                 </div>
               )}
