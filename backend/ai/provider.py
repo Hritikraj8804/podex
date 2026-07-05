@@ -32,7 +32,7 @@ class AIProvider(ABC):
         pass
 
     @abstractmethod
-    async def explain_concept(self, concept_prompt: str) -> ConceptExplanation:
+    async def explain_concept(self, concept: str) -> ConceptExplanation:
         pass
 
 
@@ -56,7 +56,9 @@ class GeminiProvider(AIProvider):
         )
         return InvestigationResult.model_validate_json(response.text)
 
-    async def explain_concept(self, concept_prompt: str) -> ConceptExplanation:
+    async def explain_concept(self, concept: str) -> ConceptExplanation:
+        from backend.ai.prompts import build_concept_prompt
+        concept_prompt = build_concept_prompt(concept)
         response = self.client.models.generate_content(
             model=self.model,
             contents=concept_prompt,
@@ -87,7 +89,9 @@ class OpenAIProvider(AIProvider):
         )
         return response.choices[0].message.parsed
 
-    async def explain_concept(self, concept_prompt: str) -> ConceptExplanation:
+    async def explain_concept(self, concept: str) -> ConceptExplanation:
+        from backend.ai.prompts import build_concept_prompt
+        concept_prompt = build_concept_prompt(concept)
         response = self.client.beta.chat.completions.parse(
             model=self.model,
             messages=[
@@ -129,10 +133,30 @@ class MockProvider(AIProvider):
             )
         )
 
-    async def explain_concept(self, concept_prompt: str) -> ConceptExplanation:
+    async def explain_concept(self, concept: str) -> ConceptExplanation:
         # Simple rule-based explanation for standard concepts if key is missing
-        concept = concept_prompt.lower()
-        if "pod" in concept:
+        concept_lower = concept.lower().strip()
+        
+        # Guardrail check for MockProvider
+        in_scope_keywords = [
+            "pod", "deployment", "service", "ingress", "replica", "volume", 
+            "namespace", "kubernetes", "k8s", "docker", "container", 
+            "kubelet", "probe", "configmap", "secret"
+        ]
+        
+        # Check if the query matches any container/Kubernetes keywords
+        is_in_scope = any(kw in concept_lower for kw in in_scope_keywords)
+        
+        if not is_in_scope:
+            return ConceptExplanation(
+                concept="Out of Scope",
+                explanation=f"I am Podex, your Kubernetes/container tutor. I cannot explain '{concept}' because it is not related to Kubernetes, containers, or Docker.",
+                real_world_analogy="N/A",
+                why_it_exists="N/A",
+                common_gotchas=["Please search for a topic related to Kubernetes or containerization."]
+            )
+            
+        if "pod" in concept_lower:
             return ConceptExplanation(
                 concept="Pod",
                 explanation="A Pod is the smallest, most basic deployable unit in Kubernetes. It represents a single instance of a running process in your cluster.",
@@ -143,7 +167,7 @@ class MockProvider(AIProvider):
                     "Containers in the same Pod share localhost port space, so they cannot bind to the same port."
                 ]
             )
-        elif "deployment" in concept:
+        elif "deployment" in concept_lower:
             return ConceptExplanation(
                 concept="Deployment",
                 explanation="A Deployment manages a set of identical Pods. It ensures they stay running, scales them up or down, and updates them safely when you deploy new code.",
@@ -154,7 +178,7 @@ class MockProvider(AIProvider):
                     "Scaling to 0 is a valid way to stop an application without deleting its configuration."
                 ]
             )
-        elif "service" in concept:
+        elif "service" in concept_lower:
             return ConceptExplanation(
                 concept="Service",
                 explanation="A Service is an abstract way to expose an application running on a set of Pods as a network service. It acts as a stable entry point and load balancer.",
@@ -167,8 +191,8 @@ class MockProvider(AIProvider):
             )
         else:
             return ConceptExplanation(
-                concept=concept_prompt.title(),
-                explanation=f"This is the Kubernetes concept of a {concept_prompt.title()}. To get a rich AI-powered explanation, configure your Gemini/OpenAI API key.",
+                concept=concept.title(),
+                explanation=f"This is the Kubernetes concept of a {concept.title()}. To get a rich AI-powered explanation, configure your Gemini/OpenAI API key.",
                 real_world_analogy="Think of it as a specialized tool in a toolbox that performs one job very well.",
                 why_it_exists="It is designed to solve a specific infrastructure problem in modern container orchestration.",
                 common_gotchas=[

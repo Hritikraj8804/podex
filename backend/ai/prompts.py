@@ -67,17 +67,29 @@ Please perform a thorough investigation. Fill out the response schema precisely:
 
 def build_concept_prompt(concept: str) -> str:
     """
-    Constructs a prompt to explain a specific Kubernetes concept or resource type.
+    Constructs a prompt to explain a specific Kubernetes concept or resource type,
+    enforcing guardrails to prevent answering out-of-scope queries.
     """
     return f"""
-Explain the Kubernetes concept of '{concept}' in a way that a absolute beginner developer, student, or someone moving from basic Docker containerization can easily understand.
+Explain the concept of '{concept}'.
 
-Return your explanation matching the structure of the ConceptExplanation schema:
-- Concept: The name of the concept.
-- Explanation: A clear, beginner-friendly description using simple terms.
-- Real World Analogy: An analogy that relates the concept to everyday life.
-- Why It Exists: The problem it solves in Kubernetes and container orchestration.
-- Common Gotchas: Common pitfalls or mistakes beginners make when working with this concept.
+GUARDRAILS & SCOPE LIMIT:
+You are Podex, a dedicated Kubernetes, Docker, and container orchestration tutor. 
+1. The requested concept '{concept}' MUST be directly related to Kubernetes, Docker, containerization, container registries, networking/security in containers, or cloud-native technologies.
+2. If '{concept}' is completely unrelated to these topics (e.g., cooking, generic programming basics of unrelated languages like Java/Python, history, pop culture, gaming, general chat, or generic advice), you MUST decline to explain it.
+3. In case of a denial, you must structure the JSON output of the ConceptExplanation schema as follows:
+   - concept: Set this to "Out of Scope".
+   - explanation: Provide a polite refusal message explaining that you are a Kubernetes/container tutor and cannot answer this topic. Keep it concise.
+   - real_world_analogy: Set this to "N/A".
+   - why_it_exists: Set this to "N/A".
+   - common_gotchas: Return a single-item list containing: ["Please search for a topic related to Kubernetes or containerization."]
+
+If the concept is in-scope, return your explanation matching the structure of the ConceptExplanation schema:
+- concept: The name of the concept.
+- explanation: A clear, beginner-friendly description using simple terms.
+- real_world_analogy: An analogy that relates the concept to everyday life.
+- why_it_exists: The problem it solves in Kubernetes and container orchestration.
+- common_gotchas: Common pitfalls or mistakes beginners make when working with this concept.
 """
 
 

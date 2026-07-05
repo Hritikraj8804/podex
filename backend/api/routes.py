@@ -128,8 +128,7 @@ async def investigate(req: InvestigateRequest):
 @router.get("/learn", response_model=ConceptExplanation)
 async def learn_concept(concept: str = Query(..., description="The Kubernetes resource or topic to explain")):
     ai_provider = get_ai_provider()
-    prompt = build_concept_prompt(concept)
-    return await ai_provider.explain_concept(prompt)
+    return await ai_provider.explain_concept(concept)
 
 # 6. Operations (Restart, Scale, Delete)
 @router.post("/operations/scale")
