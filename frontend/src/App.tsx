@@ -708,88 +708,162 @@ export default function App() {
     <div className="flex h-screen bg-slate-50 dark:bg-[#07080b] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-200">
 
       {/* Sidebar NAVIGATION */}
-      {!sidebarCollapsed && (
-        <aside className="w-64 bg-slate-100 dark:bg-[#0d0e12] border-r border-slate-200 dark:border-[#1e202a] flex flex-col justify-between select-none">
-          <div>
-            {/* Logo Brand */}
-            <div className="p-6 flex items-center justify-between border-b border-slate-200 dark:border-[#1e202a]">
+      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-slate-100 dark:bg-[#0d0e12] border-r border-slate-200 dark:border-[#1e202a] flex flex-col justify-between select-none transition-all duration-300`}>
+        {sidebarCollapsed ? (
+          /* SLIM SIDEBAR (Discord style icon strip) */
+          <div className="flex flex-col justify-between h-full py-6 items-center">
+            <div className="flex flex-col items-center space-y-6 w-full">
+              {/* Logo Brand Icon */}
               <div
                 onClick={() => {
                   setActiveTab('dashboard');
                   setSelectedResource(null);
                 }}
-                className="flex items-center space-x-3 cursor-pointer hover:opacity-90 active:scale-95 transition"
-                title="Go to Dashboard"
+                className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-cyan-500/10 cursor-pointer hover:opacity-90 active:scale-95 transition"
+                title="Podex - Go to Dashboard"
               >
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-cyan-500/10">
-                  P
-                </div>
-                <div>
-                  <h1 className="text-sm font-extrabold text-slate-800 dark:text-white m-0 tracking-wide">PODEX</h1>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold tracking-wider block">K8S FOR BEGINNERS</span>
-                </div>
+                P
               </div>
-              <button
-                onClick={() => setSidebarCollapsed(true)}
-                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#1a1c25] text-slate-500 dark:text-slate-405 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
-                title="Hide Sidebar"
-              >
-                <PanelLeftClose className="w-4 h-4" />
-              </button>
+
+              {/* Nav List Icons */}
+              <nav className="flex flex-col items-center space-y-4 w-full px-2">
+                {[
+                  { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
+                  { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+                ].map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        setSelectedResource(null);
+                      }}
+                      title={tab.label}
+                      className={`w-12 h-12 flex items-center justify-center rounded-xl transition cursor-pointer relative group ${isActive
+                          ? 'bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-l-4 border-cyan-500'
+                          : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                    >
+                      <Icon className={`w-5 h-5 ${isActive ? 'text-cyan-500' : 'text-slate-405'}`} />
+                      
+                      {/* Tooltip */}
+                      <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
+                        {tab.label}
+                      </div>
+                    </button>
+                  );
+                })}
+              </nav>
             </div>
 
-            {/* Nav List */}
-            <nav className="p-4 space-y-1.5">
-              {[
-                { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
-                { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
-                { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id as any);
-                      setSelectedResource(null);
-                    }}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${isActive
-                      ? 'bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-l-4 border-cyan-500'
-                      : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
-                      }`}
-                  >
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-500' : 'text-slate-405'}`} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* Sidebar Footer */}
-          <div className="p-6 border-t border-slate-200 dark:border-[#1e202a] space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-bold">Theme Mode</span>
+            {/* Footer Utilities */}
+            <div className="flex flex-col items-center space-y-4 w-full">
+              {/* Theme Toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-1.5 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                className="p-2 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-605 dark:text-slate-300 transition cursor-pointer"
                 title="Toggle Light/Dark Theme"
               >
-                {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+
+              {/* Expand Button */}
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-[#1a1c25] text-slate-500 dark:text-slate-405 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                title="Expand Sidebar"
+              >
+                <Menu className="w-4 h-4" />
               </button>
             </div>
-            <div className="bg-slate-200/50 dark:bg-[#111319] p-3.5 rounded-xl border border-slate-350/40 dark:border-slate-800/60">
-              <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-widest block font-bold mb-1">
-                Active Connection
-              </span>
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
-                {stats?.status === 'healthy' ? 'kind-podex' : 'Connecting...'}
-              </span>
+          </div>
+        ) : (
+          /* FULL SIDEBAR */
+          <div className="flex flex-col justify-between h-full">
+            <div>
+              {/* Logo Brand */}
+              <div className="p-6 flex items-center justify-between border-b border-slate-200 dark:border-[#1e202a]">
+                <div
+                  onClick={() => {
+                    setActiveTab('dashboard');
+                    setSelectedResource(null);
+                  }}
+                  className="flex items-center space-x-3 cursor-pointer hover:opacity-90 active:scale-95 transition"
+                  title="Go to Dashboard"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-cyan-500/10">
+                    P
+                  </div>
+                  <div>
+                    <h1 className="text-sm font-extrabold text-slate-800 dark:text-white m-0 tracking-wide">PODEX</h1>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold tracking-wider block">K8S FOR BEGINNERS</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#1a1c25] text-slate-500 dark:text-slate-405 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                  title="Hide Sidebar"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Nav List */}
+              <nav className="p-4 space-y-1.5">
+                {[
+                  { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
+                  { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+                ].map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        setSelectedResource(null);
+                      }}
+                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${isActive
+                        ? 'bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-l-4 border-cyan-500'
+                        : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                    >
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-500' : 'text-slate-405'}`} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Sidebar Footer */}
+            <div className="p-6 border-t border-slate-200 dark:border-[#1e202a] space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-bold">Theme Mode</span>
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="p-1.5 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                  title="Toggle Light/Dark Theme"
+                >
+                  {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <div className="bg-slate-200/50 dark:bg-[#111319] p-3.5 rounded-xl border border-slate-350/40 dark:border-slate-800/60">
+                <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-widest block font-bold mb-1">
+                  Active Connection
+                </span>
+                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
+                  {stats?.status === 'healthy' ? 'kind-podex' : 'Connecting...'}
+                </span>
+              </div>
             </div>
           </div>
-        </aside>
-      )}
+        )}
+      </aside>
 
       {/* Main Workspace Frame */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#07080b]">
