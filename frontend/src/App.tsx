@@ -95,7 +95,7 @@ interface ConceptExplanation {
   common_gotchas: string[];
 }
 
-function FormattedText({ text, isCode = false }: { text: string; isCode?: boolean }) {
+function FormattedText({ text, isCode = false, onShowToast }: { text: string; isCode?: boolean; onShowToast?: (msg: string, type: 'success' | 'error' | 'info') => void }) {
   if (!text) return null;
 
   // Preprocess text to handle formatting errors like missing newlines between numbered items.
@@ -144,7 +144,11 @@ function FormattedText({ text, isCode = false }: { text: string; isCode?: boolea
                 onClick={(e) => {
                   e.stopPropagation();
                   navigator.clipboard.writeText(codeText);
-                  alert("Copied command!");
+                  if (onShowToast) {
+                    onShowToast("Copied command!", "success");
+                  } else {
+                    alert("Copied command!");
+                  }
                 }}
                 className="text-[9px] text-cyan-500 hover:text-cyan-400 font-bold ml-1 cursor-pointer select-none hover:underline"
                 title="Copy Command"
@@ -211,7 +215,11 @@ function FormattedText({ text, isCode = false }: { text: string; isCode?: boolea
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(displayLine);
-                  alert("Copied command!");
+                  if (onShowToast) {
+                    onShowToast("Copied command!", "success");
+                  } else {
+                    alert("Copied command!");
+                  }
                 }}
                 className="opacity-0 group-hover:opacity-100 text-[10px] text-cyan-500 hover:text-cyan-400 font-bold transition ml-2 shrink-0 cursor-pointer"
                 title="Copy Command"
@@ -325,6 +333,16 @@ export default function App() {
     scaleValue?: number;
   } | null>(null);
   const [operationInProgress, setOperationInProgress] = useState(false);
+
+  // Toast notifications state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const logsEndRef = useRef<HTMLPreElement>(null);
 
@@ -546,6 +564,8 @@ export default function App() {
       });
 
       if (res.ok) {
+        const data = await res.json();
+        setToast({ message: data.message || "Operation completed successfully!", type: "success" });
         setConfirmationModal(null);
         fetchResources();
         fetchStats();
@@ -554,11 +574,11 @@ export default function App() {
         }
       } else {
         const err = await res.json();
-        alert(`Operation failed: ${err.detail || 'Unknown error'}`);
+        setToast({ message: `Operation failed: ${err.detail || 'Unknown error'}`, type: 'error' });
       }
     } catch (e) {
       console.error(e);
-      alert("Network error executing operation.");
+      setToast({ message: "Network error executing operation.", type: 'error' });
     } finally {
       setOperationInProgress(false);
     }
@@ -1641,7 +1661,7 @@ export default function App() {
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(logsText);
-                            alert("Logs copied to clipboard!");
+                            setToast({ message: "Logs copied to clipboard!", type: "success" });
                           }}
                           className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold hover:text-cyan-500 cursor-pointer"
                         >
@@ -1730,7 +1750,7 @@ export default function App() {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(yamlText);
-                          alert("YAML copied to clipboard!");
+                          setToast({ message: "YAML copied to clipboard!", type: "success" });
                         }}
                         className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold hover:text-cyan-500 cursor-pointer"
                       >
@@ -1844,7 +1864,7 @@ export default function App() {
                             {/* Analysis Summary */}
                             <div className="bg-white dark:bg-[#10121a] p-4 rounded-2xl border border-slate-200 dark:border-[#1e202a] space-y-2 shadow-sm">
                               <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-550 uppercase tracking-wider">Analysis Summary</h5>
-                              <FormattedText text={aiInvestigation.explanation} />
+                              <FormattedText text={aiInvestigation.explanation} onShowToast={(msg, type) => setToast({ message: msg, type })} />
                             </div>
 
                             {/* Evidence list */}
@@ -1872,7 +1892,7 @@ export default function App() {
                                 <Sliders className="w-3.5 h-3.5" />
                                 <span>Suggested Fix Action</span>
                               </h5>
-                              <FormattedText text={aiInvestigation.suggested_fix} />
+                              <FormattedText text={aiInvestigation.suggested_fix} onShowToast={(msg, type) => setToast({ message: msg, type })} />
                             </div>
                           </div>
                         )}
@@ -2032,6 +2052,20 @@ export default function App() {
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification Banner */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4.5 py-3 rounded-2xl border shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 backdrop-blur-md bg-white/90 dark:bg-[#0c0e15]/90 border-slate-205 dark:border-[#1e202d]">
+          {toast.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+          ) : toast.type === 'error' ? (
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 animate-bounce" />
+          ) : (
+            <Info className="w-5 h-5 text-cyan-500 shrink-0" />
+          )}
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-250">{toast.message}</span>
         </div>
       )}
 
