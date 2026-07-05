@@ -183,9 +183,9 @@ function FormattedText({ text, isCode = false, onShowToast }: { text: string; is
 
         // Detect commands/code
         const isCommandLine = !isComment && (
-          trimmed.startsWith('kubectl ') || 
-          trimmed.startsWith('docker ') || 
-          trimmed.startsWith('npm ') || 
+          trimmed.startsWith('kubectl ') ||
+          trimmed.startsWith('docker ') ||
+          trimmed.startsWith('npm ') ||
           trimmed.startsWith('cd ') ||
           trimmed.startsWith('git ') ||
           trimmed.startsWith('python ') ||
@@ -294,7 +294,7 @@ export default function App() {
   // Data states
   const [stats, setStats] = useState<ClusterStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  
+
   const [pods, setPods] = useState<PodResource[]>([]);
   const [deployments, setDeployments] = useState<DeploymentResource[]>([]);
   const [services, setServices] = useState<ServiceResource[]>([]);
@@ -408,10 +408,10 @@ export default function App() {
   const fetchResources = useCallback(async (isSilent = false) => {
     if (!isSilent) setResourcesLoading(true);
     try {
-      const url = namespaceFilter 
+      const url = namespaceFilter
         ? `${API_URL}/api/resources?namespace=${encodeURIComponent(namespaceFilter)}`
         : `${API_URL}/api/resources`;
-      
+
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -444,7 +444,7 @@ export default function App() {
     if (!selectedResource) return;
     setResourceDetailsLoading(true);
     const { type, name, namespace } = selectedResource;
-    
+
     try {
       // 1. Fetch metadata overview JSON
       const specRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/details`);
@@ -495,7 +495,7 @@ export default function App() {
     setAiInvestigating(true);
     setAiInvestigation(null);
     setInvestigationSubTab('diagnosis');
-    
+
     const steps = [
       'Scanning container status codes...',
       'Retrieving Pod manifest attributes...',
@@ -541,14 +541,14 @@ export default function App() {
     if (!confirmationModal) return;
     setOperationInProgress(true);
     const { type, name, namespace, scaleValue } = confirmationModal;
-    
+
     try {
-      const endpoint = type === 'scale' 
-        ? `${API_URL}/api/operations/scale` 
+      const endpoint = type === 'scale'
+        ? `${API_URL}/api/operations/scale`
         : type === 'restart'
           ? `${API_URL}/api/operations/restart`
           : `${API_URL}/api/operations/delete`;
-      
+
       const body: any = {
         namespace,
         name
@@ -650,7 +650,7 @@ export default function App() {
     if (selectedResource.type === 'pod') {
       const podLabels = resourceDetails.metadata?.labels || {};
       const podName = selectedResource.name;
-      
+
       const parentDeploy = deployments.find(d => d.namespace === ns && podName.startsWith(d.name));
       if (parentDeploy) {
         related.push({
@@ -660,7 +660,7 @@ export default function App() {
           description: 'Parent Controller'
         });
       }
-      
+
       services.forEach(s => {
         if (s.namespace === ns) {
           const appLabel = podLabels['app'] || podLabels['run'] || podLabels['app.kubernetes.io/name'];
@@ -698,7 +698,7 @@ export default function App() {
   }).length;
   const totalPodsCount = filteredPods.length;
   const healthPercentage = totalPodsCount > 0 ? Math.round((runningPodsCount / totalPodsCount) * 100) : 100;
-  
+
   // SVG properties for Donut Chart
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
@@ -706,94 +706,111 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#07080b] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-200">
-      
+
       {/* Sidebar NAVIGATION */}
       {!sidebarCollapsed && (
-      <aside className="w-64 bg-slate-100 dark:bg-[#0d0e12] border-r border-slate-200 dark:border-[#1e202a] flex flex-col justify-between select-none">
-        <div>
-          {/* Logo Brand */}
-          <div className="p-6 flex items-center space-x-3 border-b border-slate-200 dark:border-[#1e202a]">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-cyan-500/10">
-              P
+        <aside className="w-64 bg-slate-100 dark:bg-[#0d0e12] border-r border-slate-200 dark:border-[#1e202a] flex flex-col justify-between select-none">
+          <div>
+            {/* Logo Brand */}
+            <div className="p-6 flex items-center justify-between border-b border-slate-200 dark:border-[#1e202a]">
+              <div
+                onClick={() => {
+                  setActiveTab('dashboard');
+                  setSelectedResource(null);
+                }}
+                className="flex items-center space-x-3 cursor-pointer hover:opacity-90 active:scale-95 transition"
+                title="Go to Dashboard"
+              >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-cyan-500/10">
+                  P
+                </div>
+                <div>
+                  <h1 className="text-sm font-extrabold text-slate-800 dark:text-white m-0 tracking-wide">PODEX</h1>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold tracking-wider block">K8S FOR BEGINNERS</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSidebarCollapsed(true)}
+                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#1a1c25] text-slate-500 dark:text-slate-405 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                title="Hide Sidebar"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
             </div>
-            <div>
-              <h1 className="text-sm font-extrabold text-slate-800 dark:text-white m-0 tracking-wide">PODEX</h1>
-              <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold tracking-wider block">K8S AI MENTOR</span>
-            </div>
-          </div>
 
-          {/* Nav List */}
-          <nav className="p-4 space-y-1.5">
-            {[
-              { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
-              { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
-              { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
-            ].map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id as any);
-                    setSelectedResource(null);
-                  }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${
-                    isActive
+            {/* Nav List */}
+            <nav className="p-4 space-y-1.5">
+              {[
+                { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
+                { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+                { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setSelectedResource(null);
+                    }}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${isActive
                       ? 'bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 border-l-4 border-cyan-500'
                       : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-500' : 'text-slate-405'}`} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+                      }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-cyan-500' : 'text-slate-405'}`} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
 
-        {/* Sidebar Footer */}
-        <div className="p-6 border-t border-slate-200 dark:border-[#1e202a] space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500 font-bold">Theme Mode</span>
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-1.5 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
-              title="Toggle Light/Dark Theme"
-            >
-              {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            </button>
+          {/* Sidebar Footer */}
+          <div className="p-6 border-t border-slate-200 dark:border-[#1e202a] space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-500 font-bold">Theme Mode</span>
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="p-1.5 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                title="Toggle Light/Dark Theme"
+              >
+                {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            <div className="bg-slate-200/50 dark:bg-[#111319] p-3.5 rounded-xl border border-slate-350/40 dark:border-slate-800/60">
+              <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-widest block font-bold mb-1">
+                Active Connection
+              </span>
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
+                {stats?.status === 'healthy' ? 'kind-podex' : 'Connecting...'}
+              </span>
+            </div>
           </div>
-          <div className="bg-slate-200/50 dark:bg-[#111319] p-3.5 rounded-xl border border-slate-350/40 dark:border-slate-800/60">
-            <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-widest block font-bold mb-1">
-              Active Connection
-            </span>
-            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
-              {stats?.status === 'healthy' ? 'kind-podex' : 'Connecting...'}
-            </span>
-          </div>
-        </div>
-      </aside>
+        </aside>
       )}
 
       {/* Main Workspace Frame */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#07080b]">
-        
+
         {/* Top Header Workspace */}
         <header className="h-16 border-b border-slate-200 dark:border-[#1e202a] flex items-center justify-between px-8 bg-white dark:bg-[#090b0e]">
           <div className="flex items-center space-x-4">
-            {/* Sidebar toggle button */}
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#12141a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
-              title={sidebarCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
-            >
-              {sidebarCollapsed ? <Menu className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
-            </button>
+            {/* Sidebar toggle button (only shown when collapsed to expand it) */}
+            {sidebarCollapsed && (
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#12141a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                title="Show Sidebar"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 capitalize m-0 tracking-wide">
               {activeTab} Space
             </h2>
-            
+
             {/* Namespace Filter for Explorer */}
             {activeTab === 'explorer' && (
               <div className="flex items-center bg-slate-100 dark:bg-[#111319] border border-slate-200 dark:border-[#1e202a] rounded-xl px-3 py-1">
@@ -831,25 +848,25 @@ export default function App() {
 
         {/* Dynamic Views Content */}
         <div className="flex-1 overflow-y-auto p-8">
-          
+
           {/* TAB 1: DASHBOARD */}
           {activeTab === 'dashboard' && (
             <div className="max-w-5xl mx-auto space-y-8">
-              
+
               {/* CNCF Style Top Hero Split Section */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 {/* Left Welcome Content (2/3 width) */}
                 <div className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-slate-800 p-8 shadow-sm flex flex-col justify-between min-h-[220px]">
                   <div className="absolute right-0 top-0 w-64 h-64 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-3xl" />
                   <div className="relative z-10 space-y-3">
-                    <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 tracking-widest uppercase">Kubernetes AI Mentor</span>
+                    <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 tracking-widest uppercase">Kubernetes Interactive Workspace</span>
                     <h3 className="text-xl font-black text-slate-800 dark:text-white leading-tight">Inspect container states & diagnose errors reactively.</h3>
                     <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed font-semibold max-w-lg">
                       Podex fetches live logs, details, and events from your Kind cluster, highlighting degraded pods. Click on the live status grid below to troubleshoot.
                     </p>
                   </div>
-                  
+
                   {/* Interactive Status Grid (CNCF K9s Cell Graphic) */}
                   <div className="relative z-10 pt-6 border-t border-slate-100 dark:border-slate-800/80 mt-6">
                     <div className="flex justify-between items-center mb-2.5">
@@ -866,13 +883,13 @@ export default function App() {
                           const s = p.status.toLowerCase();
                           const isHealthy = s.includes('run') || s === 'completed' || s === 'ready';
                           const isPending = s.includes('pend') || s.includes('progress');
-                          
-                          const color = isHealthy 
-                            ? 'bg-emerald-500 shadow-emerald-500/20' 
-                            : isPending 
-                              ? 'bg-amber-500 shadow-amber-500/20 animate-pulse' 
+
+                          const color = isHealthy
+                            ? 'bg-emerald-500 shadow-emerald-500/20'
+                            : isPending
+                              ? 'bg-amber-500 shadow-amber-500/20 animate-pulse'
                               : 'bg-red-500 shadow-red-500/20 animate-pulse';
-                              
+
                           return (
                             <div
                               key={p.name}
@@ -894,7 +911,7 @@ export default function App() {
                 {/* Right Circular Health Donut (1/3 width) */}
                 <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 flex flex-col items-center justify-center space-y-4 shadow-sm min-h-[220px]">
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Cluster Health</span>
-                  
+
                   {/* SVG Donut Track */}
                   <div className="relative flex items-center justify-center">
                     <svg className="w-28 h-28 transform -rotate-90">
@@ -927,7 +944,7 @@ export default function App() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold text-center">
                     {runningPodsCount} / {totalPodsCount} Pods Ready
                   </span>
@@ -936,7 +953,7 @@ export default function App() {
 
               {/* Stats Counters Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                
+
                 {/* Nodes Stat */}
                 <div className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-6 hover:border-cyan-500/30 transition duration-200 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
@@ -1029,10 +1046,10 @@ export default function App() {
           {/* TAB 2: EXPLORER */}
           {activeTab === 'explorer' && (
             <div className="bg-white dark:bg-[#090b0f] border border-slate-200 dark:border-[#1e202a] rounded-3xl overflow-hidden shadow-sm">
-              
+
               {/* Explorer Table Header tabs */}
               <div className="border-b border-slate-200 dark:border-[#1e202a] bg-slate-50/50 dark:bg-[#0c0e13] p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-                
+
                 {/* Selector Buttons */}
                 <div className="flex bg-slate-200/60 dark:bg-[#12141a] rounded-xl p-0.5 border border-slate-250 dark:border-[#1e202a] select-none shrink-0">
                   {([
@@ -1043,11 +1060,10 @@ export default function App() {
                     <button
                       key={sub.id}
                       onClick={() => setExplorerSubTab(sub.id)}
-                      className={`px-4 py-2 rounded-lg font-bold text-xs transition cursor-pointer ${
-                        explorerSubTab === sub.id
-                          ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                      }`}
+                      className={`px-4 py-2 rounded-lg font-bold text-xs transition cursor-pointer ${explorerSubTab === sub.id
+                        ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
                     >
                       {sub.label} <span className="ml-1 text-[10px] opacity-70 font-bold">({sub.count})</span>
                     </button>
@@ -1103,9 +1119,8 @@ export default function App() {
                                   setSelectedResource({ type: 'pod', name: pod.name, namespace: pod.namespace });
                                   setDetailTab('overview');
                                 }}
-                                className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${
-                                  selectedResource?.name === pod.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''
-                                }`}
+                                className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${selectedResource?.name === pod.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''
+                                  }`}
                               >
                                 <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{pod.name}</td>
                                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{pod.namespace}</td>
@@ -1152,9 +1167,8 @@ export default function App() {
                                   setSelectedResource({ type: 'deployment', name: deploy.name, namespace: deploy.namespace });
                                   setDetailTab('overview');
                                 }}
-                                className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${
-                                  selectedResource?.name === deploy.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''
-                                }`}
+                                className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${selectedResource?.name === deploy.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''
+                                  }`}
                               >
                                 <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{deploy.name}</td>
                                 <td className="px-6 py-4 text-slate-500 dark:text-slate-405 font-bold">{deploy.namespace}</td>
@@ -1203,9 +1217,8 @@ export default function App() {
                                   setSelectedResource({ type: 'service', name: svc.name, namespace: svc.namespace });
                                   setDetailTab('overview');
                                 }}
-                                className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${
-                                  selectedResource?.name === svc.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''
-                                }`}
+                                className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${selectedResource?.name === svc.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''
+                                  }`}
                               >
                                 <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{svc.name}</td>
                                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{svc.namespace}</td>
@@ -1229,11 +1242,11 @@ export default function App() {
           {/* TAB 3: LEARN TEACHER */}
           {activeTab === 'learn' && (
             <div className="max-w-3xl mx-auto space-y-8">
-              
+
               <div className="text-center space-y-3">
                 <h3 className="text-2xl font-black text-slate-800 dark:text-slate-200 m-0">Ask Podex AI Anything</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-450 max-w-lg mx-auto font-bold">
-                  Type a Kubernetes concept, resource name, or error code. Your AI mentor will explain it using real-world analogies.
+                  Type a Kubernetes concept, resource name, or error code. Podex will explain it using real-world analogies.
                 </p>
               </div>
 
@@ -1277,7 +1290,7 @@ export default function App() {
                 </div>
               )}              {aiLearning && (
                 <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-8 space-y-6 max-w-2xl mx-auto shadow-sm">
-                  
+
                   {/* Topic Title */}
                   <div className="flex items-center space-x-3 border-b border-slate-200 dark:border-[#1e202a] pb-4">
                     <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/50 border border-cyan-200 dark:border-cyan-800 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-black">
@@ -1299,11 +1312,10 @@ export default function App() {
                       <button
                         key={tab.id}
                         onClick={() => setLearnSubTab(tab.id)}
-                        className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${
-                          learnSubTab === tab.id
-                            ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                        }`}
+                        className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${learnSubTab === tab.id
+                          ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
                       >
                         {tab.label}
                       </button>
@@ -1312,7 +1324,7 @@ export default function App() {
 
                   {/* Body Sections */}
                   <div className="space-y-6 text-xs leading-relaxed">
-                    
+
                     {/* SUBTAB: CONCEPT OVERVIEW */}
                     {learnSubTab === 'concept' && (
                       <div className="space-y-5 animate-in fade-in duration-200">
@@ -1376,7 +1388,7 @@ export default function App() {
 
       {/* RESOURCE DETAILS Slide-Over Panel */}
       {selectedResource && (
-        <aside 
+        <aside
           style={{ width: isDrawerMaximized ? '90vw' : `${detailsWidth}px` }}
           className="relative border-l border-slate-200 dark:border-[#1e202a] bg-white dark:bg-[#090a0e] flex flex-col z-20 shadow-2xl transition-all duration-75"
         >
@@ -1399,7 +1411,7 @@ export default function App() {
                 Namespace: {selectedResource.namespace}
               </span>
             </div>
-            
+
             <div className="flex items-center space-x-1 shrink-0">
               <button
                 onClick={() => setIsDrawerMaximized(!isDrawerMaximized)}
@@ -1419,7 +1431,7 @@ export default function App() {
 
           {/* Quick Operations Confirmation triggers */}
           <div className="px-6 py-4 bg-slate-50 dark:bg-[#0d0f15] border-b border-slate-200 dark:border-[#1e202a] flex items-center justify-start space-x-2">
-            
+
             {/* Delete Pod */}
             {selectedResource.type === 'pod' && (
               <button
@@ -1473,11 +1485,10 @@ export default function App() {
               <button
                 key={tab}
                 onClick={() => setDetailTab(tab)}
-                className={`flex-1 py-3 font-bold text-center border-b-2 capitalize transition duration-150 cursor-pointer ${
-                  detailTab === tab
-                    ? 'border-cyan-500 text-cyan-650 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/5'
-                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
+                className={`flex-1 py-3 font-bold text-center border-b-2 capitalize transition duration-150 cursor-pointer ${detailTab === tab
+                  ? 'border-cyan-500 text-cyan-650 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/5'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
               >
                 {tab}
               </button>
@@ -1493,24 +1504,24 @@ export default function App() {
               </div>
             ) : (
               <div>
-                
+
                 {/* TAB: OVERVIEW */}
                 {detailTab === 'overview' && resourceDetails && (
                   <div className="space-y-5 text-xs">
-                    
+
                     {/* Status overview list info */}
                     <div className="bg-white dark:bg-[#10121a] p-4 rounded-xl border border-slate-200 dark:border-[#1e202a] space-y-3 shadow-sm">
                       <h4 className="font-bold text-slate-800 dark:text-slate-300">Specifications</h4>
                       <div className="grid grid-cols-3 gap-2">
                         <span className="text-slate-500 font-bold">Resource:</span>
                         <span className="col-span-2 text-slate-700 dark:text-slate-350 font-bold">{selectedResource.type}</span>
-                        
+
                         <span className="text-slate-500 font-bold">Kind:</span>
                         <span className="col-span-2 text-slate-700 dark:text-slate-350 font-mono font-bold">{resourceDetails.kind}</span>
 
                         <span className="text-slate-500 font-bold">API Version:</span>
                         <span className="col-span-2 text-slate-700 dark:text-slate-350 font-mono font-bold">{resourceDetails.api_version}</span>
-                        
+
                         <span className="text-slate-500 font-bold">Created:</span>
                         <span className="col-span-2 text-slate-700 dark:text-slate-350 font-bold">{resourceDetails.metadata?.creation_timestamp}</span>
                       </div>
@@ -1538,12 +1549,12 @@ export default function App() {
                           {resourceDetails.status.conditions.map((cond: any) => {
                             const isTrue = cond.status === 'True';
                             const isFalse = cond.status === 'False';
-                            const condBg = isTrue 
-                              ? 'bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50' 
-                              : isFalse 
-                                ? 'bg-red-50/70 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 animate-pulse' 
+                            const condBg = isTrue
+                              ? 'bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50'
+                              : isFalse
+                                ? 'bg-red-50/70 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 animate-pulse'
                                 : 'bg-slate-100/70 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-250 dark:border-slate-800';
-                            
+
                             return (
                               <div key={cond.type} className={`flex justify-between items-center p-3 rounded-xl ${condBg}`}>
                                 <div className="min-w-0">
@@ -1627,7 +1638,7 @@ export default function App() {
                           className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-full font-bold"
                         />
                       </div>
-                      
+
                       {/* Font size + Copy + AutoScroll */}
                       <div className="flex items-center space-x-3 text-slate-500 dark:text-slate-400 shrink-0 font-bold select-none font-semibold">
                         <label className="flex items-center space-x-1.5 cursor-pointer">
@@ -1639,7 +1650,7 @@ export default function App() {
                           />
                           <span className="text-[10px]">Auto-Scroll</span>
                         </label>
-                        
+
                         <div className="flex items-center space-x-1 border border-slate-200 dark:border-[#1e202a] rounded-lg p-0.5 bg-slate-105 dark:bg-[#10121a]">
                           <button
                             onClick={() => setCodeFontSize(Math.max(10, codeFontSize - 1))}
@@ -1657,7 +1668,7 @@ export default function App() {
                             A+
                           </button>
                         </div>
-                        
+
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(logsText);
@@ -1669,17 +1680,17 @@ export default function App() {
                         </button>
                       </div>
                     </div>
-                    
-                    <pre 
+
+                    <pre
                       ref={logsEndRef}
                       style={{ fontSize: `${codeFontSize}px` }}
                       className="w-full bg-slate-950 text-emerald-400 border border-slate-900 dark:border-[#161822] rounded-xl p-4 overflow-x-auto whitespace-pre font-mono h-[420px] transition-all scroll-smooth"
                     >
-                      {logsText 
+                      {logsText
                         ? logsText
-                            .split('\n')
-                            .filter(line => line.toLowerCase().includes(logsFilter.toLowerCase()))
-                            .join('\n') || "No logs matching current filter."
+                          .split('\n')
+                          .filter(line => line.toLowerCase().includes(logsFilter.toLowerCase()))
+                          .join('\n') || "No logs matching current filter."
                         : "No logs generated by container or unavailable."}
                     </pre>
                   </div>
@@ -1697,11 +1708,10 @@ export default function App() {
                         {eventsList.map((ev, idx) => (
                           <div
                             key={idx}
-                            className={`p-3.5 rounded-xl border flex items-start space-x-3 shadow-sm ${
-                              ev.type === 'Warning'
-                                ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-400 animate-pulse'
-                                : 'bg-white dark:bg-[#10121a] border-slate-200 dark:border-[#1e202a] text-slate-700 dark:text-slate-300'
-                            }`}
+                            className={`p-3.5 rounded-xl border flex items-start space-x-3 shadow-sm ${ev.type === 'Warning'
+                              ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-400 animate-pulse'
+                              : 'bg-white dark:bg-[#10121a] border-slate-200 dark:border-[#1e202a] text-slate-700 dark:text-slate-300'
+                              }`}
                           >
                             {ev.type === 'Warning' ? (
                               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 animate-bounce" />
@@ -1757,7 +1767,7 @@ export default function App() {
                         Copy YAML
                       </button>
                     </div>
-                    <pre 
+                    <pre
                       style={{ fontSize: `${codeFontSize}px` }}
                       className="w-full bg-slate-100 dark:bg-[#050608] text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-[#161822] rounded-xl p-4 overflow-auto whitespace-pre font-mono h-[420px] transition-all"
                     >
@@ -1769,7 +1779,7 @@ export default function App() {
                 {/* TAB: INVESTIGATE */}
                 {detailTab === 'investigate' && (
                   <div className="space-y-6">
-                    
+
                     {/* Explain workflow trigger */}
                     {!aiInvestigating && !aiInvestigation && (
                       <div className="bg-white dark:bg-[#10121a] border border-slate-200 dark:border-[#1e202a] p-6 rounded-2xl text-center space-y-4 shadow-sm">
@@ -1782,7 +1792,7 @@ export default function App() {
                           onClick={runInvestigation}
                           className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-xs text-white hover:shadow-md hover:shadow-cyan-500/10 transition cursor-pointer"
                         >
-                          Investigate with AI Mentor
+                          Investigate Resource Health
                         </button>
                       </div>
                     )}
@@ -1799,15 +1809,14 @@ export default function App() {
                     )}                    {/* Investigation Result display */}
                     {aiInvestigation && (
                       <div className="space-y-5 text-xs animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        
+
                         {/* Status Callout Card */}
-                        <div className={`p-4 rounded-2xl border flex items-start space-x-3 shadow-md transition duration-300 hover:scale-[1.01] ${
-                          aiInvestigation.status === 'healthy'
-                            ? 'bg-emerald-500/10 dark:bg-emerald-950/20 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
-                            : aiInvestigation.status === 'degraded'
-                              ? 'bg-amber-500/10 dark:bg-amber-950/20 border-amber-500/30 text-amber-800 dark:text-amber-300'
-                              : 'bg-red-500/10 dark:bg-red-950/20 border-red-500/30 text-red-800 dark:text-red-300'
-                        }`}>
+                        <div className={`p-4 rounded-2xl border flex items-start space-x-3 shadow-md transition duration-300 hover:scale-[1.01] ${aiInvestigation.status === 'healthy'
+                          ? 'bg-emerald-500/10 dark:bg-emerald-950/20 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                          : aiInvestigation.status === 'degraded'
+                            ? 'bg-amber-500/10 dark:bg-amber-950/20 border-amber-500/30 text-amber-800 dark:text-amber-300'
+                            : 'bg-red-500/10 dark:bg-red-950/20 border-red-500/30 text-red-800 dark:text-red-300'
+                          }`}>
                           {aiInvestigation.status === 'healthy' ? (
                             <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                           ) : aiInvestigation.status === 'degraded' ? (
@@ -1833,11 +1842,10 @@ export default function App() {
                             <button
                               key={tab.id}
                               onClick={() => setInvestigationSubTab(tab.id)}
-                              className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${
-                                investigationSubTab === tab.id
-                                  ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
-                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                              }`}
+                              className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${investigationSubTab === tab.id
+                                ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                                }`}
                             >
                               {tab.label}
                             </button>
@@ -1854,8 +1862,8 @@ export default function App() {
                                 <span className="text-cyan-605 dark:text-cyan-400 font-extrabold text-xs">{aiInvestigation.confidence}%</span>
                               </div>
                               <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                                <div 
-                                  style={{ width: `${aiInvestigation.confidence}%` }} 
+                                <div
+                                  style={{ width: `${aiInvestigation.confidence}%` }}
                                   className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full transition-all duration-500"
                                 />
                               </div>
@@ -1905,7 +1913,7 @@ export default function App() {
                                 <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-550 uppercase tracking-wider">Core Concept</h5>
                                 <span className="font-extrabold text-slate-850 dark:text-slate-100 block text-xs">{aiInvestigation.k8s_lesson.concept}</span>
                               </div>
-                              
+
                               <div className="border-t border-slate-100 dark:border-slate-800/80 pt-3.5 space-y-2">
                                 <h5 className="font-bold text-[10px] text-indigo-650 dark:text-indigo-400 uppercase tracking-wider flex items-center space-x-1">
                                   <Info className="w-3.5 h-3.5" />
@@ -1943,16 +1951,15 @@ export default function App() {
       {confirmationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm select-none p-4">
           <div className="w-full max-w-md bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            
+
             {/* Modal Header */}
             <div className="flex items-center space-x-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${
-                confirmationModal.type === 'delete' 
-                  ? 'bg-red-50 dark:bg-red-950/50 text-red-550' 
-                  : confirmationModal.type === 'restart'
-                    ? 'bg-cyan-50 dark:bg-cyan-950/50 text-cyan-550'
-                    : 'bg-amber-50 dark:bg-amber-950/50 text-amber-550'
-              }`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${confirmationModal.type === 'delete'
+                ? 'bg-red-50 dark:bg-red-950/50 text-red-550'
+                : confirmationModal.type === 'restart'
+                  ? 'bg-cyan-50 dark:bg-cyan-950/50 text-cyan-550'
+                  : 'bg-amber-50 dark:bg-amber-950/50 text-amber-550'
+                }`}>
                 {confirmationModal.type === 'delete' ? (
                   <Trash2 className="w-5 h-5" />
                 ) : confirmationModal.type === 'restart' ? (
@@ -1981,7 +1988,7 @@ export default function App() {
               )}
               {confirmationModal.type === 'restart' && (
                 <p className="text-slate-650 dark:text-slate-350 m-0 font-bold">
-                  Restarting a Deployment triggers a **Rolling Update**. Kubernetes spins up a new pod replica first, waits for it to become ready, and then kills the old replica. This guarantees **zero downtime** for your web applications.
+                  Restarting a Deployment triggers a Rolling Update. Kubernetes spins up a new pod replica first, waits for it to become ready, and then kills the old replica. This guarantees zero downtime for your web applications.
                 </p>
               )}
               {confirmationModal.type === 'scale' && (
@@ -2038,13 +2045,12 @@ export default function App() {
               <button
                 onClick={executeOperation}
                 disabled={operationInProgress}
-                className={`px-4.5 py-2.5 rounded-xl text-white text-xs font-bold hover:shadow-md transition disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer ${
-                  confirmationModal.type === 'delete' 
-                    ? 'bg-red-500 hover:bg-red-600 hover:shadow-red-500/10' 
-                    : confirmationModal.type === 'restart'
-                      ? 'bg-cyan-500 hover:bg-cyan-600 hover:shadow-cyan-500/10'
-                      : 'bg-amber-500 hover:bg-amber-600 hover:shadow-amber-500/10'
-                }`}
+                className={`px-4.5 py-2.5 rounded-xl text-white text-xs font-bold hover:shadow-md transition disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer ${confirmationModal.type === 'delete'
+                  ? 'bg-red-500 hover:bg-red-600 hover:shadow-red-500/10'
+                  : confirmationModal.type === 'restart'
+                    ? 'bg-cyan-500 hover:bg-cyan-600 hover:shadow-cyan-500/10'
+                    : 'bg-amber-500 hover:bg-amber-600 hover:shadow-amber-500/10'
+                  }`}
               >
                 {operationInProgress && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>Execute Action</span>
