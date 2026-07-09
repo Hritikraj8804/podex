@@ -276,6 +276,8 @@ export default function App() {
   const [topologyLoading, setTopologyLoading] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [svgPaths, setSvgPaths] = useState<{ id: string, d: string, active: boolean, type: string }[]>([]);
+  const [topologyFilter, setTopologyFilter] = useState<string>('all');
+  const [zoomScale, setZoomScale] = useState<number>(1.0);
 
   // settings configuration states
   const [aiProvider, setAiProviderState] = useState<'gemini' | 'openai'>(() => {
@@ -662,22 +664,64 @@ export default function App() {
     return () => clearInterval(interval);
   }, [fetchStats, fetchResources, fetchTopology, refreshInterval]);
 
+  const getFilteredTopology = useCallback(() => {
+    if (!topologyFilter || topologyFilter === 'all') {
+      return topologyData;
+    }
+
+    const keptNodeIds = new Set<string>([topologyFilter]);
+    
+    // Pass 1: Direct connections
+    topologyData.edges.forEach(edge => {
+      if (edge.source === topologyFilter) {
+        keptNodeIds.add(edge.target);
+      }
+      if (edge.target === topologyFilter) {
+        keptNodeIds.add(edge.source);
+      }
+    });
+
+    // Pass 2: Manage transitions (e.g. Ingress -> Service -> Pod -> Deployment)
+    topologyData.edges.forEach(edge => {
+      if (keptNodeIds.has(edge.target) && edge.relation === 'manages') {
+        keptNodeIds.add(edge.source);
+      }
+      if (keptNodeIds.has(edge.source) && edge.relation === 'manages') {
+        keptNodeIds.add(edge.target);
+      }
+    });
+
+    const filteredNodes = topologyData.nodes.filter(node => keptNodeIds.has(node.id));
+    const filteredEdges = topologyData.edges.filter(edge => 
+      keptNodeIds.has(edge.source) && keptNodeIds.has(edge.target)
+    );
+
+    return { nodes: filteredNodes, edges: filteredEdges };
+  }, [topologyData, topologyFilter]);
+
   const isNodeConnected = useCallback((nodeId: string) => {
     if (!hoveredNodeId) return true;
     if (nodeId === hoveredNodeId) return true;
-    return topologyData.edges.some(edge => 
+    const { edges } = getFilteredTopology();
+    return edges.some(edge => 
       (edge.source === hoveredNodeId && edge.target === nodeId) ||
       (edge.target === hoveredNodeId && edge.source === nodeId)
     );
-  }, [hoveredNodeId, topologyData.edges]);
+  }, [hoveredNodeId, getFilteredTopology]);
 
   const calculatePaths = useCallback(() => {
-    if (activeTab !== 'diagram' || !topologyData.edges.length) return;
+    if (activeTab !== 'diagram') return;
+    const { edges } = getFilteredTopology();
+    if (!edges.length) {
+      setSvgPaths([]);
+      return;
+    }
+
     const container = document.getElementById('topology-container');
     if (!container) return;
 
     const containerRect = container.getBoundingClientRect();
-    const paths = topologyData.edges.map((edge) => {
+    const paths = edges.map((edge) => {
       const srcId = edge.source.replace(/\//g, '-');
       const tgtId = edge.target.replace(/\//g, '-');
       const srcEl = document.getElementById(srcId);
@@ -712,7 +756,7 @@ export default function App() {
     }).filter(Boolean) as any[];
 
     setSvgPaths(paths);
-  }, [activeTab, topologyData.edges, hoveredNodeId]);
+  }, [activeTab, getFilteredTopology, hoveredNodeId, zoomScale]);
 
   useEffect(() => {
     const timeout = setTimeout(calculatePaths, 150);
@@ -721,7 +765,7 @@ export default function App() {
       clearTimeout(timeout);
       window.removeEventListener('resize', calculatePaths);
     };
-  }, [calculatePaths, activeTab, topologyData, hoveredNodeId]);
+  }, [calculatePaths, activeTab, topologyData, hoveredNodeId, topologyFilter, zoomScale]);
 
   // Fetch drawer details depending on active sub-tab
   const fetchResourceDetails = useCallback(async () => {
@@ -1921,26 +1965,52 @@ export default function App() {
                 <div className="space-y-1.5">
                   <div className="flex items-center space-x-2">
                     <Network className={`w-5 h-5 ${getAccentColor('text')}`} />
-                    <h3 className="text-lg font-black text-slate-805 dark:text-slate-200 m-0">Live Cluster Topology</h3>
+                    <h3 className="text-lg font-black text-slate-850 dark:text-slate-205 m-0">Live Cluster Topology</h3>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-450 font-bold m-0">
-                    A live dependency map. Hover over elements to trace target routes, click elements to view specifications and configurations.
+                  <p className="text-xs text-slate-555 dark:text-slate-405 font-medium m-0">
+                    ArgoCD-inspired dependency hierarchy. Filter subsystems to isolate workloads, click cards to view logs and configurations.
                   </p>
                 </div>
 
-                {/* Legend controls */}
-                <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-500 bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-xl shadow-sm self-start md:self-auto shrink-0 select-none">
-                  <div className="flex items-center space-x-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <span>Healthy</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Focus Subsystem Filter */}
+                  <div className="flex items-center space-x-2 bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202c] px-3.5 py-1.5 rounded-xl shadow-sm select-none">
+                    <span className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500">Focus:</span>
+                    <select
+                      value={topologyFilter}
+                      onChange={(e) => setTopologyFilter(e.target.value)}
+                      className="bg-transparent text-slate-700 dark:text-slate-200 text-xs font-bold outline-none cursor-pointer border-none p-0 focus:ring-0"
+                    >
+                      <option value="all" className="bg-white dark:bg-[#0c0e15] text-slate-850 dark:text-slate-200 font-bold">All Connected Components</option>
+                      {topologyData.nodes
+                        .filter(n => n.type === 'service' || n.type === 'deployment')
+                        .map(n => (
+                          <option 
+                            key={n.id} 
+                            value={n.id}
+                            className="bg-white dark:bg-[#0c0e15] text-slate-850 dark:text-slate-200 font-bold"
+                          >
+                            {n.type === 'service' ? `Service: ${n.name}` : `Deployment: ${n.name}`}
+                          </option>
+                        ))
+                      }
+                    </select>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-                    <span>Degraded</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-                    <span>Critical</span>
+
+                  {/* Legend controls */}
+                  <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-555 dark:text-slate-400 bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-xl shadow-sm select-none">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="w-2 h-2.5 rounded bg-emerald-500" />
+                      <span>Healthy</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <span className="w-2.5 h-2.5 rounded bg-amber-500" />
+                      <span>Degraded</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <span className="w-2.5 h-2.5 rounded bg-red-500" />
+                      <span>Critical</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1954,255 +2024,337 @@ export default function App() {
               ) : topologyData.nodes.length === 0 ? (
                 <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] p-12 rounded-3xl text-center space-y-4 shadow-sm">
                   <Network className="w-10 h-10 text-slate-400 mx-auto" />
-                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-250 m-0">No Active Resources Found</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed font-semibold">
+                  <h4 className="font-bold text-sm text-slate-805 dark:text-slate-250 m-0">No Active Resources Found</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-405 max-w-sm mx-auto leading-relaxed font-semibold">
                     Ensure workloads are deployed in the <code className="font-mono text-cyan-600 dark:text-cyan-400">{namespaceFilter || 'default'}</code> namespace to visualize connection maps.
                   </p>
                 </div>
-              ) : (
-                <div 
-                  id="topology-container"
-                  className="relative bg-slate-50/50 dark:bg-[#090b10] border border-slate-205 dark:border-[#13151f] rounded-3xl p-8 min-h-[520px] overflow-hidden"
-                >
-                  
-                  {/* SVG Bezier Lines Connectors Canvas */}
-                  <svg className="absolute inset-0 pointer-events-none w-full h-full overflow-visible z-0">
-                    <defs>
-                      <marker
-                        id="arrow"
-                        viewBox="0 0 10 10"
-                        refX="6"
-                        refY="5"
-                        markerWidth="6"
-                        markerHeight="6"
-                        orient="auto-start-reverse"
-                      >
-                        <path d="M 0 0 L 10 5 L 0 10 z" className="fill-slate-300 dark:fill-slate-700" />
-                      </marker>
-                      <marker
-                        id="arrow-active"
-                        viewBox="0 0 10 10"
-                        refX="6"
-                        refY="5"
-                        markerWidth="6"
-                        markerHeight="6"
-                        orient="auto-start-reverse"
-                      >
-                        <path d="M 0 0 L 10 5 L 0 10 z" className="fill-cyan-500" />
-                      </marker>
-                    </defs>
+              ) : (() => {
+                const filteredTopology = getFilteredTopology();
+                
+                // Health border resolver
+                const getHealthBorder = (status: string) => {
+                  const s = status.toLowerCase();
+                  if (s === 'healthy' || s === 'running') return 'border-l-[4px] border-l-emerald-500';
+                  if (s === 'degraded' || s === 'pending') return 'border-l-[4px] border-l-amber-500 animate-pulse';
+                  return 'border-l-[4px] border-l-red-500';
+                };
+                
+                const getHealthBg = (status: string) => {
+                  const s = status.toLowerCase();
+                  if (s === 'healthy' || s === 'running') return 'bg-emerald-500/10 dark:bg-emerald-950/20';
+                  if (s === 'degraded' || s === 'pending') return 'bg-amber-500/10 dark:bg-amber-950/20';
+                  return 'bg-red-500/10 dark:bg-red-950/20';
+                };
 
-                    {/* Draw connector paths */}
-                    {svgPaths.map((path) => (
-                      <path
-                        key={path.id}
-                        d={path.d}
-                        fill="none"
-                        stroke={path.active ? "currentColor" : "currentColor"}
-                        strokeWidth={path.active ? 2.5 : 1.2}
-                        className={`transition-all duration-300 ${
-                          path.active 
-                            ? 'text-cyan-500/80 dark:text-cyan-400/80 stroke-cyan-500 dark:stroke-cyan-400 opacity-90' 
-                            : 'text-slate-250 dark:text-slate-800 opacity-20'
-                        }`}
-                        markerEnd={path.active ? "url(#arrow-active)" : "url(#arrow)"}
-                      />
-                    ))}
-                  </svg>
+                const getHealthText = (status: string) => {
+                  const s = status.toLowerCase();
+                  if (s === 'healthy' || s === 'running') return 'text-emerald-600 dark:text-emerald-400';
+                  if (s === 'degraded' || s === 'pending') return 'text-amber-600 dark:text-amber-450';
+                  return 'text-red-500 dark:text-red-450';
+                };
 
-                  {/* Layered Columns Lanes grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-4 relative z-10 h-full min-h-[460px]">
+                return (
+                  <div className="relative overflow-hidden rounded-3xl border border-slate-205 dark:border-[#13151f] bg-slate-105/20 dark:bg-[#07090e] min-h-[580px] select-none">
                     
-                    {/* Lane 1: Ingress Gateways */}
-                    <div className="flex flex-col space-y-4">
-                      <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
-                        🌐 Ingress Gateways
-                      </div>
-                      <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
-                        {topologyData.nodes.filter(n => n.type === 'ingress').map(node => {
-                          const htmlId = node.id.replace(/\//g, '-');
-                          const isConnected = isNodeConnected(node.id);
-                          return (
-                            <div
-                              key={node.id}
-                              id={htmlId}
-                              onMouseEnter={() => setHoveredNodeId(node.id)}
-                              onMouseLeave={() => setHoveredNodeId(null)}
-                              onClick={() => {
-                                setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
-                                setDetailTab('overview');
-                              }}
-                              className={`p-3.5 bg-white dark:bg-[#0e1017] border border-slate-200 dark:border-[#1e202d] rounded-2xl flex items-center space-x-3 cursor-pointer shadow-sm relative z-10 select-none transition-all duration-305 ${
-                                !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
-                              }`}
-                            >
-                              <div className="w-8 h-8 rounded-xl bg-cyan-50 dark:bg-cyan-950/30 flex items-center justify-center shrink-0">
-                                <Link2 className="w-4 h-4 text-cyan-500" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="font-extrabold text-[11px] text-slate-800 dark:text-slate-205 truncate">{node.name}</div>
-                                <span className="text-[9px] text-slate-400 uppercase font-black">Ingress</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {topologyData.nodes.filter(n => n.type === 'ingress').length === 0 && (
-                          <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
-                            No ingress gateways mapped
-                          </div>
-                        )}
-                      </div>
+                    {/* Floating Zoom Toolbar overlay */}
+                    <div className="absolute bottom-4 left-4 flex items-center space-x-1.5 bg-white/95 dark:bg-[#0c0e15]/95 border border-slate-200 dark:border-[#1e202c] p-1.5 rounded-xl shadow-lg z-25 backdrop-blur-md">
+                      <button
+                        onClick={() => setZoomScale(Math.max(0.6, zoomScale - 0.1))}
+                        disabled={zoomScale <= 0.6}
+                        className="p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 disabled:opacity-30 cursor-pointer"
+                        title="Zoom Out"
+                      >
+                        <Minimize2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setZoomScale(1.0)}
+                        className="text-[10px] px-2 py-0.5 font-extrabold hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-655 dark:text-slate-355 rounded cursor-pointer"
+                        title="Reset Zoom"
+                      >
+                        {Math.round(zoomScale * 100)}%
+                      </button>
+                      <button
+                        onClick={() => setZoomScale(Math.min(1.4, zoomScale + 0.1))}
+                        disabled={zoomScale >= 1.4}
+                        className="p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 disabled:opacity-30 cursor-pointer"
+                        title="Zoom In"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
-                    {/* Lane 2: Exposing Services */}
-                    <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
-                      <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
-                        🔌 Exposing Services
-                      </div>
-                      <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
-                        {topologyData.nodes.filter(n => n.type === 'service').map(node => {
-                          const htmlId = node.id.replace(/\//g, '-');
-                          const isConnected = isNodeConnected(node.id);
-                          return (
-                            <div
-                              key={node.id}
-                              id={htmlId}
-                              onMouseEnter={() => setHoveredNodeId(node.id)}
-                              onMouseLeave={() => setHoveredNodeId(null)}
-                              onClick={() => {
-                                setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
-                                setDetailTab('overview');
-                              }}
-                              className={`p-3.5 bg-white dark:bg-[#0e1017] border border-slate-200 dark:border-[#1e202d] rounded-2xl flex items-center space-x-3 cursor-pointer shadow-sm relative z-10 select-none transition-all duration-305 ${
-                                !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
-                              }`}
-                            >
-                              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
-                                <Network className="w-4 h-4 text-indigo-500" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="font-extrabold text-[11px] text-slate-800 dark:text-slate-205 truncate">{node.name}</div>
-                                <span className="text-[9px] text-slate-400 uppercase font-black">Service ({node.details?.type || 'ClusterIP'})</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {topologyData.nodes.filter(n => n.type === 'service').length === 0 && (
-                          <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
-                            No active services exposing ports
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    {/* Scale Viewport Wrapper with project-themed dot grid background */}
+                    <div 
+                      id="topology-container"
+                      style={{ 
+                        transform: `scale(${zoomScale})`, 
+                        transformOrigin: 'top left',
+                        width: `${100 / zoomScale}%`, 
+                        height: `${100 / zoomScale}%` 
+                      }}
+                      className="relative p-8 min-h-[580px] bg-[radial-gradient(#e2e8f0_1.2px,transparent_1.2px)] dark:bg-[radial-gradient(#1c2230_1.2px,transparent_1.2px)] [background-size:20px_20px] transition-transform duration-150"
+                    >
+                      
+                      {/* SVG Bezier Lines Connectors Canvas */}
+                      <svg className="absolute inset-0 pointer-events-none w-full h-full overflow-visible z-0">
+                        <defs>
+                          <marker
+                            id="arrow"
+                            viewBox="0 0 10 10"
+                            refX="6"
+                            refY="5"
+                            markerWidth="6"
+                            markerHeight="6"
+                            orient="auto-start-reverse"
+                          >
+                            <path d="M 0 0 L 10 5 L 0 10 z" className="fill-slate-300 dark:fill-slate-700" />
+                          </marker>
+                          <marker
+                            id="arrow-active"
+                            viewBox="0 0 10 10"
+                            refX="6"
+                            refY="5"
+                            markerWidth="6"
+                            markerHeight="6"
+                            orient="auto-start-reverse"
+                          >
+                            <path d="M 0 0 L 10 5 L 0 10 z" className="fill-cyan-500" />
+                          </marker>
+                        </defs>
 
-                    {/* Lane 3: Deployments */}
-                    <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
-                      <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
-                        ⚙️ Management Layer
-                      </div>
-                      <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
-                        {topologyData.nodes.filter(n => n.type === 'deployment').map(node => {
-                          const htmlId = node.id.replace(/\//g, '-');
-                          const isConnected = isNodeConnected(node.id);
-                          return (
-                            <div
-                              key={node.id}
-                              id={htmlId}
-                              onMouseEnter={() => setHoveredNodeId(node.id)}
-                              onMouseLeave={() => setHoveredNodeId(null)}
-                              onClick={() => {
-                                setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
-                                setDetailTab('overview');
-                              }}
-                              className={`p-3.5 bg-white dark:bg-[#0e1017] border border-slate-200 dark:border-[#1e202d] rounded-2xl flex items-center space-x-3 cursor-pointer shadow-sm relative z-10 select-none transition-all duration-305 ${
-                                !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
-                              }`}
-                            >
-                              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
-                                <Sliders className="w-4 h-4 text-amber-500" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="font-extrabold text-[11px] text-slate-800 dark:text-slate-205 truncate flex items-center justify-between">
-                                  <span className="truncate mr-1.5">{node.name}</span>
-                                  <span className="text-[9px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md self-center shrink-0 select-none">
-                                    {node.details?.replicas}
-                                  </span>
+                        {/* Draw connector paths */}
+                        {svgPaths.map((path) => (
+                          <path
+                            key={path.id}
+                            d={path.d}
+                            fill="none"
+                            stroke={path.active ? "currentColor" : "currentColor"}
+                            strokeWidth={path.active ? 2.2 : 1.0}
+                            className={`transition-all duration-305 ${
+                              path.active 
+                                ? 'text-cyan-500/80 dark:text-cyan-400/80 stroke-cyan-500 dark:stroke-cyan-400 opacity-90' 
+                                : 'text-slate-200 dark:text-slate-855 opacity-15'
+                            }`}
+                            markerEnd={path.active ? "url(#arrow-active)" : "url(#arrow)"}
+                          />
+                        ))}
+                      </svg>
+
+                      {/* Layered Columns Lanes grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8 relative z-10 h-full min-h-[460px]">
+                        
+                        {/* Lane 1: Ingress Gateways */}
+                        <div className="flex flex-col space-y-4">
+                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
+                            🌐 Ingress Gateways
+                          </div>
+                          <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
+                            {filteredTopology.nodes.filter(n => n.type === 'ingress').map(node => {
+                              const htmlId = node.id.replace(/\//g, '-');
+                              const isConnected = isNodeConnected(node.id);
+                              return (
+                                <div
+                                  key={node.id}
+                                  id={htmlId}
+                                  onMouseEnter={() => setHoveredNodeId(node.id)}
+                                  onMouseLeave={() => setHoveredNodeId(null)}
+                                  onClick={() => {
+                                    setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                                    setDetailTab('overview');
+                                  }}
+                                  className={`p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
+                                    getHealthBorder(node.status)
+                                  } ${
+                                    !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
+                                      <Link2 className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-[11px] text-slate-805 dark:text-slate-200 truncate leading-snug">{node.name}</div>
+                                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">{node.type}</div>
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 flex flex-col items-end space-y-0.5">
+                                    <span className={`text-[9px] font-black uppercase ${getHealthText(node.status)}`}>
+                                      {node.status}
+                                    </span>
+                                  </div>
                                 </div>
-                                <span className="text-[9px] text-slate-405 uppercase font-black flex items-center space-x-1.5 pt-0.5">
-                                  <span className={`w-1.5 h-1.5 rounded-full ${
-                                    node.status === 'healthy' 
-                                      ? 'bg-emerald-500' 
-                                      : node.status === 'degraded' 
-                                        ? 'bg-amber-500 animate-pulse' 
-                                        : 'bg-red-500 animate-ping'
-                                  }`} />
-                                  <span>Deployment</span>
-                                </span>
+                              );
+                            })}
+                            {filteredTopology.nodes.filter(n => n.type === 'ingress').length === 0 && (
+                              <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
+                                No ingress gateways mapped
                               </div>
-                            </div>
-                          );
-                        })}
-                        {topologyData.nodes.filter(n => n.type === 'deployment').length === 0 && (
-                          <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
-                            No active deployment supervisors
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
+                        </div>
 
-                    {/* Lane 4: Pods */}
-                    <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
-                      <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
-                        🚀 Execution Layer
-                      </div>
-                      <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
-                        {topologyData.nodes.filter(n => n.type === 'pod').map(node => {
-                          const htmlId = node.id.replace(/\//g, '-');
-                          const isConnected = isNodeConnected(node.id);
-                          return (
-                            <div
-                              key={node.id}
-                              id={htmlId}
-                              onMouseEnter={() => setHoveredNodeId(node.id)}
-                              onMouseLeave={() => setHoveredNodeId(null)}
-                              onClick={() => {
-                                setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
-                                setDetailTab('overview');
-                              }}
-                              className={`p-3.5 bg-white dark:bg-[#0e1017] border border-slate-200 dark:border-[#1e202d] rounded-2xl flex items-center space-x-3 cursor-pointer shadow-sm relative z-10 select-none transition-all duration-305 ${
-                                !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
-                              }`}
-                            >
-                              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0">
-                                <Cpu className="w-4 h-4 text-emerald-500" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="font-extrabold text-[11px] text-slate-800 dark:text-slate-205 truncate">{node.name}</div>
-                                <span className="text-[9px] text-slate-405 uppercase font-black flex items-center space-x-1.5 pt-0.5">
-                                  <span className={`w-1.5 h-1.5 rounded-full ${
-                                    node.status === 'healthy' 
-                                      ? 'bg-emerald-500 shadow shadow-emerald-500/50' 
-                                      : node.status === 'degraded' 
-                                        ? 'bg-amber-500 animate-pulse' 
-                                        : 'bg-red-500 animate-ping'
-                                  }`} />
-                                  <span>Pod ({node.status})</span>
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {topologyData.nodes.filter(n => n.type === 'pod').length === 0 && (
-                          <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
-                            No running compute workloads
+                        {/* Lane 2: Exposing Services */}
+                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
+                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
+                            🔌 Exposing Services
                           </div>
-                        )}
+                          <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
+                            {filteredTopology.nodes.filter(n => n.type === 'service').map(node => {
+                              const htmlId = node.id.replace(/\//g, '-');
+                              const isConnected = isNodeConnected(node.id);
+                              return (
+                                <div
+                                  key={node.id}
+                                  id={htmlId}
+                                  onMouseEnter={() => setHoveredNodeId(node.id)}
+                                  onMouseLeave={() => setHoveredNodeId(null)}
+                                  onClick={() => {
+                                    setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                                    setDetailTab('overview');
+                                  }}
+                                  className={`p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
+                                    getHealthBorder(node.status)
+                                  } ${
+                                    !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
+                                      <Network className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-[11px] text-slate-850 dark:text-slate-200 truncate leading-snug">{node.name}</div>
+                                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">Service ({node.details?.type || 'ClusterIP'})</div>
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 flex flex-col items-end space-y-0.5">
+                                    <span className={`text-[9px] font-black uppercase ${getHealthText(node.status)}`}>
+                                      {node.status}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {filteredTopology.nodes.filter(n => n.type === 'service').length === 0 && (
+                              <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
+                                No active services exposing ports
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Lane 3: Deployments */}
+                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
+                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
+                            ⚙️ Management Layer
+                          </div>
+                          <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
+                            {filteredTopology.nodes.filter(n => n.type === 'deployment').map(node => {
+                              const htmlId = node.id.replace(/\//g, '-');
+                              const isConnected = isNodeConnected(node.id);
+                              return (
+                                <div
+                                  key={node.id}
+                                  id={htmlId}
+                                  onMouseEnter={() => setHoveredNodeId(node.id)}
+                                  onMouseLeave={() => setHoveredNodeId(null)}
+                                  onClick={() => {
+                                    setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                                    setDetailTab('overview');
+                                  }}
+                                  className={`p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
+                                    getHealthBorder(node.status)
+                                  } ${
+                                    !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
+                                      <Sliders className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-[11px] text-slate-855 dark:text-slate-202 truncate leading-snug">{node.name}</div>
+                                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">{node.type}</div>
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 flex flex-col items-end space-y-0.5">
+                                    <span className={`text-[9px] font-black uppercase ${getHealthText(node.status)}`}>
+                                      {node.status}
+                                    </span>
+                                    {node.details?.replicas && (
+                                      <span className="text-[9px] font-mono text-slate-500 dark:text-slate-405 font-bold">
+                                        {node.details.replicas}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {filteredTopology.nodes.filter(n => n.type === 'deployment').length === 0 && (
+                              <div className="text-[10px] text-slate-400 dark:text-slate-555 italic text-center py-4 select-none">
+                                No active deployment supervisors
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Lane 4: Pods */}
+                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
+                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
+                            🚀 Execution Layer
+                          </div>
+                          <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
+                            {filteredTopology.nodes.filter(n => n.type === 'pod').map(node => {
+                              const htmlId = node.id.replace(/\//g, '-');
+                              const isConnected = isNodeConnected(node.id);
+                              return (
+                                <div
+                                  key={node.id}
+                                  id={htmlId}
+                                  onMouseEnter={() => setHoveredNodeId(node.id)}
+                                  onMouseLeave={() => setHoveredNodeId(null)}
+                                  onClick={() => {
+                                    setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                                    setDetailTab('overview');
+                                  }}
+                                  className={`p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
+                                    getHealthBorder(node.status)
+                                  } ${
+                                    !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
+                                      <Cpu className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-[11px] text-slate-850 dark:text-slate-200 truncate leading-snug">{node.name}</div>
+                                      <div className="text-[9px] text-slate-405 dark:text-slate-500 font-medium truncate uppercase tracking-wider">{node.type}</div>
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 flex flex-col items-end space-y-0.5">
+                                    <span className={`text-[9px] font-black uppercase ${getHealthText(node.status)}`}>
+                                      {node.status}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {filteredTopology.nodes.filter(n => n.type === 'pod').length === 0 && (
+                              <div className="text-[10px] text-slate-400 dark:text-slate-555 italic text-center py-4 select-none">
+                                No running compute workloads
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
                       </div>
                     </div>
 
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
             </div>
           )}
