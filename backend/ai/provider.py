@@ -35,6 +35,10 @@ class AIProvider(ABC):
     async def explain_concept(self, concept: str) -> ConceptExplanation:
         pass
 
+    @abstractmethod
+    async def explain_command(self, command: str, output: str) -> str:
+        pass
+
 
 class GeminiProvider(AIProvider):
     def __init__(self, api_key: str, model: Optional[str] = None, temperature: Optional[float] = None):
@@ -71,6 +75,28 @@ class GeminiProvider(AIProvider):
         )
         return ConceptExplanation.model_validate_json(response.text)
 
+    async def explain_command(self, command: str, output: str) -> str:
+        prompt = f"""
+You are Podex, a helpful Kubernetes workspace tutor for beginners.
+The user executed the following command inside a container:
+`{command}`
+
+The command returned this output:
+```
+{output}
+```
+
+Please explain in 2-3 simple sentences what this command did and what the output means for a beginner Kubernetes learner. Keep it educational and concise.
+"""
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=prompt,
+            config=self.types.GenerateContentConfig(
+                temperature=self.temperature,
+            ),
+        )
+        return response.text
+
 
 class OpenAIProvider(AIProvider):
     def __init__(self, api_key: str, model: Optional[str] = None, temperature: Optional[float] = None):
@@ -104,6 +130,28 @@ class OpenAIProvider(AIProvider):
             temperature=self.temperature + 0.2 if self.temperature <= 0.8 else 1.0,
         )
         return response.choices[0].message.parsed
+
+    async def explain_command(self, command: str, output: str) -> str:
+        prompt = f"""
+The user executed the following command inside a container:
+`{command}`
+
+The command returned this output:
+```
+{output}
+```
+
+Please explain in 2-3 simple sentences what this command did and what the output means for a beginner Kubernetes learner. Keep it educational and concise.
+"""
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "You are Podex, a helpful Kubernetes workspace tutor for beginners."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=self.temperature,
+        )
+        return response.choices[0].message.content
 
 
 class MockProvider(AIProvider):
@@ -201,6 +249,30 @@ class MockProvider(AIProvider):
                     "Ensure labels match correctly.",
                     "Refer to the official Kubernetes documentation for structural schemas."
                 ]
+            )
+
+    async def explain_command(self, command: str, output: str) -> str:
+        command_clean = command.strip().lower()
+        if "ls" in command_clean:
+            return (
+                "Mock Explanation: You ran 'ls'. This command lists files in the current working directory "
+                "inside the container. It helps verify what application source code, assets, or config files "
+                "are loaded inside the container filesystem."
+            )
+        elif "pwd" in command_clean:
+            return (
+                "Mock Explanation: You ran 'pwd' (Print Working Directory). It returns the absolute path "
+                "of the directory you are currently working in inside the container's isolated namespace."
+            )
+        elif "env" in command_clean:
+            return (
+                "Mock Explanation: You ran 'env'. This displays all environment variables active in the container. "
+                "In Kubernetes, environment variables are populated from your container spec, ConfigMaps, or Secrets."
+            )
+        else:
+            return (
+                f"Mock Explanation: You ran '{command}'. This shell command executed successfully inside the container environment. "
+                "In Kubernetes, containers provide an isolated runtime with their own shell context, let you query files, processes, and tools."
             )
 
 
