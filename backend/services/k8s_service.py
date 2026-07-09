@@ -196,13 +196,15 @@ class K8sService:
         Reads container logs for a pod.
         """
         try:
-            return self.core_api.read_namespaced_pod_log(
+            res = self.core_api.read_namespaced_pod_log(
                 name=name,
                 namespace=namespace,
                 container=container,
                 tail_lines=tail_lines,
-                timestamps=timestamps
+                timestamps=timestamps,
+                _preload_content=False
             )
+            return res.data.decode("utf-8")
         except ApiException as e:
             return f"Error reading logs: {e.reason}\nDetail: {e.body}"
         except Exception as e:

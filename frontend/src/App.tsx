@@ -2336,7 +2336,7 @@ export default function App() {
                     <pre
                       ref={logsEndRef}
                       style={{ fontSize: `${codeFontSize}px` }}
-                      className={`w-full bg-slate-950 text-emerald-400 border border-slate-900 dark:border-[#161822] rounded-xl p-4 font-mono h-[420px] transition-all scroll-smooth ${
+                      className={`w-full bg-slate-950 text-emerald-400 border border-slate-900 dark:border-[#161822] rounded-xl p-4 font-mono h-[420px] transition-all scroll-smooth overflow-y-auto ${
                         logsLineWrap ? 'whitespace-pre-wrap break-all' : 'overflow-x-auto whitespace-pre'
                       }`}
                     >
