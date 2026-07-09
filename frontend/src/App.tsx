@@ -280,6 +280,10 @@ export default function App() {
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const [customNodePositions, setCustomNodePositions] = useState<{ [id: string]: { x: number, y: number } }>({});
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const nodeDragStart = useRef({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
+  const nodeDragDistance = useRef(0);
 
   // settings configuration states
   const [aiProvider, setAiProviderState] = useState<'gemini' | 'openai'>(() => {
@@ -721,6 +725,20 @@ export default function App() {
 
 
 
+  const handleNodeMouseDown = useCallback((e: React.MouseEvent, nodeId: string, initialX: number, initialY: number) => {
+    e.stopPropagation();
+    setDraggedNodeId(nodeId);
+    nodeDragDistance.current = 0;
+    nodeDragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      nodeX: customNodePositions[nodeId]?.x ?? initialX,
+      nodeY: customNodePositions[nodeId]?.y ?? initialY,
+      lastX: e.clientX,
+      lastY: e.clientY
+    } as any;
+  }, [customNodePositions]);
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('.interactive-card') || target.closest('button') || target.closest('select')) {
@@ -734,15 +752,33 @@ export default function App() {
   }, [panOffset]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setPanOffset({
-      x: e.clientX - dragStart.current.x,
-      y: e.clientY - dragStart.current.y
-    });
-  }, [isDragging]);
+    if (draggedNodeId) {
+      const dx = (e.clientX - nodeDragStart.current.x) / zoomScale;
+      const dy = (e.clientY - nodeDragStart.current.y) / zoomScale;
+      const lastX = (nodeDragStart.current as any).lastX ?? e.clientX;
+      const lastY = (nodeDragStart.current as any).lastY ?? e.clientY;
+      nodeDragDistance.current += Math.abs(e.clientX - lastX) + Math.abs(e.clientY - lastY);
+      (nodeDragStart.current as any).lastX = e.clientX;
+      (nodeDragStart.current as any).lastY = e.clientY;
+      
+      setCustomNodePositions(prev => ({
+        ...prev,
+        [draggedNodeId]: {
+          x: nodeDragStart.current.nodeX + dx,
+          y: nodeDragStart.current.nodeY + dy
+        }
+      }));
+    } else if (isDragging) {
+      setPanOffset({
+        x: e.clientX - dragStart.current.x,
+        y: e.clientY - dragStart.current.y
+      });
+    }
+  }, [isDragging, draggedNodeId, zoomScale]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
+    setDraggedNodeId(null);
   }, []);
 
   // Fetch drawer details depending on active sub-tab
@@ -1996,16 +2032,16 @@ export default function App() {
                 const nodePositions: { [id: string]: { x: number, y: number } } = {};
                 
                 services.forEach((node, idx) => {
-                  nodePositions[node.id] = { x: serviceX, y: idx * 110 + 100 };
+                  nodePositions[node.id] = customNodePositions[node.id] || { x: serviceX, y: idx * 110 + 100 };
                 });
                 deployments.forEach((node, idx) => {
-                  nodePositions[node.id] = { x: deploymentX, y: idx * 110 + 100 };
+                  nodePositions[node.id] = customNodePositions[node.id] || { x: deploymentX, y: idx * 110 + 100 };
                 });
                 pods.forEach((node, idx) => {
-                  nodePositions[node.id] = { x: podX, y: idx * 110 + 100 };
+                  nodePositions[node.id] = customNodePositions[node.id] || { x: podX, y: idx * 110 + 100 };
                 });
                 otherNodes.forEach((node, idx) => {
-                  nodePositions[node.id] = { x: serviceX, y: (services.length + idx) * 110 + 100 };
+                  nodePositions[node.id] = customNodePositions[node.id] || { x: serviceX, y: (services.length + idx) * 110 + 100 };
                 });
 
                 // Compute dynamic canvas height to fit all elements
@@ -2164,9 +2200,15 @@ export default function App() {
                               width: `${cardWidth}px`,
                               height: `${cardHeight}px`
                             }}
+                            onMouseDown={(e) => {
+                              const initialX = node.type === 'service' ? serviceX : node.type === 'deployment' ? deploymentX : node.type === 'pod' ? podX : serviceX;
+                              const initialY = (node.type === 'service' ? services : node.type === 'deployment' ? deployments : node.type === 'pod' ? pods : otherNodes).indexOf(node) * 110 + 100;
+                              handleNodeMouseDown(e, node.id, initialX, initialY);
+                            }}
                             onMouseEnter={() => setHoveredNodeId(node.id)}
                             onMouseLeave={() => setHoveredNodeId(null)}
                             onClick={() => {
+                              if (nodeDragDistance.current > 5) return;
                               setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
                               setDetailTab('overview');
                             }}
