@@ -665,14 +665,22 @@ export default function App() {
   }, [fetchStats, fetchResources, fetchTopology, refreshInterval]);
 
   const getFilteredTopology = useCallback(() => {
+    // Filter out ingress nodes
+    const baseNodes = topologyData.nodes.filter(n => n.type !== 'ingress');
+    const baseEdges = topologyData.edges.filter(edge => {
+      const srcNode = topologyData.nodes.find(n => n.id === edge.source);
+      const tgtNode = topologyData.nodes.find(n => n.id === edge.target);
+      return srcNode?.type !== 'ingress' && tgtNode?.type !== 'ingress';
+    });
+
     if (!topologyFilter || topologyFilter === 'all') {
-      return topologyData;
+      return { nodes: baseNodes, edges: baseEdges };
     }
 
     const keptNodeIds = new Set<string>([topologyFilter]);
     
     // Pass 1: Direct connections
-    topologyData.edges.forEach(edge => {
+    baseEdges.forEach(edge => {
       if (edge.source === topologyFilter) {
         keptNodeIds.add(edge.target);
       }
@@ -681,8 +689,8 @@ export default function App() {
       }
     });
 
-    // Pass 2: Manage transitions (e.g. Ingress -> Service -> Pod -> Deployment)
-    topologyData.edges.forEach(edge => {
+    // Pass 2: Manage transitions (e.g. Service -> Pod -> Deployment)
+    baseEdges.forEach(edge => {
       if (keptNodeIds.has(edge.target) && edge.relation === 'manages') {
         keptNodeIds.add(edge.source);
       }
@@ -691,8 +699,8 @@ export default function App() {
       }
     });
 
-    const filteredNodes = topologyData.nodes.filter(node => keptNodeIds.has(node.id));
-    const filteredEdges = topologyData.edges.filter(edge => 
+    const filteredNodes = baseNodes.filter(node => keptNodeIds.has(node.id));
+    const filteredEdges = baseEdges.filter(edge => 
       keptNodeIds.has(edge.source) && keptNodeIds.has(edge.target)
     );
 
@@ -2141,63 +2149,14 @@ export default function App() {
                         ))}
                       </svg>
 
-                      {/* Layered Columns Lanes grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8 relative z-10 h-full min-h-[460px]">
+                      {/* Layered Columns Lanes grid - ArgoCD style 3-column layout */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-10 relative z-10 h-full min-h-[460px]">
                         
-                        {/* Lane 1: Ingress Gateways */}
+                        {/* Column 1: Services */}
                         <div className="flex flex-col space-y-4">
-                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
-                            🌐 Ingress Gateways
-                          </div>
-                          <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
-                            {filteredTopology.nodes.filter(n => n.type === 'ingress').map(node => {
-                              const htmlId = node.id.replace(/\//g, '-');
-                              const isConnected = isNodeConnected(node.id);
-                              return (
-                                <div
-                                  key={node.id}
-                                  id={htmlId}
-                                  onMouseEnter={() => setHoveredNodeId(node.id)}
-                                  onMouseLeave={() => setHoveredNodeId(null)}
-                                  onClick={() => {
-                                    setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
-                                    setDetailTab('overview');
-                                  }}
-                                  className={`p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
-                                    getHealthBorder(node.status)
-                                  } ${
-                                    !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
-                                  }`}
-                                >
-                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
-                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
-                                      <Link2 className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="font-bold text-[11px] text-slate-805 dark:text-slate-200 truncate leading-snug">{node.name}</div>
-                                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">{node.type}</div>
-                                    </div>
-                                  </div>
-                                  <div className="shrink-0 flex flex-col items-end space-y-0.5">
-                                    <span className={`text-[9px] font-black uppercase ${getHealthText(node.status)}`}>
-                                      {node.status}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            {filteredTopology.nodes.filter(n => n.type === 'ingress').length === 0 && (
-                              <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
-                                No ingress gateways mapped
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Lane 2: Exposing Services */}
-                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
-                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
-                            🔌 Exposing Services
+                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none flex items-center space-x-1.5">
+                            <span>🔌</span>
+                            <span>Services</span>
                           </div>
                           <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
                             {filteredTopology.nodes.filter(n => n.type === 'service').map(node => {
@@ -2228,8 +2187,8 @@ export default function App() {
                                       <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">Service ({node.details?.type || 'ClusterIP'})</div>
                                     </div>
                                   </div>
-                                  <div className="shrink-0 flex flex-col items-end space-y-0.5">
-                                    <span className={`text-[9px] font-black uppercase ${getHealthText(node.status)}`}>
+                                  <div className="shrink-0 flex items-center pr-1.5">
+                                    <span className={`text-[9px] font-black uppercase tracking-wider ${getHealthText(node.status)}`}>
                                       {node.status}
                                     </span>
                                   </div>
@@ -2244,10 +2203,11 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Lane 3: Deployments */}
-                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
-                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
-                            ⚙️ Management Layer
+                        {/* Column 2: Management Layer (Deployments) */}
+                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-4">
+                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none flex items-center space-x-1.5">
+                            <span>⚙️</span>
+                            <span>Management Layer</span>
                           </div>
                           <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
                             {filteredTopology.nodes.filter(n => n.type === 'deployment').map(node => {
@@ -2278,8 +2238,8 @@ export default function App() {
                                       <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">{node.type}</div>
                                     </div>
                                   </div>
-                                  <div className="shrink-0 flex flex-col items-end space-y-0.5">
-                                    <span className={`text-[9px] font-black uppercase ${getHealthText(node.status)}`}>
+                                  <div className="shrink-0 flex flex-col items-end space-y-0.5 pr-1.5">
+                                    <span className={`text-[9px] font-black uppercase tracking-wider ${getHealthText(node.status)}`}>
                                       {node.status}
                                     </span>
                                     {node.details?.replicas && (
@@ -2299,10 +2259,11 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Lane 4: Pods */}
-                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
-                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
-                            🚀 Execution Layer
+                        {/* Column 3: Execution Layer (Pods) */}
+                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-4">
+                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none flex items-center space-x-1.5">
+                            <span>🚀</span>
+                            <span>Execution Layer</span>
                           </div>
                           <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
                             {filteredTopology.nodes.filter(n => n.type === 'pod').map(node => {
@@ -2333,8 +2294,8 @@ export default function App() {
                                       <div className="text-[9px] text-slate-405 dark:text-slate-500 font-medium truncate uppercase tracking-wider">{node.type}</div>
                                     </div>
                                   </div>
-                                  <div className="shrink-0 flex flex-col items-end space-y-0.5">
-                                    <span className={`text-[9px] font-black uppercase ${getHealthText(node.status)}`}>
+                                  <div className="shrink-0 flex items-center pr-1.5">
+                                    <span className={`text-[9px] font-black uppercase tracking-wider ${getHealthText(node.status)}`}>
                                       {node.status}
                                     </span>
                                   </div>
