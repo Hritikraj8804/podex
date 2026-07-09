@@ -25,7 +25,8 @@ import {
   AlertOctagon,
   Link2,
   Menu,
-  PanelLeftClose
+  PanelLeftClose,
+  Network
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -268,7 +269,21 @@ function FormattedText({ text, isCode = false, onShowToast }: { text: string; is
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram'>('dashboard');
+
+  // Topology States
+  const [topologyData, setTopologyData] = useState<{ nodes: any[], edges: any[] }>({ nodes: [], edges: [] });
+  const [topologyLoading, setTopologyLoading] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [topologyFilter] = useState<string>('all');
+  const [zoomScale, setZoomScale] = useState<number>(1.0);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const [customNodePositions, setCustomNodePositions] = useState<{ [id: string]: { x: number, y: number } }>({});
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const nodeDragStart = useRef({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
+  const nodeDragDistance = useRef(0);
 
   // settings configuration states
   const [aiProvider, setAiProviderState] = useState<'gemini' | 'openai'>(() => {
@@ -573,6 +588,7 @@ export default function App() {
         // Trigger refresh
         fetchStats(true);
         fetchResources(true);
+        fetchTopology(true);
       } else {
         const err = await res.json();
         setToast({ message: `Context switch failed: ${err.detail || 'Unknown error'}`, type: 'error' });
@@ -624,18 +640,146 @@ export default function App() {
     }
   }, [namespaceFilter]);
 
+  const fetchTopology = useCallback(async (isSilent = false) => {
+    if (!isSilent) setTopologyLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/kube/topology?namespace=${namespaceFilter || 'default'}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTopologyData(data);
+      }
+    } catch (e) {
+      console.error("Failed loading topology", e);
+    } finally {
+      if (!isSilent) setTopologyLoading(false);
+    }
+  }, [namespaceFilter]);
+
   // Initial loading and background poll
   useEffect(() => {
     fetchStats();
     fetchResources();
+    fetchTopology();
 
     const interval = setInterval(() => {
       fetchStats(true);
       fetchResources(true);
+      fetchTopology(true);
     }, refreshInterval * 1000);
 
     return () => clearInterval(interval);
-  }, [fetchStats, fetchResources, refreshInterval]);
+  }, [fetchStats, fetchResources, fetchTopology, refreshInterval]);
+
+  const getFilteredTopology = useCallback(() => {
+    // Filter out ingress nodes
+    const baseNodes = topologyData.nodes.filter(n => n.type !== 'ingress');
+    const baseEdges = topologyData.edges.filter(edge => {
+      const srcNode = topologyData.nodes.find(n => n.id === edge.source);
+      const tgtNode = topologyData.nodes.find(n => n.id === edge.target);
+      return srcNode?.type !== 'ingress' && tgtNode?.type !== 'ingress';
+    });
+
+    if (!topologyFilter || topologyFilter === 'all') {
+      return { nodes: baseNodes, edges: baseEdges };
+    }
+
+    const keptNodeIds = new Set<string>([topologyFilter]);
+    
+    // Pass 1: Direct connections
+    baseEdges.forEach(edge => {
+      if (edge.source === topologyFilter) {
+        keptNodeIds.add(edge.target);
+      }
+      if (edge.target === topologyFilter) {
+        keptNodeIds.add(edge.source);
+      }
+    });
+
+    // Pass 2: Manage transitions (e.g. Service -> Pod -> Deployment)
+    baseEdges.forEach(edge => {
+      if (keptNodeIds.has(edge.target) && edge.relation === 'manages') {
+        keptNodeIds.add(edge.source);
+      }
+      if (keptNodeIds.has(edge.source) && edge.relation === 'manages') {
+        keptNodeIds.add(edge.target);
+      }
+    });
+
+    const filteredNodes = baseNodes.filter(node => keptNodeIds.has(node.id));
+    const filteredEdges = baseEdges.filter(edge => 
+      keptNodeIds.has(edge.source) && keptNodeIds.has(edge.target)
+    );
+
+    return { nodes: filteredNodes, edges: filteredEdges };
+  }, [topologyData, topologyFilter]);
+
+  const isNodeConnected = useCallback((nodeId: string) => {
+    if (!hoveredNodeId) return true;
+    if (nodeId === hoveredNodeId) return true;
+    const { edges } = getFilteredTopology();
+    return edges.some(edge => 
+      (edge.source === hoveredNodeId && edge.target === nodeId) ||
+      (edge.target === hoveredNodeId && edge.source === nodeId)
+    );
+  }, [hoveredNodeId, getFilteredTopology]);
+
+
+
+  const handleNodeMouseDown = useCallback((e: React.MouseEvent, nodeId: string, initialX: number, initialY: number) => {
+    e.stopPropagation();
+    setDraggedNodeId(nodeId);
+    nodeDragDistance.current = 0;
+    nodeDragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      nodeX: customNodePositions[nodeId]?.x ?? initialX,
+      nodeY: customNodePositions[nodeId]?.y ?? initialY,
+      lastX: e.clientX,
+      lastY: e.clientY
+    } as any;
+  }, [customNodePositions]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.interactive-card') || target.closest('button') || target.closest('select')) {
+      return;
+    }
+    setIsDragging(true);
+    dragStart.current = {
+      x: e.clientX - panOffset.x,
+      y: e.clientY - panOffset.y
+    };
+  }, [panOffset]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (draggedNodeId) {
+      const dx = (e.clientX - nodeDragStart.current.x) / zoomScale;
+      const dy = (e.clientY - nodeDragStart.current.y) / zoomScale;
+      const lastX = (nodeDragStart.current as any).lastX ?? e.clientX;
+      const lastY = (nodeDragStart.current as any).lastY ?? e.clientY;
+      nodeDragDistance.current += Math.abs(e.clientX - lastX) + Math.abs(e.clientY - lastY);
+      (nodeDragStart.current as any).lastX = e.clientX;
+      (nodeDragStart.current as any).lastY = e.clientY;
+      
+      setCustomNodePositions(prev => ({
+        ...prev,
+        [draggedNodeId]: {
+          x: nodeDragStart.current.nodeX + dx,
+          y: nodeDragStart.current.nodeY + dy
+        }
+      }));
+    } else if (isDragging) {
+      setPanOffset({
+        x: e.clientX - dragStart.current.x,
+        y: e.clientY - dragStart.current.y
+      });
+    }
+  }, [isDragging, draggedNodeId, zoomScale]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setDraggedNodeId(null);
+  }, []);
 
   // Fetch drawer details depending on active sub-tab
   const fetchResourceDetails = useCallback(async () => {
@@ -1050,6 +1194,7 @@ export default function App() {
                 {[
                   { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+                  { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -1154,6 +1299,7 @@ export default function App() {
                 {[
                   { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+                  { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -1821,6 +1967,295 @@ export default function App() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB: TOPOLOGY DIAGRAM */}
+          {activeTab === 'diagram' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              
+              {/* Header */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <Network className={`w-5 h-5 ${getAccentColor('text')}`} />
+                    <h3 className="text-lg font-black text-slate-850 dark:text-slate-205 m-0">Live Cluster Topology</h3>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-555 dark:text-slate-400 bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-xl shadow-sm select-none">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2.5 rounded bg-emerald-500" />
+                    <span>Healthy</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-amber-500" />
+                    <span>Degraded</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-red-500" />
+                    <span>Critical</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Diagram Canvas Container */}
+              {topologyLoading && topologyData.nodes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 space-y-4">
+                  <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+                  <span className="text-xs text-slate-500 font-bold">Mapping cluster topology...</span>
+                </div>
+              ) : topologyData.nodes.length === 0 ? (
+                <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] p-12 rounded-3xl text-center space-y-4 shadow-sm">
+                  <Network className="w-10 h-10 text-slate-400 mx-auto" />
+                  <h4 className="font-bold text-sm text-slate-805 dark:text-slate-250 m-0">No Active Resources Found</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-405 max-w-sm mx-auto leading-relaxed font-semibold">
+                    Ensure workloads are deployed in the <code className="font-mono text-cyan-600 dark:text-cyan-400">{namespaceFilter || 'default'}</code> namespace to visualize connection maps.
+                  </p>
+                </div>
+              ) : (() => {
+                const filteredTopology = getFilteredTopology();
+                
+                // Group resources
+                const services = filteredTopology.nodes.filter(n => n.type === 'service');
+                const deployments = filteredTopology.nodes.filter(n => n.type === 'deployment');
+                const pods = filteredTopology.nodes.filter(n => n.type === 'pod');
+                const otherNodes = filteredTopology.nodes.filter(n => n.type !== 'service' && n.type !== 'deployment' && n.type !== 'pod');
+
+                // Compute explicit positions
+                const cardWidth = 240;
+                const cardHeight = 70;
+                const serviceX = 80;
+                const deploymentX = 420;
+                const podX = 760;
+
+                const nodePositions: { [id: string]: { x: number, y: number } } = {};
+                
+                services.forEach((node, idx) => {
+                  nodePositions[node.id] = customNodePositions[node.id] || { x: serviceX, y: idx * 110 + 100 };
+                });
+                deployments.forEach((node, idx) => {
+                  nodePositions[node.id] = customNodePositions[node.id] || { x: deploymentX, y: idx * 110 + 100 };
+                });
+                pods.forEach((node, idx) => {
+                  nodePositions[node.id] = customNodePositions[node.id] || { x: podX, y: idx * 110 + 100 };
+                });
+                otherNodes.forEach((node, idx) => {
+                  nodePositions[node.id] = customNodePositions[node.id] || { x: serviceX, y: (services.length + idx) * 110 + 100 };
+                });
+
+                // Compute dynamic canvas height to fit all elements
+                const maxRows = Math.max(3, services.length, deployments.length, pods.length, otherNodes.length);
+                const canvasHeight = maxRows * 110 + 200;
+
+                // Health border resolver
+                const getHealthBorder = (status: string) => {
+                  const s = status.toLowerCase();
+                  if (s === 'healthy' || s === 'running') return 'border-l-[4px] border-l-emerald-500';
+                  if (s === 'degraded' || s === 'pending') return 'border-l-[4px] border-l-amber-500 animate-pulse';
+                  return 'border-l-[4px] border-l-red-500';
+                };
+                
+                const getHealthBg = (status: string) => {
+                  const s = status.toLowerCase();
+                  if (s === 'healthy' || s === 'running') return 'bg-emerald-500/10 dark:bg-emerald-950/20';
+                  if (s === 'degraded' || s === 'pending') return 'bg-amber-500/10 dark:bg-amber-950/20';
+                  return 'bg-red-500/10 dark:bg-red-950/20';
+                };
+
+                const getHealthText = (status: string) => {
+                  const s = status.toLowerCase();
+                  if (s === 'healthy' || s === 'running') return 'text-emerald-600 dark:text-emerald-400';
+                  if (s === 'degraded' || s === 'pending') return 'text-amber-600 dark:text-amber-450';
+                  return 'text-red-500 dark:text-red-450';
+                };
+
+                return (
+                  <div 
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    className="relative overflow-hidden rounded-3xl border border-slate-205 dark:border-[#13151f] bg-slate-105/20 dark:bg-[#07090e] h-[620px] select-none cursor-grab active:cursor-grabbing"
+                  >
+                    
+                    {/* Floating Zoom & Pan Reset Toolbar overlay */}
+                    <div className="absolute bottom-4 left-4 flex items-center space-x-1.5 bg-white/95 dark:bg-[#0c0e15]/95 border border-slate-200 dark:border-[#1e202c] p-1.5 rounded-xl shadow-lg z-25 backdrop-blur-md">
+                      <button
+                        onClick={() => setZoomScale(Math.max(0.6, zoomScale - 0.1))}
+                        disabled={zoomScale <= 0.6}
+                        className="p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 disabled:opacity-30 cursor-pointer"
+                        title="Zoom Out"
+                      >
+                        <Minimize2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setZoomScale(1.0);
+                          setPanOffset({ x: 0, y: 0 });
+                        }}
+                        className="text-[10px] px-2 py-0.5 font-extrabold hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-655 dark:text-slate-355 rounded cursor-pointer"
+                        title="Reset View"
+                      >
+                        {Math.round(zoomScale * 100)}% (Reset)
+                      </button>
+                      <button
+                        onClick={() => setZoomScale(Math.min(1.4, zoomScale + 0.1))}
+                        disabled={zoomScale >= 1.4}
+                        className="p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 disabled:opacity-30 cursor-pointer"
+                        title="Zoom In"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Scale and Pan Viewport Wrapper with project-themed dot grid background */}
+                    <div 
+                      id="topology-container"
+                      style={{ 
+                        transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`, 
+                        transformOrigin: 'top left',
+                        width: '1100px', 
+                        height: `${canvasHeight}px` 
+                      }}
+                      className="absolute inset-0 p-8 bg-[radial-gradient(#e2e8f0_1.2px,transparent_1.2px)] dark:bg-[radial-gradient(#1c2230_1.2px,transparent_1.2px)] [background-size:20px_20px] transition-transform duration-75 ease-out"
+                    >
+                      
+                      {/* SVG Bezier Lines Connectors Canvas */}
+                      <svg className="absolute inset-0 pointer-events-none w-full h-full overflow-visible z-0">
+                        <defs>
+                          <marker
+                            id="arrow"
+                            viewBox="0 0 10 10"
+                            refX="6"
+                            refY="5"
+                            markerWidth="6"
+                            markerHeight="6"
+                            orient="auto-start-reverse"
+                          >
+                            <path d="M 0 0 L 10 5 L 0 10 z" className="fill-slate-300 dark:fill-slate-700" />
+                          </marker>
+                          <marker
+                            id="arrow-active"
+                            viewBox="0 0 10 10"
+                            refX="6"
+                            refY="5"
+                            markerWidth="6"
+                            markerHeight="6"
+                            orient="auto-start-reverse"
+                          >
+                            <path d="M 0 0 L 10 5 L 0 10 z" className="fill-cyan-500" />
+                          </marker>
+                        </defs>
+
+                        {/* Draw connector paths dynamically from node positions */}
+                        {filteredTopology.edges.map((edge) => {
+                          const srcPos = nodePositions[edge.source];
+                          const tgtPos = nodePositions[edge.target];
+                          if (!srcPos || !tgtPos) return null;
+
+                          const startX = srcPos.x + cardWidth;
+                          const startY = srcPos.y + cardHeight / 2;
+                          const endX = tgtPos.x - 8;
+                          const endY = tgtPos.y + cardHeight / 2;
+
+                          const dx = Math.max(40, Math.abs(endX - startX) * 0.45);
+                          const d = `M ${startX} ${startY} C ${startX + dx} ${startY}, ${endX - dx} ${endY}, ${endX} ${endY}`;
+                          const isActive = !hoveredNodeId || edge.source === hoveredNodeId || edge.target === hoveredNodeId;
+
+                          return (
+                            <path
+                              key={`${edge.source}-->${edge.target}`}
+                              d={d}
+                              fill="none"
+                              stroke={isActive ? "currentColor" : "currentColor"}
+                              strokeWidth={isActive ? 2.2 : 1.0}
+                              className={`transition-all duration-305 ${
+                                isActive 
+                                  ? 'text-cyan-500/80 dark:text-cyan-400/80 stroke-cyan-500 dark:stroke-cyan-400 opacity-90' 
+                                  : 'text-slate-200 dark:text-slate-855 opacity-15'
+                              }`}
+                              markerEnd={isActive ? "url(#arrow-active)" : "url(#arrow)"}
+                            />
+                          );
+                        })}
+                      </svg>
+
+                      {/* Absolute-positioned Interactive Cards */}
+                      {filteredTopology.nodes.map((node) => {
+                        const pos = nodePositions[node.id];
+                        if (!pos) return null;
+
+                        const htmlId = node.id.replace(/\//g, '-');
+                        const isConnected = isNodeConnected(node.id);
+
+                        return (
+                          <div
+                            key={node.id}
+                            id={htmlId}
+                            style={{
+                              position: 'absolute',
+                              left: `${pos.x}px`,
+                              top: `${pos.y}px`,
+                              width: `${cardWidth}px`,
+                              height: `${cardHeight}px`
+                            }}
+                            onMouseDown={(e) => {
+                              const initialX = node.type === 'service' ? serviceX : node.type === 'deployment' ? deploymentX : node.type === 'pod' ? podX : serviceX;
+                              const initialY = (node.type === 'service' ? services : node.type === 'deployment' ? deployments : node.type === 'pod' ? pods : otherNodes).indexOf(node) * 110 + 100;
+                              handleNodeMouseDown(e, node.id, initialX, initialY);
+                            }}
+                            onMouseEnter={() => setHoveredNodeId(node.id)}
+                            onMouseLeave={() => setHoveredNodeId(null)}
+                            onClick={() => {
+                              if (nodeDragDistance.current > 5) return;
+                              setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                              setDetailTab('overview');
+                            }}
+                            className={`interactive-card p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
+                              getHealthBorder(node.status)
+                            } ${
+                              !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
+                                {node.type === 'service' ? (
+                                  <Network className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                ) : node.type === 'deployment' ? (
+                                  <Sliders className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                ) : (
+                                  <Cpu className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-bold text-[11px] text-slate-855 dark:text-slate-205 truncate leading-snug">
+                                  {node.name}
+                                </div>
+                                <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">
+                                  {node.type === 'service' ? `Service (${node.details?.type || 'ClusterIP'})` : node.type}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="shrink-0 flex flex-col items-end space-y-0.5 pr-1">
+                              <span className={`text-[9px] font-black uppercase tracking-wider ${getHealthText(node.status)}`}>
+                                {node.status}
+                              </span>
+                              {node.type === 'deployment' && node.details?.replicas && (
+                                <span className="text-[9px] font-mono text-slate-500 dark:text-slate-405 font-bold">
+                                  {node.details.replicas}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                    </div>
+                  </div>
+                );
+              })()}
+
             </div>
           )}
 

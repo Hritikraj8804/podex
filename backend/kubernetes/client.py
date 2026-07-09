@@ -1,3 +1,4 @@
+# Trigger reload - Re-initialized local Kind kubeconfig settings
 import os
 import urllib3
 from typing import Optional

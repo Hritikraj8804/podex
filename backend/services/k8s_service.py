@@ -15,6 +15,10 @@ class K8sService:
     def apps_api(self) -> client.AppsV1Api:
         return get_apps_api()
 
+    @property
+    def networking_api(self) -> client.NetworkingV1Api:
+        return client.NetworkingV1Api()
+
     def get_cluster_stats(self) -> Dict[str, Any]:
         """
         Gathers count stats for nodes, pods, deployments, services, and namespace status.
@@ -382,3 +386,173 @@ class K8sService:
             return {"success": False, "error": f"API Error: {e.reason}\nDetail: {e.body}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def get_topology(self, namespace: str = "default") -> Dict[str, Any]:
+        """
+        Builds a relationship topology map of the resources in the specified namespace.
+        """
+        nodes = []
+        edges = []
+
+        try:
+            # 1. Fetch Ingresses
+            try:
+                ingresses = self.networking_api.list_namespaced_ingress(namespace)
+                ingress_list = ingresses.items
+            except Exception:
+                ingress_list = []
+
+            for ing in ingress_list:
+                node_id = f"ingress/{namespace}/{ing.metadata.name}"
+                nodes.append({
+                    "id": node_id,
+                    "type": "ingress",
+                    "name": ing.metadata.name,
+                    "namespace": namespace,
+                    "status": "healthy"
+                })
+
+                # Trace paths to Services
+                if ing.spec and ing.spec.rules:
+                    for rule in ing.spec.rules:
+                        if rule.http and rule.http.paths:
+                            for path in rule.http.paths:
+                                if path.backend and path.backend.service:
+                                    svc_name = path.backend.service.name
+                                    target_svc_id = f"service/{namespace}/{svc_name}"
+                                    edges.append({
+                                        "source": node_id,
+                                        "target": target_svc_id,
+                                        "relation": "routes_to"
+                                    })
+
+            # 2. Fetch Services
+            try:
+                services = self.core_api.list_namespaced_service(namespace)
+                service_list = services.items
+            except Exception:
+                service_list = []
+
+            for svc in service_list:
+                node_id = f"service/{namespace}/{svc.metadata.name}"
+                nodes.append({
+                    "id": node_id,
+                    "type": "service",
+                    "name": svc.metadata.name,
+                    "namespace": namespace,
+                    "status": "healthy",
+                    "details": {
+                        "type": svc.spec.type,
+                        "cluster_ip": svc.spec.cluster_ip
+                    }
+                })
+
+            # 3. Fetch Deployments
+            try:
+                deployments = self.apps_api.list_namespaced_deployment(namespace)
+                deployment_list = deployments.items
+            except Exception:
+                deployment_list = []
+
+            for depl in deployment_list:
+                node_id = f"deployment/{namespace}/{depl.metadata.name}"
+                
+                # Check status
+                replicas = depl.status.replicas or 0
+                ready_replicas = depl.status.ready_replicas or 0
+                status = "healthy"
+                if ready_replicas < replicas:
+                    status = "degraded" if ready_replicas > 0 else "critical"
+
+                nodes.append({
+                    "id": node_id,
+                    "type": "deployment",
+                    "name": depl.metadata.name,
+                    "namespace": namespace,
+                    "status": status,
+                    "details": {
+                        "replicas": f"{ready_replicas}/{replicas}"
+                    }
+                })
+
+            # 4. Fetch Pods
+            try:
+                pods = self.core_api.list_namespaced_pod(namespace)
+                pod_list = pods.items
+            except Exception:
+                pod_list = []
+
+            # Helper to check matching labels
+            def labels_match(selector: dict, labels: dict) -> bool:
+                if not selector or not labels:
+                    return False
+                return all(labels.get(k) == v for k, v in selector.items())
+
+            for pod in pod_list:
+                pod_id = f"pod/{namespace}/{pod.metadata.name}"
+                
+                # Determine phase status
+                phase = (pod.status.phase or "Unknown").lower()
+                status = "healthy"
+                if phase == "running":
+                    status = "healthy"
+                    if pod.status.container_statuses:
+                        for cs in pod.status.container_statuses:
+                            if cs.state and cs.state.waiting:
+                                status = "degraded"
+                            if cs.restart_count > 5:
+                                status = "degraded"
+                elif phase in ["pending", "succeeded"]:
+                    status = "degraded"
+                else:
+                    status = "critical"
+
+                nodes.append({
+                    "id": pod_id,
+                    "type": "pod",
+                    "name": pod.metadata.name,
+                    "namespace": namespace,
+                    "status": status
+                })
+
+                # Service ──► Pod edge connections
+                for svc in service_list:
+                    if svc.spec.selector:
+                        if labels_match(svc.spec.selector, pod.metadata.labels or {}):
+                            edges.append({
+                                "source": f"service/{namespace}/{svc.metadata.name}",
+                                "target": pod_id,
+                                "relation": "routes_to"
+                            })
+
+                # Deployment ──► Pod edge connections
+                matched_to_deploy = False
+                if pod.metadata.owner_references:
+                    for owner in pod.metadata.owner_references:
+                        if owner.kind == "ReplicaSet":
+                            for depl in deployment_list:
+                                if depl.spec.selector and depl.spec.selector.match_labels:
+                                    if labels_match(depl.spec.selector.match_labels, pod.metadata.labels or {}):
+                                        edges.append({
+                                            "source": f"deployment/{namespace}/{depl.metadata.name}",
+                                            "target": pod_id,
+                                            "relation": "manages"
+                                        })
+                                        matched_to_deploy = True
+                                        break
+                
+                if not matched_to_deploy:
+                    for depl in deployment_list:
+                        if depl.spec.selector and depl.spec.selector.match_labels:
+                            if labels_match(depl.spec.selector.match_labels, pod.metadata.labels or {}):
+                                edges.append({
+                                    "source": f"deployment/{namespace}/{depl.metadata.name}",
+                                    "target": pod_id,
+                                    "relation": "manages"
+                                })
+                                break
+
+            return {"nodes": nodes, "edges": edges}
+
+        except Exception as e:
+            return {"nodes": [], "edges": [], "error": str(e)}
