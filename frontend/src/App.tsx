@@ -453,12 +453,22 @@ export default function App() {
     name: string;
     namespace: string;
   } | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'logs' | 'events' | 'yaml' | 'investigate'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'logs' | 'events' | 'yaml' | 'investigate' | 'terminal'>('overview');
   const [resourceDetails, setResourceDetails] = useState<any>(null);
   const [resourceDetailsLoading, setResourceDetailsLoading] = useState(false);
   const [logsText, setLogsText] = useState<string>('');
   const [eventsList, setEventsList] = useState<EventData[]>([]);
   const [yamlText, setYamlText] = useState<string>('');
+
+  // Terminal States
+  const [terminalInput, setTerminalInput] = useState('');
+  const [terminalBuffer, setTerminalBuffer] = useState<{ type: 'input' | 'output' | 'error', text: string, cmd?: string }[]>([
+    { type: 'output', text: 'Podex Web Shell Console initialized.\nType your commands and press Enter (e.g. ls, pwd, env, cat /etc/nginx/nginx.conf)\n' }
+  ]);
+  const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
+  const [terminalHistoryIndex, setTerminalHistoryIndex] = useState(-1);
+  const [terminalExecuting, setTerminalExecuting] = useState(false);
+  const terminalEndRef = useRef<HTMLDivElement>(null);
 
   // AI Investigation states
   const [aiInvestigating, setAiInvestigating] = useState(false);
@@ -676,6 +686,108 @@ export default function App() {
   useEffect(() => {
     fetchResourceDetails();
   }, [selectedResource, fetchResourceDetails]);
+
+  // Terminal Handlers
+  const handleRunTerminalCommand = async () => {
+    const cmd = terminalInput.trim();
+    if (!cmd || !selectedResource) return;
+
+    // Append user input
+    setTerminalBuffer(prev => [...prev, { type: 'input', text: cmd }]);
+    setTerminalInput('');
+    setTerminalExecuting(true);
+
+    // Save to history
+    const updatedHistory = [...terminalHistory, cmd];
+    setTerminalHistory(updatedHistory);
+    setTerminalHistoryIndex(updatedHistory.length);
+
+    try {
+      const activeContainer = resourceDetails?.spec?.containers?.[0]?.name || 'web-server';
+      const response = await fetch(`${API_URL}/api/pods/${selectedResource.namespace}/${selectedResource.name}/exec`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          container: activeContainer,
+          command: cmd
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setTerminalBuffer(prev => [...prev, { type: 'output', text: data.output || '(No output returned)\n' }]);
+      } else {
+        setTerminalBuffer(prev => [...prev, { type: 'error', text: data.detail || 'Execution failed.' }]);
+      }
+    } catch (err: any) {
+      setTerminalBuffer(prev => [...prev, { type: 'error', text: err.message || 'Network error executing command.' }]);
+    } finally {
+      setTerminalExecuting(false);
+    }
+  };
+
+  const handleExplainCommand = async (cmd: string) => {
+    setTerminalBuffer(prev => [...prev, { type: 'output', text: `💡 Podex AI Tutor is analyzing command: "${cmd}"...\n` }]);
+    
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      const activeProvider = mockModeForced ? 'mock' : aiProvider;
+      if (activeProvider) headers['X-AI-Provider'] = activeProvider;
+      if (geminiKey && aiProvider === 'gemini') headers['X-AI-Key'] = geminiKey;
+      if (openaiKey && aiProvider === 'openai') headers['X-AI-Key'] = openaiKey;
+      if (aiModel) headers['X-AI-Model'] = aiModel;
+      if (aiTemperature) headers['X-AI-Temperature'] = String(aiTemperature);
+
+      const response = await fetch(`${API_URL}/api/pods/explain-command`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          command: cmd,
+          output: 'Command explanation request'
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setTerminalBuffer(prev => [
+          ...prev.filter(x => !x.text.includes("is analyzing command")),
+          { type: 'output', text: `💡 Podex AI Tutor explanation of "${cmd}":\n${data.explanation}\n` }
+        ]);
+      } else {
+        setToast({ message: data.detail || "Failed to explain command.", type: "error" });
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || "Failed to connect to AI server.", type: "error" });
+    }
+  };
+
+  const handleTerminalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (terminalHistory.length === 0) return;
+      const newIndex = Math.max(0, terminalHistoryIndex - 1);
+      setTerminalHistoryIndex(newIndex);
+      setTerminalInput(terminalHistory[newIndex]);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const newIndex = terminalHistoryIndex + 1;
+      if (newIndex >= terminalHistory.length) {
+        setTerminalHistoryIndex(terminalHistory.length);
+        setTerminalInput('');
+      } else {
+        setTerminalHistoryIndex(newIndex);
+        setTerminalInput(terminalHistory[newIndex]);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (terminalEndRef.current && detailTab === 'terminal') {
+      terminalEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [terminalBuffer, detailTab]);
 
   // AI Diagnostic triggers
   const runInvestigation = async () => {
@@ -1417,12 +1529,13 @@ export default function App() {
                             <th className="px-6 py-4">Status</th>
                             <th className="px-6 py-4 text-center">Restarts</th>
                             <th className="px-6 py-4">Age</th>
+                            <th className="px-6 py-4 text-right">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-[#13151c] text-xs">
                           {filteredPods.length === 0 ? (
                             <tr>
-                              <td colSpan={5} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-bold bg-slate-50/20 dark:bg-transparent">
+                              <td colSpan={6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-bold bg-slate-50/20 dark:bg-transparent">
                                 No Pods found. Deploy some workloads to test Podex!
                               </td>
                             </tr>
@@ -1445,7 +1558,19 @@ export default function App() {
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-mono font-bold">{pod.restarts}</td>
-                                <td className="px-6 py-4 text-slate-500">{pod.age}</td>
+                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{pod.age}</td>
+                                <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedResource({ type: 'pod', name: pod.name, namespace: pod.namespace });
+                                      setDetailTab('terminal');
+                                    }}
+                                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-[#181a24] dark:hover:bg-[#1f2231] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200 dark:border-[#242838] transition cursor-pointer"
+                                    title="Open interactive terminal"
+                                  >
+                                    <Terminal className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
                               </tr>
                             ))
                           )}
@@ -2133,10 +2258,17 @@ export default function App() {
 
           {/* Sub-tab Select for Resource details */}
           <div className="flex border-b border-slate-200 dark:border-[#1e202a] text-xs select-none">
-            {(['overview', 'logs', 'events', 'yaml', 'investigate'] as const).map(tab => (
+            {([
+              'overview',
+              'logs',
+              'events',
+              'yaml',
+              'investigate',
+              ...(selectedResource?.type === 'pod' ? ['terminal'] : [])
+            ] as any[]).map(tab => (
               <button
                 key={tab}
-                onClick={() => setDetailTab(tab)}
+                onClick={() => setDetailTab(tab as any)}
                 className={`flex-1 py-3 font-bold text-center border-b-2 capitalize transition duration-150 cursor-pointer ${detailTab === tab
                   ? 'border-cyan-500 text-cyan-650 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/5'
                   : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -2591,6 +2723,120 @@ export default function App() {
 
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* TAB: TERMINAL */}
+                {detailTab === 'terminal' && selectedResource && (
+                  <div className="space-y-4 animate-in fade-in duration-200">
+                    
+                    {/* Header Controls */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Terminal className={`w-4 h-4 ${getAccentColor('text')}`} />
+                        <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">Interactive Container Shell</span>
+                      </div>
+                      
+                      {/* Clear console action */}
+                      <button
+                        onClick={() => {
+                          setTerminalBuffer([
+                            { type: 'output', text: 'Console buffer cleared.\n' }
+                          ]);
+                        }}
+                        className="text-[10px] text-slate-500 hover:text-slate-850 dark:text-slate-400 dark:hover:text-slate-200 font-bold transition cursor-pointer"
+                      >
+                        Clear Console
+                      </button>
+                    </div>
+
+                    {/* Console Screen Box */}
+                    <div className="bg-slate-950 text-slate-200 border border-slate-900 dark:border-[#161822] rounded-xl p-4 font-mono h-[380px] overflow-y-auto flex flex-col space-y-2 leading-relaxed text-xs">
+                      {terminalBuffer.map((line, idx) => {
+                        if (line.type === 'input') {
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className="flex items-center justify-between text-cyan-400 font-semibold group">
+                                <div className="flex items-start">
+                                  <span className="text-emerald-500 shrink-0 mr-1.5">{`web-server@${selectedResource.name}:/$`}</span>
+                                  <span className="break-all">{line.text}</span>
+                                </div>
+                                
+                                {/* Explain with AI button */}
+                                {line.text.trim() && (
+                                  <button
+                                    onClick={() => handleExplainCommand(line.text)}
+                                    className="opacity-0 group-hover:opacity-100 transition text-[9px] bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold px-2 py-0.5 rounded border border-slate-700/50 hover:scale-95 active:scale-90 cursor-pointer shrink-0 ml-2"
+                                    title="Ask Podex AI what this command does"
+                                  >
+                                    💡 Explain
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        } else if (line.type === 'error') {
+                          return (
+                            <div key={idx} className="text-red-400 whitespace-pre-wrap break-all border-l-2 border-red-500/35 pl-2.5 my-1">
+                              {line.text}
+                            </div>
+                          );
+                        } else {
+                          // Standard output
+                          const isAIExplanation = line.text.includes("💡 Podex AI Tutor");
+                          return (
+                            <div
+                              key={idx}
+                              className={`whitespace-pre-wrap break-all ${
+                                isAIExplanation 
+                                  ? 'bg-[#0f1b29] border border-cyan-800/40 rounded-xl p-3.5 text-cyan-300 dark:text-cyan-200 font-sans my-2.5 shadow-sm leading-relaxed border-l-4 border-l-cyan-500' 
+                                  : 'text-slate-350'
+                              }`}
+                            >
+                              {line.text}
+                            </div>
+                          );
+                        }
+                      })}
+                      
+                      {/* Executing loader */}
+                      {terminalExecuting && (
+                        <div className="flex items-center space-x-2 text-cyan-400 font-semibold py-1 animate-pulse">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span className="text-[10px]">Running command in container...</span>
+                        </div>
+                      )}
+                      
+                      <div ref={terminalEndRef} />
+                    </div>
+
+                    {/* Input Prompt Form */}
+                    <form 
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleRunTerminalCommand();
+                      }}
+                      className="flex items-center space-x-2 border border-slate-205 dark:border-[#1e202a] bg-slate-50 dark:bg-[#111319] px-4 py-2.5 rounded-xl text-xs font-mono font-bold"
+                    >
+                      <span className="text-emerald-500 shrink-0 select-none">{`web-server@${selectedResource.name}:/$`}</span>
+                      <input
+                        type="text"
+                        value={terminalInput}
+                        onChange={(e) => setTerminalInput(e.target.value)}
+                        onKeyDown={handleTerminalKeyDown}
+                        placeholder="Type ls, env, df -h..."
+                        disabled={terminalExecuting}
+                        className="flex-1 bg-transparent text-slate-800 dark:text-slate-200 outline-none placeholder-slate-400 dark:placeholder-slate-650 font-mono font-medium disabled:opacity-50"
+                      />
+                    </form>
+
+                    <div className="bg-slate-50 dark:bg-[#11131c]/60 p-4 rounded-xl border border-slate-100 dark:border-slate-800/80 text-[10px] leading-relaxed text-slate-500 dark:text-slate-405 font-bold space-y-1">
+                      <span className={`font-extrabold ${getAccentColor('text')} block`}>💡 Shell Commands Tips:</span>
+                      <p className="m-0 font-medium">
+                        Press <kbd className="bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded">↑</kbd> and <kbd className="bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded">↓</kbd> to cycle command history. Hover over your typed commands inside the screen to trigger the <span className="text-cyan-500 font-extrabold">💡 Explain</span> helper button to get a learner explanation.
+                      </p>
+                    </div>
+
                   </div>
                 )}
 

@@ -1,6 +1,7 @@
 import datetime
 from typing import Dict, Any, List, Optional
 from kubernetes import client
+from kubernetes.stream import stream
 # pyrefly: ignore [missing-import]
 from kubernetes.client.exceptions import ApiException
 from backend.kubernetes.client import get_core_api, get_apps_api
@@ -359,3 +360,25 @@ class K8sService:
             ingress = svc.status.load_balancer.ingress[0]
             return ingress.ip or ingress.hostname or "Pending"
         return "None"
+
+    def execute_pod_command(self, namespace: str, name: str, container: str, command: str) -> Dict[str, Any]:
+        """
+        Executes a shell command inside the specified pod container.
+        """
+        try:
+            resp = stream(
+                self.core_api.connect_get_namespaced_pod_exec,
+                name=name,
+                namespace=namespace,
+                container=container,
+                command=["/bin/sh", "-c", command],
+                stderr=True,
+                stdin=False,
+                stdout=True,
+                tty=False
+            )
+            return {"success": True, "output": resp}
+        except ApiException as e:
+            return {"success": False, "error": f"API Error: {e.reason}\nDetail: {e.body}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}

@@ -35,6 +35,17 @@ class DeleteRequest(BaseModel):
 class SwitchContextRequest(BaseModel):
     context: str
 
+class ExecRequest(BaseModel):
+    container: str
+    command: str
+
+class ExplainCommandRequest(BaseModel):
+    command: str
+    output: str
+
+class ExplainCommandResponse(BaseModel):
+    explanation: str
+
 # 1. Dashboard Stats
 @router.get("/stats")
 def get_stats():
@@ -188,3 +199,33 @@ def post_switch_context(req: SwitchContextRequest):
     if not success:
         raise HTTPException(status_code=500, detail=f"Failed to switch to context: {req.context}")
     return {"success": True, "message": f"Successfully switched to context: {req.context}"}
+
+# 8. Interactive Container Exec
+@router.post("/pods/{namespace}/{name}/exec")
+def execute_command(namespace: str, name: str, req: ExecRequest):
+    result = k8s_service.execute_pod_command(
+        namespace=namespace,
+        name=name,
+        container=req.container,
+        command=req.command
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error"))
+    return result
+
+@router.post("/pods/explain-command", response_model=ExplainCommandResponse)
+async def post_explain_command(
+    req: ExplainCommandRequest,
+    x_ai_provider: Optional[str] = Header(None),
+    x_ai_key: Optional[str] = Header(None),
+    x_ai_model: Optional[str] = Header(None),
+    x_ai_temperature: Optional[float] = Header(None)
+):
+    ai_provider = get_ai_provider(
+        provider_override=x_ai_provider,
+        api_key_override=x_ai_key,
+        model_override=x_ai_model,
+        temperature_override=x_ai_temperature
+    )
+    explanation = await ai_provider.explain_command(req.command, req.output)
+    return {"explanation": explanation}
