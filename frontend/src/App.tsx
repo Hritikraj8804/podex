@@ -2156,7 +2156,7 @@ export default function App() {
 
                           const startX = srcPos.x + cardWidth;
                           const startY = srcPos.y + cardHeight / 2;
-                          const endX = tgtPos.x;
+                          const endX = tgtPos.x - 8;
                           const endY = tgtPos.y + cardHeight / 2;
 
                           const dx = Math.max(40, Math.abs(endX - startX) * 0.45);
