@@ -9,7 +9,12 @@ from backend.ai import get_ai_provider, build_concept_prompt, InvestigationResul
 from backend.kubernetes.client import list_contexts, switch_context
 from backend.utils import clean_kubernetes_dict
 
+from backend.api.updates import router as updates_router
+from backend.api.terminal import router as terminal_router
+
 router = APIRouter()
+router.include_router(updates_router)
+router.include_router(terminal_router)
 k8s_service = K8sService()
 investigation_service = InvestigationService()
 
