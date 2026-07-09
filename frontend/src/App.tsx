@@ -25,7 +25,8 @@ import {
   AlertOctagon,
   Link2,
   Menu,
-  PanelLeftClose
+  PanelLeftClose,
+  Network
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -268,7 +269,13 @@ function FormattedText({ text, isCode = false, onShowToast }: { text: string; is
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram'>('dashboard');
+
+  // Topology States
+  const [topologyData, setTopologyData] = useState<{ nodes: any[], edges: any[] }>({ nodes: [], edges: [] });
+  const [topologyLoading, setTopologyLoading] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [svgPaths, setSvgPaths] = useState<{ id: string, d: string, active: boolean, type: string }[]>([]);
 
   // settings configuration states
   const [aiProvider, setAiProviderState] = useState<'gemini' | 'openai'>(() => {
@@ -573,6 +580,7 @@ export default function App() {
         // Trigger refresh
         fetchStats(true);
         fetchResources(true);
+        fetchTopology(true);
       } else {
         const err = await res.json();
         setToast({ message: `Context switch failed: ${err.detail || 'Unknown error'}`, type: 'error' });
@@ -624,18 +632,96 @@ export default function App() {
     }
   }, [namespaceFilter]);
 
+  const fetchTopology = useCallback(async (isSilent = false) => {
+    if (!isSilent) setTopologyLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/kube/topology?namespace=${namespaceFilter || 'default'}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTopologyData(data);
+      }
+    } catch (e) {
+      console.error("Failed loading topology", e);
+    } finally {
+      if (!isSilent) setTopologyLoading(false);
+    }
+  }, [namespaceFilter]);
+
   // Initial loading and background poll
   useEffect(() => {
     fetchStats();
     fetchResources();
+    fetchTopology();
 
     const interval = setInterval(() => {
       fetchStats(true);
       fetchResources(true);
+      fetchTopology(true);
     }, refreshInterval * 1000);
 
     return () => clearInterval(interval);
-  }, [fetchStats, fetchResources, refreshInterval]);
+  }, [fetchStats, fetchResources, fetchTopology, refreshInterval]);
+
+  const isNodeConnected = useCallback((nodeId: string) => {
+    if (!hoveredNodeId) return true;
+    if (nodeId === hoveredNodeId) return true;
+    return topologyData.edges.some(edge => 
+      (edge.source === hoveredNodeId && edge.target === nodeId) ||
+      (edge.target === hoveredNodeId && edge.source === nodeId)
+    );
+  }, [hoveredNodeId, topologyData.edges]);
+
+  const calculatePaths = useCallback(() => {
+    if (activeTab !== 'diagram' || !topologyData.edges.length) return;
+    const container = document.getElementById('topology-container');
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const paths = topologyData.edges.map((edge) => {
+      const srcId = edge.source.replace(/\//g, '-');
+      const tgtId = edge.target.replace(/\//g, '-');
+      const srcEl = document.getElementById(srcId);
+      const tgtEl = document.getElementById(tgtId);
+
+      if (srcEl && tgtEl) {
+        const srcRect = srcEl.getBoundingClientRect();
+        const tgtRect = tgtEl.getBoundingClientRect();
+
+        const startX = srcRect.right - containerRect.left;
+        const startY = srcRect.top + srcRect.height / 2 - containerRect.top;
+        const endX = tgtRect.left - containerRect.left;
+        const endY = tgtRect.top + tgtRect.height / 2 - containerRect.top;
+
+        const dx = Math.abs(endX - startX) * 0.45;
+        const controlX1 = startX + dx;
+        const controlY1 = startY;
+        const controlX2 = endX - dx;
+        const controlY2 = endY;
+
+        const d = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+        const isActive = !hoveredNodeId || edge.source === hoveredNodeId || edge.target === hoveredNodeId;
+
+        return {
+          id: `${edge.source}-->${edge.target}`,
+          d,
+          active: isActive,
+          type: edge.relation
+        };
+      }
+      return null;
+    }).filter(Boolean) as any[];
+
+    setSvgPaths(paths);
+  }, [activeTab, topologyData.edges, hoveredNodeId]);
+
+  useEffect(() => {
+    const timeout = setTimeout(calculatePaths, 150);
+    window.addEventListener('resize', calculatePaths);
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('resize', calculatePaths);
+    };
+  }, [calculatePaths, activeTab, topologyData, hoveredNodeId]);
 
   // Fetch drawer details depending on active sub-tab
   const fetchResourceDetails = useCallback(async () => {
@@ -1050,6 +1136,7 @@ export default function App() {
                 {[
                   { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+                  { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -1154,6 +1241,7 @@ export default function App() {
                 {[
                   { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+                  { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -1821,6 +1909,301 @@ export default function App() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB: TOPOLOGY DIAGRAM */}
+          {activeTab === 'diagram' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              
+              {/* Header */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center space-x-2">
+                    <Network className={`w-5 h-5 ${getAccentColor('text')}`} />
+                    <h3 className="text-lg font-black text-slate-805 dark:text-slate-200 m-0">Live Cluster Topology</h3>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-450 font-bold m-0">
+                    A live dependency map. Hover over elements to trace target routes, click elements to view specifications and configurations.
+                  </p>
+                </div>
+
+                {/* Legend controls */}
+                <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-500 bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-xl shadow-sm self-start md:self-auto shrink-0 select-none">
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span>Healthy</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                    <span>Degraded</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                    <span>Critical</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Diagram Canvas Container */}
+              {topologyLoading && topologyData.nodes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 space-y-4">
+                  <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+                  <span className="text-xs text-slate-500 font-bold">Mapping cluster topology...</span>
+                </div>
+              ) : topologyData.nodes.length === 0 ? (
+                <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] p-12 rounded-3xl text-center space-y-4 shadow-sm">
+                  <Network className="w-10 h-10 text-slate-400 mx-auto" />
+                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-250 m-0">No Active Resources Found</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed font-semibold">
+                    Ensure workloads are deployed in the <code className="font-mono text-cyan-600 dark:text-cyan-400">{namespaceFilter || 'default'}</code> namespace to visualize connection maps.
+                  </p>
+                </div>
+              ) : (
+                <div 
+                  id="topology-container"
+                  className="relative bg-slate-50/50 dark:bg-[#090b10] border border-slate-205 dark:border-[#13151f] rounded-3xl p-8 min-h-[520px] overflow-hidden"
+                >
+                  
+                  {/* SVG Bezier Lines Connectors Canvas */}
+                  <svg className="absolute inset-0 pointer-events-none w-full h-full overflow-visible z-0">
+                    <defs>
+                      <marker
+                        id="arrow"
+                        viewBox="0 0 10 10"
+                        refX="6"
+                        refY="5"
+                        markerWidth="6"
+                        markerHeight="6"
+                        orient="auto-start-reverse"
+                      >
+                        <path d="M 0 0 L 10 5 L 0 10 z" className="fill-slate-300 dark:fill-slate-700" />
+                      </marker>
+                      <marker
+                        id="arrow-active"
+                        viewBox="0 0 10 10"
+                        refX="6"
+                        refY="5"
+                        markerWidth="6"
+                        markerHeight="6"
+                        orient="auto-start-reverse"
+                      >
+                        <path d="M 0 0 L 10 5 L 0 10 z" className="fill-cyan-500" />
+                      </marker>
+                    </defs>
+
+                    {/* Draw connector paths */}
+                    {svgPaths.map((path) => (
+                      <path
+                        key={path.id}
+                        d={path.d}
+                        fill="none"
+                        stroke={path.active ? "currentColor" : "currentColor"}
+                        strokeWidth={path.active ? 2.5 : 1.2}
+                        className={`transition-all duration-300 ${
+                          path.active 
+                            ? 'text-cyan-500/80 dark:text-cyan-400/80 stroke-cyan-500 dark:stroke-cyan-400 opacity-90' 
+                            : 'text-slate-250 dark:text-slate-800 opacity-20'
+                        }`}
+                        markerEnd={path.active ? "url(#arrow-active)" : "url(#arrow)"}
+                      />
+                    ))}
+                  </svg>
+
+                  {/* Layered Columns Lanes grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-4 relative z-10 h-full min-h-[460px]">
+                    
+                    {/* Lane 1: Ingress Gateways */}
+                    <div className="flex flex-col space-y-4">
+                      <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
+                        🌐 Ingress Gateways
+                      </div>
+                      <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
+                        {topologyData.nodes.filter(n => n.type === 'ingress').map(node => {
+                          const htmlId = node.id.replace(/\//g, '-');
+                          const isConnected = isNodeConnected(node.id);
+                          return (
+                            <div
+                              key={node.id}
+                              id={htmlId}
+                              onMouseEnter={() => setHoveredNodeId(node.id)}
+                              onMouseLeave={() => setHoveredNodeId(null)}
+                              onClick={() => {
+                                setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                                setDetailTab('overview');
+                              }}
+                              className={`p-3.5 bg-white dark:bg-[#0e1017] border border-slate-200 dark:border-[#1e202d] rounded-2xl flex items-center space-x-3 cursor-pointer shadow-sm relative z-10 select-none transition-all duration-305 ${
+                                !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                              }`}
+                            >
+                              <div className="w-8 h-8 rounded-xl bg-cyan-50 dark:bg-cyan-950/30 flex items-center justify-center shrink-0">
+                                <Link2 className="w-4 h-4 text-cyan-500" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-extrabold text-[11px] text-slate-800 dark:text-slate-205 truncate">{node.name}</div>
+                                <span className="text-[9px] text-slate-400 uppercase font-black">Ingress</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {topologyData.nodes.filter(n => n.type === 'ingress').length === 0 && (
+                          <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
+                            No ingress gateways mapped
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Lane 2: Exposing Services */}
+                    <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
+                      <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
+                        🔌 Exposing Services
+                      </div>
+                      <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
+                        {topologyData.nodes.filter(n => n.type === 'service').map(node => {
+                          const htmlId = node.id.replace(/\//g, '-');
+                          const isConnected = isNodeConnected(node.id);
+                          return (
+                            <div
+                              key={node.id}
+                              id={htmlId}
+                              onMouseEnter={() => setHoveredNodeId(node.id)}
+                              onMouseLeave={() => setHoveredNodeId(null)}
+                              onClick={() => {
+                                setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                                setDetailTab('overview');
+                              }}
+                              className={`p-3.5 bg-white dark:bg-[#0e1017] border border-slate-200 dark:border-[#1e202d] rounded-2xl flex items-center space-x-3 cursor-pointer shadow-sm relative z-10 select-none transition-all duration-305 ${
+                                !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                              }`}
+                            >
+                              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center shrink-0">
+                                <Network className="w-4 h-4 text-indigo-500" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-extrabold text-[11px] text-slate-800 dark:text-slate-205 truncate">{node.name}</div>
+                                <span className="text-[9px] text-slate-400 uppercase font-black">Service ({node.details?.type || 'ClusterIP'})</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {topologyData.nodes.filter(n => n.type === 'service').length === 0 && (
+                          <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
+                            No active services exposing ports
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Lane 3: Deployments */}
+                    <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
+                      <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
+                        ⚙️ Management Layer
+                      </div>
+                      <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
+                        {topologyData.nodes.filter(n => n.type === 'deployment').map(node => {
+                          const htmlId = node.id.replace(/\//g, '-');
+                          const isConnected = isNodeConnected(node.id);
+                          return (
+                            <div
+                              key={node.id}
+                              id={htmlId}
+                              onMouseEnter={() => setHoveredNodeId(node.id)}
+                              onMouseLeave={() => setHoveredNodeId(null)}
+                              onClick={() => {
+                                setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                                setDetailTab('overview');
+                              }}
+                              className={`p-3.5 bg-white dark:bg-[#0e1017] border border-slate-200 dark:border-[#1e202d] rounded-2xl flex items-center space-x-3 cursor-pointer shadow-sm relative z-10 select-none transition-all duration-305 ${
+                                !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                              }`}
+                            >
+                              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
+                                <Sliders className="w-4 h-4 text-amber-500" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-extrabold text-[11px] text-slate-800 dark:text-slate-205 truncate flex items-center justify-between">
+                                  <span className="truncate mr-1.5">{node.name}</span>
+                                  <span className="text-[9px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md self-center shrink-0 select-none">
+                                    {node.details?.replicas}
+                                  </span>
+                                </div>
+                                <span className="text-[9px] text-slate-405 uppercase font-black flex items-center space-x-1.5 pt-0.5">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${
+                                    node.status === 'healthy' 
+                                      ? 'bg-emerald-500' 
+                                      : node.status === 'degraded' 
+                                        ? 'bg-amber-500 animate-pulse' 
+                                        : 'bg-red-500 animate-ping'
+                                  }`} />
+                                  <span>Deployment</span>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {topologyData.nodes.filter(n => n.type === 'deployment').length === 0 && (
+                          <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
+                            No active deployment supervisors
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Lane 4: Pods */}
+                    <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-2">
+                      <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none">
+                        🚀 Execution Layer
+                      </div>
+                      <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
+                        {topologyData.nodes.filter(n => n.type === 'pod').map(node => {
+                          const htmlId = node.id.replace(/\//g, '-');
+                          const isConnected = isNodeConnected(node.id);
+                          return (
+                            <div
+                              key={node.id}
+                              id={htmlId}
+                              onMouseEnter={() => setHoveredNodeId(node.id)}
+                              onMouseLeave={() => setHoveredNodeId(null)}
+                              onClick={() => {
+                                setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                                setDetailTab('overview');
+                              }}
+                              className={`p-3.5 bg-white dark:bg-[#0e1017] border border-slate-200 dark:border-[#1e202d] rounded-2xl flex items-center space-x-3 cursor-pointer shadow-sm relative z-10 select-none transition-all duration-305 ${
+                                !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                              }`}
+                            >
+                              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0">
+                                <Cpu className="w-4 h-4 text-emerald-500" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-extrabold text-[11px] text-slate-800 dark:text-slate-205 truncate">{node.name}</div>
+                                <span className="text-[9px] text-slate-405 uppercase font-black flex items-center space-x-1.5 pt-0.5">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${
+                                    node.status === 'healthy' 
+                                      ? 'bg-emerald-500 shadow shadow-emerald-500/50' 
+                                      : node.status === 'degraded' 
+                                        ? 'bg-amber-500 animate-pulse' 
+                                        : 'bg-red-500 animate-ping'
+                                  }`} />
+                                  <span>Pod ({node.status})</span>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {topologyData.nodes.filter(n => n.type === 'pod').length === 0 && (
+                          <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
+                            No running compute workloads
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 

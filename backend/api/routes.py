@@ -229,3 +229,11 @@ async def post_explain_command(
     )
     explanation = await ai_provider.explain_command(req.command, req.output)
     return {"explanation": explanation}
+
+# 9. Live Cluster Topology Map
+@router.get("/kube/topology")
+def get_kube_topology(namespace: str = Query("default")):
+    result = k8s_service.get_topology(namespace)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result
