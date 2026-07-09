@@ -275,9 +275,11 @@ export default function App() {
   const [topologyData, setTopologyData] = useState<{ nodes: any[], edges: any[] }>({ nodes: [], edges: [] });
   const [topologyLoading, setTopologyLoading] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [svgPaths, setSvgPaths] = useState<{ id: string, d: string, active: boolean, type: string }[]>([]);
-  const [topologyFilter, setTopologyFilter] = useState<string>('all');
+  const [topologyFilter] = useState<string>('all');
   const [zoomScale, setZoomScale] = useState<number>(1.0);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
 
   // settings configuration states
   const [aiProvider, setAiProviderState] = useState<'gemini' | 'openai'>(() => {
@@ -717,63 +719,31 @@ export default function App() {
     );
   }, [hoveredNodeId, getFilteredTopology]);
 
-  const calculatePaths = useCallback(() => {
-    if (activeTab !== 'diagram') return;
-    const { edges } = getFilteredTopology();
-    if (!edges.length) {
-      setSvgPaths([]);
+
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.interactive-card') || target.closest('button') || target.closest('select')) {
       return;
     }
-
-    const container = document.getElementById('topology-container');
-    if (!container) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const paths = edges.map((edge) => {
-      const srcId = edge.source.replace(/\//g, '-');
-      const tgtId = edge.target.replace(/\//g, '-');
-      const srcEl = document.getElementById(srcId);
-      const tgtEl = document.getElementById(tgtId);
-
-      if (srcEl && tgtEl) {
-        const srcRect = srcEl.getBoundingClientRect();
-        const tgtRect = tgtEl.getBoundingClientRect();
-
-        const startX = srcRect.right - containerRect.left;
-        const startY = srcRect.top + srcRect.height / 2 - containerRect.top;
-        const endX = tgtRect.left - containerRect.left;
-        const endY = tgtRect.top + tgtRect.height / 2 - containerRect.top;
-
-        const dx = Math.abs(endX - startX) * 0.45;
-        const controlX1 = startX + dx;
-        const controlY1 = startY;
-        const controlX2 = endX - dx;
-        const controlY2 = endY;
-
-        const d = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
-        const isActive = !hoveredNodeId || edge.source === hoveredNodeId || edge.target === hoveredNodeId;
-
-        return {
-          id: `${edge.source}-->${edge.target}`,
-          d,
-          active: isActive,
-          type: edge.relation
-        };
-      }
-      return null;
-    }).filter(Boolean) as any[];
-
-    setSvgPaths(paths);
-  }, [activeTab, getFilteredTopology, hoveredNodeId, zoomScale]);
-
-  useEffect(() => {
-    const timeout = setTimeout(calculatePaths, 150);
-    window.addEventListener('resize', calculatePaths);
-    return () => {
-      clearTimeout(timeout);
-      window.removeEventListener('resize', calculatePaths);
+    setIsDragging(true);
+    dragStart.current = {
+      x: e.clientX - panOffset.x,
+      y: e.clientY - panOffset.y
     };
-  }, [calculatePaths, activeTab, topologyData, hoveredNodeId, topologyFilter, zoomScale]);
+  }, [panOffset]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPanOffset({
+      x: e.clientX - dragStart.current.x,
+      y: e.clientY - dragStart.current.y
+    });
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   // Fetch drawer details depending on active sub-tab
   const fetchResourceDetails = useCallback(async () => {
@@ -1970,55 +1940,25 @@ export default function App() {
               
               {/* Header */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <div className="flex items-center space-x-2">
                     <Network className={`w-5 h-5 ${getAccentColor('text')}`} />
                     <h3 className="text-lg font-black text-slate-850 dark:text-slate-205 m-0">Live Cluster Topology</h3>
                   </div>
-                  <p className="text-xs text-slate-555 dark:text-slate-405 font-medium m-0">
-                    ArgoCD-inspired dependency hierarchy. Filter subsystems to isolate workloads, click cards to view logs and configurations.
-                  </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Focus Subsystem Filter */}
-                  <div className="flex items-center space-x-2 bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202c] px-3.5 py-1.5 rounded-xl shadow-sm select-none">
-                    <span className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500">Focus:</span>
-                    <select
-                      value={topologyFilter}
-                      onChange={(e) => setTopologyFilter(e.target.value)}
-                      className="bg-transparent text-slate-700 dark:text-slate-200 text-xs font-bold outline-none cursor-pointer border-none p-0 focus:ring-0"
-                    >
-                      <option value="all" className="bg-white dark:bg-[#0c0e15] text-slate-850 dark:text-slate-200 font-bold">All Connected Components</option>
-                      {topologyData.nodes
-                        .filter(n => n.type === 'service' || n.type === 'deployment')
-                        .map(n => (
-                          <option 
-                            key={n.id} 
-                            value={n.id}
-                            className="bg-white dark:bg-[#0c0e15] text-slate-850 dark:text-slate-200 font-bold"
-                          >
-                            {n.type === 'service' ? `Service: ${n.name}` : `Deployment: ${n.name}`}
-                          </option>
-                        ))
-                      }
-                    </select>
+                <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-555 dark:text-slate-400 bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-xl shadow-sm select-none">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2 h-2.5 rounded bg-emerald-500" />
+                    <span>Healthy</span>
                   </div>
-
-                  {/* Legend controls */}
-                  <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-555 dark:text-slate-400 bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-xl shadow-sm select-none">
-                    <div className="flex items-center space-x-1.5">
-                      <span className="w-2 h-2.5 rounded bg-emerald-500" />
-                      <span>Healthy</span>
-                    </div>
-                    <div className="flex items-center space-x-1.5">
-                      <span className="w-2.5 h-2.5 rounded bg-amber-500" />
-                      <span>Degraded</span>
-                    </div>
-                    <div className="flex items-center space-x-1.5">
-                      <span className="w-2.5 h-2.5 rounded bg-red-500" />
-                      <span>Critical</span>
-                    </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-amber-500" />
+                    <span>Degraded</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-red-500" />
+                    <span>Critical</span>
                   </div>
                 </div>
               </div>
@@ -2040,6 +1980,38 @@ export default function App() {
               ) : (() => {
                 const filteredTopology = getFilteredTopology();
                 
+                // Group resources
+                const services = filteredTopology.nodes.filter(n => n.type === 'service');
+                const deployments = filteredTopology.nodes.filter(n => n.type === 'deployment');
+                const pods = filteredTopology.nodes.filter(n => n.type === 'pod');
+                const otherNodes = filteredTopology.nodes.filter(n => n.type !== 'service' && n.type !== 'deployment' && n.type !== 'pod');
+
+                // Compute explicit positions
+                const cardWidth = 240;
+                const cardHeight = 70;
+                const serviceX = 80;
+                const deploymentX = 420;
+                const podX = 760;
+
+                const nodePositions: { [id: string]: { x: number, y: number } } = {};
+                
+                services.forEach((node, idx) => {
+                  nodePositions[node.id] = { x: serviceX, y: idx * 110 + 100 };
+                });
+                deployments.forEach((node, idx) => {
+                  nodePositions[node.id] = { x: deploymentX, y: idx * 110 + 100 };
+                });
+                pods.forEach((node, idx) => {
+                  nodePositions[node.id] = { x: podX, y: idx * 110 + 100 };
+                });
+                otherNodes.forEach((node, idx) => {
+                  nodePositions[node.id] = { x: serviceX, y: (services.length + idx) * 110 + 100 };
+                });
+
+                // Compute dynamic canvas height to fit all elements
+                const maxRows = Math.max(3, services.length, deployments.length, pods.length, otherNodes.length);
+                const canvasHeight = maxRows * 110 + 200;
+
                 // Health border resolver
                 const getHealthBorder = (status: string) => {
                   const s = status.toLowerCase();
@@ -2063,9 +2035,15 @@ export default function App() {
                 };
 
                 return (
-                  <div className="relative overflow-hidden rounded-3xl border border-slate-205 dark:border-[#13151f] bg-slate-105/20 dark:bg-[#07090e] min-h-[580px] select-none">
+                  <div 
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    className="relative overflow-hidden rounded-3xl border border-slate-205 dark:border-[#13151f] bg-slate-105/20 dark:bg-[#07090e] h-[620px] select-none cursor-grab active:cursor-grabbing"
+                  >
                     
-                    {/* Floating Zoom Toolbar overlay */}
+                    {/* Floating Zoom & Pan Reset Toolbar overlay */}
                     <div className="absolute bottom-4 left-4 flex items-center space-x-1.5 bg-white/95 dark:bg-[#0c0e15]/95 border border-slate-200 dark:border-[#1e202c] p-1.5 rounded-xl shadow-lg z-25 backdrop-blur-md">
                       <button
                         onClick={() => setZoomScale(Math.max(0.6, zoomScale - 0.1))}
@@ -2076,11 +2054,14 @@ export default function App() {
                         <Minimize2 className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => setZoomScale(1.0)}
+                        onClick={() => {
+                          setZoomScale(1.0);
+                          setPanOffset({ x: 0, y: 0 });
+                        }}
                         className="text-[10px] px-2 py-0.5 font-extrabold hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-655 dark:text-slate-355 rounded cursor-pointer"
-                        title="Reset Zoom"
+                        title="Reset View"
                       >
-                        {Math.round(zoomScale * 100)}%
+                        {Math.round(zoomScale * 100)}% (Reset)
                       </button>
                       <button
                         onClick={() => setZoomScale(Math.min(1.4, zoomScale + 0.1))}
@@ -2092,16 +2073,16 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* Scale Viewport Wrapper with project-themed dot grid background */}
+                    {/* Scale and Pan Viewport Wrapper with project-themed dot grid background */}
                     <div 
                       id="topology-container"
                       style={{ 
-                        transform: `scale(${zoomScale})`, 
+                        transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`, 
                         transformOrigin: 'top left',
-                        width: `${100 / zoomScale}%`, 
-                        height: `${100 / zoomScale}%` 
+                        width: '1100px', 
+                        height: `${canvasHeight}px` 
                       }}
-                      className="relative p-8 min-h-[580px] bg-[radial-gradient(#e2e8f0_1.2px,transparent_1.2px)] dark:bg-[radial-gradient(#1c2230_1.2px,transparent_1.2px)] [background-size:20px_20px] transition-transform duration-150"
+                      className="absolute inset-0 p-8 bg-[radial-gradient(#e2e8f0_1.2px,transparent_1.2px)] dark:bg-[radial-gradient(#1c2230_1.2px,transparent_1.2px)] [background-size:20px_20px] transition-transform duration-75 ease-out"
                     >
                       
                       {/* SVG Bezier Lines Connectors Canvas */}
@@ -2131,188 +2112,104 @@ export default function App() {
                           </marker>
                         </defs>
 
-                        {/* Draw connector paths */}
-                        {svgPaths.map((path) => (
-                          <path
-                            key={path.id}
-                            d={path.d}
-                            fill="none"
-                            stroke={path.active ? "currentColor" : "currentColor"}
-                            strokeWidth={path.active ? 2.2 : 1.0}
-                            className={`transition-all duration-305 ${
-                              path.active 
-                                ? 'text-cyan-500/80 dark:text-cyan-400/80 stroke-cyan-500 dark:stroke-cyan-400 opacity-90' 
-                                : 'text-slate-200 dark:text-slate-855 opacity-15'
-                            }`}
-                            markerEnd={path.active ? "url(#arrow-active)" : "url(#arrow)"}
-                          />
-                        ))}
+                        {/* Draw connector paths dynamically from node positions */}
+                        {filteredTopology.edges.map((edge) => {
+                          const srcPos = nodePositions[edge.source];
+                          const tgtPos = nodePositions[edge.target];
+                          if (!srcPos || !tgtPos) return null;
+
+                          const startX = srcPos.x + cardWidth;
+                          const startY = srcPos.y + cardHeight / 2;
+                          const endX = tgtPos.x;
+                          const endY = tgtPos.y + cardHeight / 2;
+
+                          const dx = Math.max(40, Math.abs(endX - startX) * 0.45);
+                          const d = `M ${startX} ${startY} C ${startX + dx} ${startY}, ${endX - dx} ${endY}, ${endX} ${endY}`;
+                          const isActive = !hoveredNodeId || edge.source === hoveredNodeId || edge.target === hoveredNodeId;
+
+                          return (
+                            <path
+                              key={`${edge.source}-->${edge.target}`}
+                              d={d}
+                              fill="none"
+                              stroke={isActive ? "currentColor" : "currentColor"}
+                              strokeWidth={isActive ? 2.2 : 1.0}
+                              className={`transition-all duration-305 ${
+                                isActive 
+                                  ? 'text-cyan-500/80 dark:text-cyan-400/80 stroke-cyan-500 dark:stroke-cyan-400 opacity-90' 
+                                  : 'text-slate-200 dark:text-slate-855 opacity-15'
+                              }`}
+                              markerEnd={isActive ? "url(#arrow-active)" : "url(#arrow)"}
+                            />
+                          );
+                        })}
                       </svg>
 
-                      {/* Layered Columns Lanes grid - ArgoCD style 3-column layout */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-10 relative z-10 h-full min-h-[460px]">
-                        
-                        {/* Column 1: Services */}
-                        <div className="flex flex-col space-y-4">
-                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none flex items-center space-x-1.5">
-                            <span>🔌</span>
-                            <span>Services</span>
-                          </div>
-                          <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
-                            {filteredTopology.nodes.filter(n => n.type === 'service').map(node => {
-                              const htmlId = node.id.replace(/\//g, '-');
-                              const isConnected = isNodeConnected(node.id);
-                              return (
-                                <div
-                                  key={node.id}
-                                  id={htmlId}
-                                  onMouseEnter={() => setHoveredNodeId(node.id)}
-                                  onMouseLeave={() => setHoveredNodeId(null)}
-                                  onClick={() => {
-                                    setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
-                                    setDetailTab('overview');
-                                  }}
-                                  className={`p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
-                                    getHealthBorder(node.status)
-                                  } ${
-                                    !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
-                                  }`}
-                                >
-                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
-                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
-                                      <Network className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="font-bold text-[11px] text-slate-850 dark:text-slate-200 truncate leading-snug">{node.name}</div>
-                                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">Service ({node.details?.type || 'ClusterIP'})</div>
-                                    </div>
-                                  </div>
-                                  <div className="shrink-0 flex items-center pr-1.5">
-                                    <span className={`text-[9px] font-black uppercase tracking-wider ${getHealthText(node.status)}`}>
-                                      {node.status}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            {filteredTopology.nodes.filter(n => n.type === 'service').length === 0 && (
-                              <div className="text-[10px] text-slate-400 dark:text-slate-550 italic text-center py-4 select-none">
-                                No active services exposing ports
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                      {/* Absolute-positioned Interactive Cards */}
+                      {filteredTopology.nodes.map((node) => {
+                        const pos = nodePositions[node.id];
+                        if (!pos) return null;
 
-                        {/* Column 2: Management Layer (Deployments) */}
-                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-4">
-                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none flex items-center space-x-1.5">
-                            <span>⚙️</span>
-                            <span>Management Layer</span>
-                          </div>
-                          <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
-                            {filteredTopology.nodes.filter(n => n.type === 'deployment').map(node => {
-                              const htmlId = node.id.replace(/\//g, '-');
-                              const isConnected = isNodeConnected(node.id);
-                              return (
-                                <div
-                                  key={node.id}
-                                  id={htmlId}
-                                  onMouseEnter={() => setHoveredNodeId(node.id)}
-                                  onMouseLeave={() => setHoveredNodeId(null)}
-                                  onClick={() => {
-                                    setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
-                                    setDetailTab('overview');
-                                  }}
-                                  className={`p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
-                                    getHealthBorder(node.status)
-                                  } ${
-                                    !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
-                                  }`}
-                                >
-                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
-                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
-                                      <Sliders className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="font-bold text-[11px] text-slate-855 dark:text-slate-202 truncate leading-snug">{node.name}</div>
-                                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">{node.type}</div>
-                                    </div>
-                                  </div>
-                                  <div className="shrink-0 flex flex-col items-end space-y-0.5 pr-1.5">
-                                    <span className={`text-[9px] font-black uppercase tracking-wider ${getHealthText(node.status)}`}>
-                                      {node.status}
-                                    </span>
-                                    {node.details?.replicas && (
-                                      <span className="text-[9px] font-mono text-slate-500 dark:text-slate-405 font-bold">
-                                        {node.details.replicas}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            {filteredTopology.nodes.filter(n => n.type === 'deployment').length === 0 && (
-                              <div className="text-[10px] text-slate-400 dark:text-slate-555 italic text-center py-4 select-none">
-                                No active deployment supervisors
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        const htmlId = node.id.replace(/\//g, '-');
+                        const isConnected = isNodeConnected(node.id);
 
-                        {/* Column 3: Execution Layer (Pods) */}
-                        <div className="flex flex-col space-y-4 border-l border-slate-205/20 dark:border-slate-800/10 md:pl-4">
-                          <div className="text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-slate-500 pb-2 border-b border-slate-200/50 dark:border-slate-800/40 select-none flex items-center space-x-1.5">
-                            <span>🚀</span>
-                            <span>Execution Layer</span>
-                          </div>
-                          <div className="flex-1 flex flex-col justify-center space-y-4 min-h-[80px]">
-                            {filteredTopology.nodes.filter(n => n.type === 'pod').map(node => {
-                              const htmlId = node.id.replace(/\//g, '-');
-                              const isConnected = isNodeConnected(node.id);
-                              return (
-                                <div
-                                  key={node.id}
-                                  id={htmlId}
-                                  onMouseEnter={() => setHoveredNodeId(node.id)}
-                                  onMouseLeave={() => setHoveredNodeId(null)}
-                                  onClick={() => {
-                                    setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
-                                    setDetailTab('overview');
-                                  }}
-                                  className={`p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
-                                    getHealthBorder(node.status)
-                                  } ${
-                                    !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
-                                  }`}
-                                >
-                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
-                                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
-                                      <Cpu className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="font-bold text-[11px] text-slate-850 dark:text-slate-200 truncate leading-snug">{node.name}</div>
-                                      <div className="text-[9px] text-slate-405 dark:text-slate-500 font-medium truncate uppercase tracking-wider">{node.type}</div>
-                                    </div>
-                                  </div>
-                                  <div className="shrink-0 flex items-center pr-1.5">
-                                    <span className={`text-[9px] font-black uppercase tracking-wider ${getHealthText(node.status)}`}>
-                                      {node.status}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                            {filteredTopology.nodes.filter(n => n.type === 'pod').length === 0 && (
-                              <div className="text-[10px] text-slate-400 dark:text-slate-555 italic text-center py-4 select-none">
-                                No running compute workloads
+                        return (
+                          <div
+                            key={node.id}
+                            id={htmlId}
+                            style={{
+                              position: 'absolute',
+                              left: `${pos.x}px`,
+                              top: `${pos.y}px`,
+                              width: `${cardWidth}px`,
+                              height: `${cardHeight}px`
+                            }}
+                            onMouseEnter={() => setHoveredNodeId(node.id)}
+                            onMouseLeave={() => setHoveredNodeId(null)}
+                            onClick={() => {
+                              setSelectedResource({ type: node.type as any, name: node.name, namespace: node.namespace });
+                              setDetailTab('overview');
+                            }}
+                            className={`interactive-card p-3 bg-white dark:bg-[#0c0e14] border border-slate-200 dark:border-[#1a1c26] rounded-xl flex items-center justify-between cursor-pointer shadow-sm relative z-10 transition-all duration-200 ${
+                              getHealthBorder(node.status)
+                            } ${
+                              !isConnected ? 'opacity-30 scale-95 hover:opacity-100 hover:scale-100' : 'hover:scale-[1.03] hover:shadow-md'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-2">
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${getHealthBg(node.status)}`}>
+                                {node.type === 'service' ? (
+                                  <Network className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                ) : node.type === 'deployment' ? (
+                                  <Sliders className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                ) : (
+                                  <Cpu className={`w-3.5 h-3.5 ${getHealthText(node.status)}`} />
+                                )}
                               </div>
-                            )}
+                              <div className="min-w-0 flex-1">
+                                <div className="font-bold text-[11px] text-slate-855 dark:text-slate-205 truncate leading-snug">
+                                  {node.name}
+                                </div>
+                                <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">
+                                  {node.type === 'service' ? `Service (${node.details?.type || 'ClusterIP'})` : node.type}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="shrink-0 flex flex-col items-end space-y-0.5 pr-1">
+                              <span className={`text-[9px] font-black uppercase tracking-wider ${getHealthText(node.status)}`}>
+                                {node.status}
+                              </span>
+                              {node.type === 'deployment' && node.details?.replicas && (
+                                <span className="text-[9px] font-mono text-slate-500 dark:text-slate-405 font-bold">
+                                  {node.details.replicas}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        );
+                      })}
 
-                      </div>
                     </div>
-
                   </div>
                 );
               })()}
