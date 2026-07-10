@@ -62,3 +62,12 @@ docker/logs/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# ==========================================
+# AI Agent Caches & Scratch Folders
+# ==========================================
+.agents/
+.cursor/
+scratch/
+temp/
+
