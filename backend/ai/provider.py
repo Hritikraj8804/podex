@@ -39,6 +39,10 @@ class AIProvider(ABC):
     async def explain_command(self, command: str, output: str) -> str:
         pass
 
+    @abstractmethod
+    async def generate_command(self, prompt: str) -> str:
+        pass
+
 
 class GeminiProvider(AIProvider):
     def __init__(self, api_key: str, model: Optional[str] = None, temperature: Optional[float] = None):
@@ -97,6 +101,21 @@ Please explain in 2-3 simple sentences what this command did and what the output
         )
         return response.text
 
+    async def generate_command(self, prompt: str) -> str:
+        system_prompt = (
+            "You are a DevOps assistant. Generate a single-line shell command "
+            "suitable for execution inside a container. Return ONLY the raw command. "
+            "Do not wrap it in markdown block, do not include any explanation."
+        )
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=f"{system_prompt}\n\nUser request: {prompt}",
+            config=self.types.GenerateContentConfig(
+                temperature=0.1,
+            ),
+        )
+        return response.text.strip().replace("`", "")
+
 
 class OpenAIProvider(AIProvider):
     def __init__(self, api_key: str, model: Optional[str] = None, temperature: Optional[float] = None):
@@ -152,6 +171,22 @@ Please explain in 2-3 simple sentences what this command did and what the output
             temperature=self.temperature,
         )
         return response.choices[0].message.content
+
+    async def generate_command(self, prompt: str) -> str:
+        system_prompt = (
+            "You are a DevOps assistant. Generate a single-line shell command "
+            "suitable for execution inside a container. Return ONLY the raw command. "
+            "Do not wrap it in markdown block, do not include any explanation."
+        )
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
+        )
+        return response.choices[0].message.content.strip().replace("`", "")
 
 
 class MockProvider(AIProvider):
@@ -274,6 +309,25 @@ class MockProvider(AIProvider):
                 f"Mock Explanation: You ran '{command}'. This shell command executed successfully inside the container environment. "
                 "In Kubernetes, containers provide an isolated runtime with their own shell context, let you query files, processes, and tools."
             )
+
+    async def generate_command(self, prompt: str) -> str:
+        p_lower = prompt.lower().strip()
+        if "list" in p_lower or "file" in p_lower:
+            return "ls -la"
+        elif "process" in p_lower or "running" in p_lower:
+            return "ps aux"
+        elif "env" in p_lower or "environment" in p_lower:
+            return "env"
+        elif "network" in p_lower or "port" in p_lower or "listen" in p_lower:
+            return "netstat -tuln || ss -tuln"
+        elif "ip" in p_lower or "address" in p_lower:
+            return "ip addr || ifconfig"
+        elif "ping" in p_lower:
+            return "ping -c 4 google.com"
+        elif "curl" in p_lower or "request" in p_lower:
+            return "curl -I http://localhost"
+        else:
+            return f"echo 'Mock Command for: {prompt}'"
 
 
 def get_ai_provider(

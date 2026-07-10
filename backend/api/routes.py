@@ -51,6 +51,12 @@ class ExplainCommandRequest(BaseModel):
 class ExplainCommandResponse(BaseModel):
     explanation: str
 
+class GenerateCommandRequest(BaseModel):
+    prompt: str
+
+class GenerateCommandResponse(BaseModel):
+    command: str
+
 # 1. Dashboard Stats
 @router.get("/stats")
 def get_stats():
@@ -234,6 +240,23 @@ async def post_explain_command(
     )
     explanation = await ai_provider.explain_command(req.command, req.output)
     return {"explanation": explanation}
+
+@router.post("/pods/generate-command", response_model=GenerateCommandResponse)
+async def post_generate_command(
+    req: GenerateCommandRequest,
+    x_ai_provider: Optional[str] = Header(None),
+    x_ai_key: Optional[str] = Header(None),
+    x_ai_model: Optional[str] = Header(None),
+    x_ai_temperature: Optional[float] = Header(None)
+):
+    ai_provider = get_ai_provider(
+        provider_override=x_ai_provider,
+        api_key_override=x_ai_key,
+        model_override=x_ai_model,
+        temperature_override=x_ai_temperature
+    )
+    command = await ai_provider.generate_command(req.prompt)
+    return {"command": command}
 
 # 9. Live Cluster Topology Map
 @router.get("/kube/topology")
