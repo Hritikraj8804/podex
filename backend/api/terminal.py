@@ -24,8 +24,15 @@ class PodTerminalSession:
     def run_socket_bridge(self):
         try:
             api = client.CoreV1Api()
-            # Default shell
-            exec_command = ["/bin/sh"]
+            # Check for bash and set a nice color-coded prompt, fallback to sh
+            bash_prompt = r"\[\033[1;36m\]podex-user@\h\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]\$ "
+            sh_prompt = r"\033[1;36mpodex-user@\h\033[0m:\033[1;34m\w\033[0m$ "
+            
+            exec_command = [
+                "/bin/sh",
+                "-c",
+                f"if command -v bash >/dev/null 2>&1; then export PS1='{bash_prompt}'; exec bash; else export PS1='{sh_prompt}'; exec /bin/sh; fi"
+            ]
             self.resp = stream(
                 api.connect_get_namespaced_pod_exec,
                 name=self.pod,

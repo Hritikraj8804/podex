@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import 'xterm/css/xterm.css';
 
 interface PodTerminalProps {
@@ -19,10 +19,64 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
 }) => {
   const [selectedContainer, setSelectedContainer] = useState<string>(containers[0] || '');
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error' | 'disconnected'>('connecting');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [generatedCommand, setGeneratedCommand] = useState('');
+  
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+
+  const handleAiSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiPrompt.trim()) return;
+
+    setAiLoading(true);
+    setGeneratedCommand('');
+
+    try {
+      const provider = localStorage.getItem('mockModeForced') === 'true' ? 'mock' : (localStorage.getItem('aiProvider') || 'gemini');
+      const key = provider === 'gemini' ? (localStorage.getItem('geminiKey') || '') : (localStorage.getItem('openaiKey') || '');
+      const model = localStorage.getItem('aiModel') || (provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini');
+      const temp = localStorage.getItem('aiTemperature') || '0.2';
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (provider) headers['X-AI-Provider'] = provider;
+      if (key) headers['X-AI-Key'] = key;
+      if (model) headers['X-AI-Model'] = model;
+      if (temp) headers['X-AI-Temperature'] = temp;
+
+      const res = await fetch(`${apiUrl}/api/pods/generate-command`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ prompt: aiPrompt })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setGeneratedCommand(data.command);
+      } else {
+        console.error('Failed to generate command');
+      }
+    } catch (err) {
+      console.error('AI generate command error:', err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleRunCommand = () => {
+    if (!generatedCommand) return;
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(generatedCommand + '\r');
+      setGeneratedCommand('');
+      setAiPrompt('');
+      if (xtermRef.current) {
+        xtermRef.current.focus();
+      }
+    }
+  };
 
   useEffect(() => {
     if (!selectedContainer || !terminalRef.current) return;
@@ -163,8 +217,54 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 bg-[#090b10] rounded-xl border border-slate-200 dark:border-[#1e202a] p-3 overflow-hidden relative">
+      <div className="flex-1 min-h-0 bg-[#090a0e] rounded-xl border border-slate-200 dark:border-[#1e202a] p-3 overflow-hidden relative">
         <div ref={terminalRef} className="w-full h-full min-h-[380px] overflow-hidden" />
+      </div>
+
+      {/* AI Assistant Input */}
+      <div className="bg-white dark:bg-[#10121a] p-3 rounded-xl border border-slate-200/60 dark:border-[#1e202a] flex flex-col space-y-2">
+        <div className="flex items-center space-x-2 text-xs font-bold text-slate-500">
+          <Sparkles className="w-4 h-4 text-cyan-500 animate-pulse" />
+          <span>AI Command Generator</span>
+        </div>
+        <form onSubmit={handleAiSubmit} className="flex space-x-2">
+          <input
+            type="text"
+            placeholder="Ask AI to generate a command (e.g., 'find python files', 'check disk space', 'show env')"
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            disabled={aiLoading}
+            className="flex-1 bg-slate-50 dark:bg-[#161822] text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg px-3 py-2 text-sm border border-slate-200/60 dark:border-[#1e202a] focus:outline-none focus:ring-1 focus:ring-cyan-500 font-medium"
+          />
+          <button
+            type="submit"
+            disabled={aiLoading || !aiPrompt.trim()}
+            className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-lg px-4 py-2 text-xs font-bold transition flex items-center space-x-1"
+          >
+            {aiLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <span>Generate</span>
+            )}
+          </button>
+        </form>
+        {generatedCommand && (
+          <div className="flex items-center space-x-2 bg-slate-50 dark:bg-[#161822] p-2.5 rounded-lg border border-slate-200/40 dark:border-[#1e202a]">
+            <span className="text-[10px] font-extrabold uppercase text-cyan-500 shrink-0">Generated:</span>
+            <input
+              type="text"
+              value={generatedCommand}
+              onChange={(e) => setGeneratedCommand(e.target.value)}
+              className="flex-1 bg-transparent border-none text-xs font-mono text-slate-800 dark:text-slate-200 outline-none focus:ring-0 py-0"
+            />
+            <button
+              onClick={handleRunCommand}
+              className="bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 font-bold px-3 py-1 rounded text-xs transition shrink-0"
+            >
+              Run in Terminal
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
