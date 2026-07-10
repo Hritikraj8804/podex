@@ -94,8 +94,45 @@ interface ConceptExplanation {
   common_gotchas: string[];
 }
 
+export interface ArenaNode {
+  id: string;
+  type: 'pod' | 'deployment' | 'service' | 'configmap' | 'secret' | 'ingress' | 'statefulset';
+  name: string;
+  x: number;
+  y: number;
+  status: 'draft' | 'deploying' | 'healthy' | 'failed';
+  statusMessage?: string;
+  config: {
+    image: string;
+    replicas: number;
+    port: number;
+    targetPort: number;
+    serviceType: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
+    selector: string;
+    configKey: string;
+    configValue: string;
+    secretKey: string;
+    secretValue: string;
+    ingressHost: string;
+    ingressPath: string;
+    ingressService: string;
+    serviceName: string;
+  };
+}
+
+export interface ArenaConnection {
+  id: string;
+  fromId: string;
+  toId: string;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram' | 'arena'>('dashboard');
+
+  // Arena States
+  const [arenaNodes, setArenaNodes] = useState<ArenaNode[]>([]);
+  const [arenaConnections, setArenaConnections] = useState<ArenaConnection[]>([]);
+  const [arenaSelectedNodeId, setArenaSelectedNodeId] = useState<string | null>(null);
 
   // Topology States
   const [topologyData, setTopologyData] = useState<{ nodes: any[], edges: any[] }>({ nodes: [], edges: [] });
@@ -1202,6 +1239,9 @@ export default function App() {
               setSelectedResource={setSelectedResource}
               setDetailTab={setDetailTab}
               getStatusColor={getStatusColor}
+              apiUrl={API_URL}
+              onRefresh={fetchResources}
+              setToast={setToast}
             />
           )}
 
@@ -1246,7 +1286,16 @@ export default function App() {
 
           {/* TAB: ARENA PLAYGROUND */}
           {activeTab === 'arena' && (
-            <ArenaTab apiUrl={API_URL} />
+            <ArenaTab
+              apiUrl={API_URL}
+              nodes={arenaNodes}
+              setNodes={setArenaNodes}
+              connections={arenaConnections}
+              setConnections={setArenaConnections}
+              selectedNodeId={arenaSelectedNodeId}
+              setSelectedNodeId={setArenaSelectedNodeId}
+              setToast={setToast}
+            />
           )}
           {/* TAB 4: SETTINGS */}
           {activeTab === 'settings' && (
