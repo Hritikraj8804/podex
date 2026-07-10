@@ -149,7 +149,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className="relative overflow-hidden rounded-3xl border border-slate-205 dark:border-[#13151f] bg-slate-105/20 dark:bg-[#07090e] h-[620px] select-none cursor-grab active:cursor-grabbing"
+            className="relative overflow-hidden rounded-3xl border border-slate-205 dark:border-[#13151f] bg-slate-50 dark:bg-[#090a0e] h-[620px] select-none cursor-grab active:cursor-grabbing"
           >
             
             {/* Floating Zoom & Pan Reset Toolbar overlay */}
@@ -191,7 +191,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                 width: '1100px', 
                 height: `${canvasHeight}px` 
               }}
-              className="absolute inset-0 p-8 bg-[radial-gradient(#e2e8f0_1.2px,transparent_1.2px)] dark:bg-[radial-gradient(#1c2230_1.2px,transparent_1.2px)] [background-size:20px_20px] transition-transform duration-75 ease-out"
+              className="absolute inset-0 p-8 arena-grid [background-size:24px_24px] transition-transform duration-75 ease-out"
             >
               
               {/* SVG Bezier Lines Connectors Canvas */}

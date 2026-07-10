@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   Menu,
   PanelLeftClose,
-  Network
+  Network,
+  Gamepad2
 } from 'lucide-react';
 import { DashboardTab } from './components/DashboardTab';
 import { ExplorerTab } from './components/ExplorerTab';
@@ -23,6 +24,7 @@ import { TopologyDiagramTab } from './components/TopologyDiagramTab';
 import { LearnTab } from './components/LearnTab';
 import { SettingsTab } from './components/SettingsTab';
 import { ResourceDrawer } from './components/ResourceDrawer';
+import { ArenaTab } from './components/ArenaTab';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -92,8 +94,45 @@ interface ConceptExplanation {
   common_gotchas: string[];
 }
 
+export interface ArenaNode {
+  id: string;
+  type: 'pod' | 'deployment' | 'service' | 'configmap' | 'secret' | 'ingress' | 'statefulset';
+  name: string;
+  x: number;
+  y: number;
+  status: 'draft' | 'deploying' | 'healthy' | 'failed';
+  statusMessage?: string;
+  config: {
+    image: string;
+    replicas: number;
+    port: number;
+    targetPort: number;
+    serviceType: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
+    selector: string;
+    configKey: string;
+    configValue: string;
+    secretKey: string;
+    secretValue: string;
+    ingressHost: string;
+    ingressPath: string;
+    ingressService: string;
+    serviceName: string;
+  };
+}
+
+export interface ArenaConnection {
+  id: string;
+  fromId: string;
+  toId: string;
+}
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram' | 'arena'>('dashboard');
+
+  // Arena States
+  const [arenaNodes, setArenaNodes] = useState<ArenaNode[]>([]);
+  const [arenaConnections, setArenaConnections] = useState<ArenaConnection[]>([]);
+  const [arenaSelectedNodeId, setArenaSelectedNodeId] = useState<string | null>(null);
 
   // Topology States
   const [topologyData, setTopologyData] = useState<{ nodes: any[], edges: any[] }>({ nodes: [], edges: [] });
@@ -939,6 +978,7 @@ export default function App() {
                   { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
+                  { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
                   { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -1044,6 +1084,7 @@ export default function App() {
                   { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
+                  { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
                   { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -1198,6 +1239,9 @@ export default function App() {
               setSelectedResource={setSelectedResource}
               setDetailTab={setDetailTab}
               getStatusColor={getStatusColor}
+              apiUrl={API_URL}
+              onRefresh={fetchResources}
+              setToast={setToast}
             />
           )}
 
@@ -1237,6 +1281,20 @@ export default function App() {
               setSelectedResource={setSelectedResource}
               setDetailTab={setDetailTab}
               getAccentColor={getAccentColor}
+            />
+          )}
+
+          {/* TAB: ARENA PLAYGROUND */}
+          {activeTab === 'arena' && (
+            <ArenaTab
+              apiUrl={API_URL}
+              nodes={arenaNodes}
+              setNodes={setArenaNodes}
+              connections={arenaConnections}
+              setConnections={setArenaConnections}
+              selectedNodeId={arenaSelectedNodeId}
+              setSelectedNodeId={setArenaSelectedNodeId}
+              setToast={setToast}
             />
           )}
           {/* TAB 4: SETTINGS */}

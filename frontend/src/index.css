@@ -59,3 +59,12 @@
 .glow-animation {
   animation: pulseGlow 3s infinite ease-in-out;
 }
+
+/* Arena Grid checker pattern supporting light and dark modes */
+.arena-grid {
+  background-image: radial-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 0);
+}
+
+.dark .arena-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+}
