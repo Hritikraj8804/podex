@@ -39,21 +39,21 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
     // Initialize Terminal
     const term = new Terminal({
       cursorBlink: true,
-      fontSize: 12,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontSize: 13,
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
       theme: {
-        background: '#090b10',
-        foreground: '#f8f8f2',
-        cursor: '#00f0ff',
-        selectionBackground: 'rgba(255, 255, 255, 0.15)',
-        black: '#000000',
-        red: '#ff5555',
-        green: '#50fa7b',
-        yellow: '#f1fa8c',
-        blue: '#bd93f9',
-        magenta: '#ff79c6',
-        cyan: '#8be9fd',
-        white: '#bbbbbb',
+        background: '#090a0e',
+        foreground: '#e2e8f0',
+        cursor: '#06b6d4',
+        selectionBackground: 'rgba(79, 70, 229, 0.3)',
+        black: '#0f172a',
+        red: '#ef4444',
+        green: '#10b981',
+        yellow: '#f59e0b',
+        blue: '#6366f1',
+        magenta: '#8b5cf6',
+        cyan: '#06b6d4',
+        white: '#f8fafc',
       },
     });
 
@@ -71,8 +71,9 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
       term.open(terminalRef.current!);
       fitAddon.fit();
       term.focus();
-      term.writeln('\x1b[1;36mConnected to container shell session via Podex TTY.\x1b[0m');
-      term.writeln('\x1b[1;30mLoading prompt...\x1b[0m\r\n');
+      term.writeln('\x1b[1;36m◆ Welcome to Podex Terminal ◆\x1b[0m');
+      term.writeln(`\x1b[1;34mConnected to container: \x1b[1;37m${selectedContainer}\x1b[0m`);
+      term.writeln('\x1b[1;30mLoading shell session...\x1b[0m\r\n');
     };
 
     ws.onmessage = (event) => {
