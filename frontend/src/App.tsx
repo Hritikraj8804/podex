@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   Menu,
   PanelLeftClose,
-  Network
+  Network,
+  Gamepad2
 } from 'lucide-react';
 import { DashboardTab } from './components/DashboardTab';
 import { ExplorerTab } from './components/ExplorerTab';
@@ -23,6 +24,7 @@ import { TopologyDiagramTab } from './components/TopologyDiagramTab';
 import { LearnTab } from './components/LearnTab';
 import { SettingsTab } from './components/SettingsTab';
 import { ResourceDrawer } from './components/ResourceDrawer';
+import { ArenaTab } from './components/ArenaTab';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -93,7 +95,7 @@ interface ConceptExplanation {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram' | 'arena'>('dashboard');
 
   // Topology States
   const [topologyData, setTopologyData] = useState<{ nodes: any[], edges: any[] }>({ nodes: [], edges: [] });
@@ -939,6 +941,7 @@ export default function App() {
                   { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
+                  { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
                   { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -1044,6 +1047,7 @@ export default function App() {
                   { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
+                  { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
                   { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -1238,6 +1242,11 @@ export default function App() {
               setDetailTab={setDetailTab}
               getAccentColor={getAccentColor}
             />
+          )}
+
+          {/* TAB: ARENA PLAYGROUND */}
+          {activeTab === 'arena' && (
+            <ArenaTab apiUrl={API_URL} />
           )}
           {/* TAB 4: SETTINGS */}
           {activeTab === 'settings' && (

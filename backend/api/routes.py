@@ -1,4 +1,5 @@
 import yaml
+import subprocess
 from fastapi import APIRouter, HTTPException, Query, Header
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
@@ -47,6 +48,14 @@ class ExecRequest(BaseModel):
 class ExplainCommandRequest(BaseModel):
     command: str
     output: str
+
+class ApplyYamlRequest(BaseModel):
+    yaml: str
+
+class DeleteResourceRequest(BaseModel):
+    kind: str
+    name: str
+    namespace: str
 
 class ExplainCommandResponse(BaseModel):
     explanation: str
@@ -265,3 +274,39 @@ def get_kube_topology(namespace: str = Query("default")):
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
     return result
+
+# 10. Visual Arena Deployments
+@router.post("/kube/apply")
+def apply_yaml(req: ApplyYamlRequest):
+    try:
+        proc = subprocess.Popen(
+            ["kubectl", "apply", "-f", "-"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        stdout, stderr = proc.communicate(input=req.yaml)
+        if proc.returncode != 0:
+            raise HTTPException(status_code=500, detail=stderr)
+        return {"success": True, "message": stdout}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/kube/delete")
+def delete_resource(req: DeleteResourceRequest):
+    try:
+        # Use lowercase kind for kubernetes safety
+        kind_lower = req.kind.lower()
+        proc = subprocess.Popen(
+            ["kubectl", "delete", kind_lower, req.name, "-n", req.namespace],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        stdout, stderr = proc.communicate()
+        if proc.returncode != 0:
+            raise HTTPException(status_code=500, detail=stderr)
+        return {"success": True, "message": stdout}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
