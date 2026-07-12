@@ -96,8 +96,8 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
   const getHealthText = (status: string) => {
     const s = status.toLowerCase();
     if (s === 'healthy' || s === 'running') return 'text-emerald-600 dark:text-emerald-400';
-    if (s === 'degraded' || s === 'pending') return 'text-amber-600 dark:text-amber-450';
-    return 'text-red-500 dark:text-red-450';
+    if (s === 'degraded' || s === 'pending') return 'text-amber-600 dark:text-amber-400';
+    return 'text-red-500 dark:text-red-400';
   };
 
   return (
@@ -108,11 +108,11 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
             <Network className={`w-5 h-5 ${getAccentColor('text')}`} />
-            <h3 className="text-lg font-black text-slate-855 dark:text-slate-205 m-0">Live Cluster Topology</h3>
+            <h3 className="text-lg font-black text-slate-800 dark:text-slate-200 m-0">Live Cluster Topology</h3>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-555 dark:text-slate-400 bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-xl shadow-sm select-none">
+        <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-xl shadow-sm select-none">
           <div className="flex items-center space-x-1.5">
             <span className="w-2 h-2.5 rounded bg-emerald-500" />
             <span>Healthy</span>
@@ -135,10 +135,10 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
           <span className="text-xs text-slate-500 font-bold">Mapping cluster topology...</span>
         </div>
       ) : topologyData.nodes.length === 0 ? (
-        <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] p-12 rounded-3xl text-center space-y-4 shadow-sm">
+        <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-12 rounded-3xl text-center space-y-4 shadow-sm">
           <Network className="w-10 h-10 text-slate-400 mx-auto" />
-          <h4 className="font-bold text-sm text-slate-805 dark:text-slate-250 m-0">No Active Resources Found</h4>
-          <p className="text-xs text-slate-500 dark:text-slate-405 max-w-sm mx-auto leading-relaxed font-semibold">
+          <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">No Active Resources Found</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed font-semibold">
             Ensure workloads are deployed in the <code className="font-mono text-cyan-600 dark:text-cyan-400">{namespaceFilter || 'default'}</code> namespace to visualize connection maps.
           </p>
         </div>
@@ -149,15 +149,15 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className="relative overflow-hidden rounded-3xl border border-slate-205 dark:border-[#13151f] bg-slate-50 dark:bg-[#090a0e] h-[620px] select-none cursor-grab active:cursor-grabbing"
+            className="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-[#2d2c50] bg-slate-50 dark:bg-[#121124] h-[620px] select-none cursor-grab active:cursor-grabbing"
           >
             
             {/* Floating Zoom & Pan Reset Toolbar overlay */}
-            <div className="absolute bottom-4 left-4 flex items-center space-x-1.5 bg-white/95 dark:bg-[#0c0e15]/95 border border-slate-200 dark:border-[#1e202c] p-1.5 rounded-xl shadow-lg z-25 backdrop-blur-md">
+            <div className="absolute bottom-4 left-4 flex items-center space-x-1.5 bg-white/95 dark:bg-[#1a1932]/95 border border-slate-200 dark:border-[#1e202c] p-1.5 rounded-xl shadow-lg z-25 backdrop-blur-md">
               <button
                 onClick={() => setZoomScale(Math.max(0.6, zoomScale - 0.1))}
                 disabled={zoomScale <= 0.6}
-                className="p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 disabled:opacity-30 cursor-pointer"
+                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 disabled:opacity-30 cursor-pointer"
                 title="Zoom Out"
               >
                 <Minimize2 className="w-3.5 h-3.5" />
@@ -167,7 +167,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                   setZoomScale(1.0);
                   setPanOffset({ x: 0, y: 0 });
                 }}
-                className="text-[10px] px-2 py-0.5 font-extrabold hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-655 dark:text-slate-355 rounded cursor-pointer"
+                className="text-[10px] px-2 py-0.5 font-extrabold hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded cursor-pointer"
                 title="Reset View"
               >
                 {Math.round(zoomScale * 100)}% (Reset)
@@ -175,7 +175,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
               <button
                 onClick={() => setZoomScale(Math.min(1.4, zoomScale + 0.1))}
                 disabled={zoomScale >= 1.4}
-                className="p-1 rounded hover:bg-slate-105 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 disabled:opacity-30 cursor-pointer"
+                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 disabled:opacity-30 cursor-pointer"
                 title="Zoom In"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
@@ -243,10 +243,10 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                       fill="none"
                       stroke={isActive ? "currentColor" : "currentColor"}
                       strokeWidth={isActive ? 2.2 : 1.0}
-                      className={`transition-all duration-305 ${
+                      className={`transition-all duration-300 ${
                         isActive 
                           ? 'text-cyan-500/80 dark:text-cyan-400/80 stroke-cyan-500 dark:stroke-cyan-400 opacity-90' 
-                          : 'text-slate-200 dark:text-slate-855 opacity-15'
+                          : 'text-slate-200 dark:text-slate-800 opacity-15'
                       }`}
                       markerEnd={isActive ? "url(#arrow-active)" : "url(#arrow)"}
                     />
@@ -302,7 +302,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="font-bold text-[11px] text-slate-855 dark:text-slate-205 truncate leading-snug">
+                        <div className="font-bold text-[11px] text-slate-800 dark:text-slate-200 truncate leading-snug">
                           {node.name}
                         </div>
                         <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate uppercase tracking-wider">
@@ -315,7 +315,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                         {node.status}
                       </span>
                       {node.type === 'deployment' && node.details?.replicas && (
-                        <span className="text-[9px] font-mono text-slate-500 dark:text-slate-405 font-bold">
+                        <span className="text-[9px] font-mono text-slate-500 dark:text-slate-400 font-bold">
                           {node.details.replicas}
                         </span>
                       )}

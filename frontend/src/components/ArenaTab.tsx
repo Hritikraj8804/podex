@@ -11,7 +11,6 @@ import {
   Sparkles,
   Loader2,
   AlertCircle,
-  HelpCircle,
   FileText,
   Lock,
   Globe,
@@ -737,10 +736,10 @@ spec:
     <div className="flex-1 flex overflow-hidden h-full relative">
       {/* 1. Sidebar - Toolbox & Templates */}
       {!sidebarCollapsed ? (
-        <div className="w-64 bg-white dark:bg-[#0c0d12] border-r border-slate-200 dark:border-[#1e202a] p-4 flex flex-col justify-between shrink-0 select-none overflow-y-auto relative transition-all duration-300">
+        <div className="w-64 bg-white dark:bg-[#1a1932] border-r border-slate-200 dark:border-[#2d2c50] p-4 flex flex-col justify-between shrink-0 select-none overflow-y-auto relative transition-all duration-300">
           <button
             onClick={() => setSidebarCollapsed(true)}
-            className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:bg-slate-105 dark:hover:bg-[#1a1c27] hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
+            className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:bg-slate-105 dark:hover:bg-[#2a294a] hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
             title="Collapse Sidebar"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -749,7 +748,6 @@ spec:
           <div className="space-y-6">
             <div>
               <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-cyan-500 animate-pulse" />
                 <span>Kubernetes Arena</span>
               </h2>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
@@ -765,91 +763,91 @@ spec:
               {/* Pod */}
               <div
                 onClick={() => handleAddNode('pod')}
-                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-cyan-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#1e202a] hover:border-cyan-500/30 dark:hover:border-cyan-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
+                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-cyan-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#2d2c50] hover:border-cyan-500/30 dark:hover:border-cyan-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
               >
                 <div className="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-500 flex items-center justify-center font-bold shrink-0">
                   <Cpu className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-205">Pod</h4>
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Pod</h4>
                 </div>
               </div>
 
               {/* Deployment */}
               <div
                 onClick={() => handleAddNode('deployment')}
-                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-indigo-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#1e202a] hover:border-indigo-500/30 dark:hover:border-indigo-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
+                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-indigo-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#2d2c50] hover:border-indigo-500/30 dark:hover:border-indigo-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
               >
                 <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold shrink-0">
                   <Layers className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-205">Deployment</h4>
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Deployment</h4>
                 </div>
               </div>
 
               {/* StatefulSet */}
               <div
                 onClick={() => handleAddNode('statefulset')}
-                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-violet-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#1e202a] hover:border-violet-500/30 dark:hover:border-violet-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
+                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-violet-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#2d2c50] hover:border-violet-500/30 dark:hover:border-violet-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
               >
                 <div className="w-7 h-7 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center font-bold shrink-0">
                   <Database className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-205">StatefulSet</h4>
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">StatefulSet</h4>
                 </div>
               </div>
 
               {/* Service */}
               <div
                 onClick={() => handleAddNode('service')}
-                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-blue-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#1e202a] hover:border-blue-500/30 dark:hover:border-blue-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
+                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-blue-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#2d2c50] hover:border-blue-500/30 dark:hover:border-blue-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
               >
                 <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold shrink-0">
                   <Network className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-205">Service</h4>
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Service</h4>
                 </div>
               </div>
 
               {/* Ingress */}
               <div
                 onClick={() => handleAddNode('ingress')}
-                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-emerald-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#1e202a] hover:border-emerald-500/30 dark:hover:border-emerald-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
+                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-emerald-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#2d2c50] hover:border-emerald-500/30 dark:hover:border-emerald-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
               >
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold shrink-0">
                   <Globe className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-205">Ingress</h4>
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Ingress</h4>
                 </div>
               </div>
 
               {/* ConfigMap */}
               <div
                 onClick={() => handleAddNode('configmap')}
-                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-amber-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#1e202a] hover:border-amber-500/30 dark:hover:border-amber-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
+                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-amber-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#2d2c50] hover:border-amber-500/30 dark:hover:border-amber-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
               >
                 <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold shrink-0">
                   <FileText className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-250">ConfigMap</h4>
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">ConfigMap</h4>
                 </div>
               </div>
 
               {/* Secret */}
               <div
                 onClick={() => handleAddNode('secret')}
-                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-rose-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#1e202a] hover:border-rose-500/30 dark:hover:border-rose-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
+                className="flex items-center space-x-2.5 p-2 bg-slate-50 hover:bg-rose-500/5 dark:bg-[#161822] dark:hover:bg-[#1e2230] border border-slate-200/60 dark:border-[#2d2c50] hover:border-rose-500/30 dark:hover:border-rose-500/30 rounded-xl cursor-pointer transition active:scale-98 group"
               >
                 <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold shrink-0">
                   <Lock className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-205">Secret</h4>
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">Secret</h4>
                 </div>
               </div>
             </div>
@@ -861,7 +859,7 @@ spec:
               <div className="space-y-1.5">
                 <button
                   onClick={() => handleLoadTemplate('web')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#161822] dark:hover:bg-[#1e2230] rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-[#1e202a] cursor-pointer"
+                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#161822] dark:hover:bg-[#1e2230] rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-[#2d2c50] cursor-pointer"
                 >
                   <Lightbulb className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   <span className="truncate">Scalable Web App</span>
@@ -869,7 +867,7 @@ spec:
 
                 <button
                   onClick={() => handleLoadTemplate('db')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#161822] dark:hover:bg-[#1e2230] rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-[#1e202a] cursor-pointer"
+                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#161822] dark:hover:bg-[#1e2230] rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-[#2d2c50] cursor-pointer"
                 >
                   <Database className="w-3.5 h-3.5 text-violet-500 shrink-0" />
                   <span className="truncate">Database & Secret Stack</span>
@@ -877,7 +875,7 @@ spec:
 
                 <button
                   onClick={() => handleLoadTemplate('full')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#161822] dark:hover:bg-[#1e2230] rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-[#1e202a] cursor-pointer"
+                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-[#161822] dark:hover:bg-[#1e2230] rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-[#2d2c50] cursor-pointer"
                 >
                   <Globe className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                   <span className="truncate">Full HTTP Ingress Stack</span>
@@ -887,19 +885,16 @@ spec:
           </div>
 
           <div className="mt-6">
-            <div className="p-3 bg-slate-50 dark:bg-[#14151f] rounded-xl border border-slate-200/40 dark:border-slate-800/40 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400 flex items-start space-x-1.5">
-              <HelpCircle className="w-3.5 h-3.5 text-cyan-500 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">Snapping Rules:</span>
-                Ingress → Service → Workloads (Pod/Deploy/StatefulSet) → ConfigMap/Secret. Click snap circles on node borders to link.
-              </div>
+            <div className="p-3 bg-slate-50 dark:bg-[#14151f] rounded-lg border border-slate-200/40 dark:border-slate-800/40 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+              <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">Snapping Rules:</span>
+              Ingress → Service → Workloads (Pod/Deploy/StatefulSet) → ConfigMap/Secret. Click snap circles on node borders to link.
             </div>
           </div>
         </div>
       ) : (
         <div 
           onClick={() => setSidebarCollapsed(false)}
-          className="w-8 bg-white dark:bg-[#0c0d12] border-r border-slate-200 dark:border-[#1e202a] flex flex-col items-center pt-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#11131c] transition-all shrink-0 select-none"
+          className="w-8 bg-white dark:bg-[#1a1932] border-r border-slate-200 dark:border-[#2d2c50] flex flex-col items-center pt-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1e1d38] transition-all shrink-0 select-none"
           title="Expand Sidebar"
         >
           <ChevronRight className="w-4 h-4 text-slate-400 hover:text-cyan-500" />
@@ -910,14 +905,14 @@ spec:
       )}
 
       {/* 2. Main Checkboard Canvas Area */}
-      <div className="flex-1 flex flex-col relative bg-slate-50 dark:bg-[#07080b] h-full overflow-hidden">
+      <div className="flex-1 flex flex-col relative bg-slate-50 dark:bg-[#0f0e17] h-full overflow-hidden">
         {/* Top Canvas Toolbar */}
-        <div className="h-14 border-b border-slate-200 dark:border-[#1e202a] bg-white dark:bg-[#0c0d12] px-6 flex justify-between items-center select-none shrink-0 z-30 shadow-xs">
+        <div className="h-14 border-b border-slate-200 dark:border-[#2d2c50] bg-white dark:bg-[#1a1932] px-6 flex justify-between items-center select-none shrink-0 z-30 shadow-xs">
           <div className="flex items-center space-x-3">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-450 uppercase tracking-widest">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
               Playground Workspace
             </span>
-            <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-[#161822] text-xs font-black text-slate-700 dark:text-slate-350 border border-slate-200/40 dark:border-slate-800/40">
+            <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-[#161822] text-xs font-black text-slate-700 dark:text-slate-400 border border-slate-200/40 dark:border-slate-800/40">
               {nodes.length} Components
             </span>
             {connections.length > 0 && (
@@ -933,19 +928,19 @@ spec:
                 <button
                   onClick={handleDeployStack}
                   disabled={stackDeploying}
-                  className="flex items-center space-x-1.5 bg-cyan-500 hover:bg-cyan-600 text-white font-extrabold px-3.5 py-2 rounded-xl text-[11px] transition shadow-md shadow-cyan-500/10 cursor-pointer disabled:opacity-50"
+                  className="flex items-center space-x-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold px-3.5 py-2 rounded-lg text-[11px] transition cursor-pointer disabled:opacity-50"
                 >
                   {stackDeploying ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <Play className="w-3.5 h-3.5" />
                   )}
-                  <span>Deploy Active Stack</span>
+                  <span>Deploy Stack</span>
                 </button>
 
                 <button
                   onClick={handleDeleteStack}
-                  className="flex items-center space-x-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-650 dark:text-red-400 font-extrabold px-3.5 py-2 rounded-xl text-[11px] transition cursor-pointer"
+                  className="flex items-center space-x-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 dark:text-red-400 font-extrabold px-3.5 py-2 rounded-lg text-[11px] transition cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete Stack</span>
@@ -967,15 +962,14 @@ spec:
         </div>
 
         {connectionError && (
-          <div className="absolute top-18 left-4 z-40 bg-red-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg border border-red-600 flex items-center space-x-2 animate-in fade-in slide-in-from-top-4 duration-200">
-            <AlertCircle className="w-4 h-4 animate-bounce" />
+          <div className="absolute top-18 left-4 z-40 bg-red-500 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-lg border border-red-600 flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4" />
             <span>{connectionError}</span>
           </div>
         )}
 
         {connectingFromId && (
-          <div className="absolute top-18 left-4 z-40 bg-cyan-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg border border-cyan-600 flex items-center space-x-2 animate-pulse">
-            <Sparkles className="w-4 h-4 animate-spin" />
+          <div className="absolute top-18 left-4 z-40 bg-cyan-600 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-lg border border-cyan-500 flex items-center space-x-2">
             <span>Select a destination snapping dot to complete the connection!</span>
           </div>
         )}
@@ -984,15 +978,15 @@ spec:
           ref={canvasRef}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
-          className="flex-1 h-full relative overflow-hidden bg-slate-50 dark:bg-[#090a0e] arena-grid"
+          className="flex-1 h-full relative overflow-hidden bg-slate-50 dark:bg-[#121124] arena-grid"
           style={{ backgroundSize: '24px 24px' }}
         >
           {/* Onboarding Guidance Overlay for New Users */}
           {nodes.length === 0 && !onboardingDismissed && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-6 z-20">
-              <div className="bg-white dark:bg-[#0c0d12] border border-slate-205 dark:border-[#1e202a] p-8 rounded-2xl shadow-2xl max-w-lg w-full pointer-events-auto text-center space-y-6 transform translate-y-0 scale-100 transition animate-in zoom-in-95 duration-300">
+              <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-8 rounded-2xl shadow-2xl max-w-lg w-full pointer-events-auto text-center space-y-6 transform translate-y-0 scale-100 transition animate-in zoom-in-95 duration-300">
                 <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center mx-auto border border-cyan-500/20">
-                  <Sparkles className="w-7 h-7 animate-pulse" />
+                  <Sparkles className="w-7 h-7" />
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-800 dark:text-white">Welcome to Kubernetes Visual Arena!</h3>
@@ -1002,22 +996,22 @@ spec:
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                  <div className="p-3 bg-slate-55/50 dark:bg-[#13151e]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
+                  <div className="p-3 bg-slate-55/50 dark:bg-[#24233f]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
                     <div className="w-5 h-5 rounded-full bg-cyan-500/10 text-cyan-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">1</div>
                     <span className="text-[10px] font-bold text-slate-600 dark:text-slate-350 leading-snug">Click items in the left **Toolbox** to add nodes onto the checkered canvas.</span>
                   </div>
 
-                  <div className="p-3 bg-slate-55/50 dark:bg-[#13151e]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
+                  <div className="p-3 bg-slate-55/50 dark:bg-[#24233f]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
                     <div className="w-5 h-5 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">2</div>
                     <span className="text-[10px] font-bold text-slate-600 dark:text-slate-350 leading-snug">Drag and drop nodes to organize layout. Click snap port borders to draw links.</span>
                   </div>
 
-                  <div className="p-3 bg-slate-55/50 dark:bg-[#13151e]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
+                  <div className="p-3 bg-slate-55/50 dark:bg-[#24233f]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
                     <div className="w-5 h-5 rounded-full bg-violet-500/10 text-violet-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">3</div>
                     <span className="text-[10px] font-bold text-slate-600 dark:text-slate-350 leading-snug">Configure settings in the Form, or unlock YAML to edit text files directly.</span>
                   </div>
 
-                  <div className="p-3 bg-slate-55/50 dark:bg-[#13151e]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
+                  <div className="p-3 bg-slate-55/50 dark:bg-[#24233f]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">4</div>
                     <span className="text-[10px] font-bold text-slate-600 dark:text-slate-350 leading-snug">Deploy to cluster, view feedback indicators, and inspect live resources in Explorer.</span>
                   </div>
@@ -1025,14 +1019,14 @@ spec:
 
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-3 pt-2">
                   <button
-                    onClick={() => handleLoadTemplate('web')}
-                    className="w-full sm:w-auto bg-cyan-500 hover:bg-cyan-600 text-white font-extrabold px-5 py-2 rounded-xl text-xs transition cursor-pointer shadow-lg shadow-cyan-500/10"
+                      onClick={() => handleLoadTemplate('web')}
+                      className="w-full sm:w-auto bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold px-5 py-2 rounded-lg text-xs transition cursor-pointer"
                   >
                     Quickstart: Load Web App Stack
                   </button>
                   <button
-                    onClick={() => setOnboardingDismissed(true)}
-                    className="w-full sm:w-auto bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold px-5 py-2 rounded-xl text-xs transition cursor-pointer"
+                  onClick={() => setOnboardingDismissed(true)}
+                  className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold px-5 py-2 rounded-lg text-xs transition cursor-pointer"
                   >
                     Start with Empty Arena
                   </button>
@@ -1135,7 +1129,7 @@ spec:
                   setSelectedNodeId(node.id);
                   setYamlEditMode(false);
                 }}
-                className={`absolute select-none cursor-grab active:cursor-grabbing p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/85 bg-white dark:bg-[#11131c] flex flex-col justify-between shadow-xl transition-all z-10 ${accentClass} ${
+                className={`absolute select-none cursor-grab active:cursor-grabbing p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/85 bg-white dark:bg-[#1e1d38] flex flex-col justify-between shadow-xl transition-all z-10 ${accentClass} ${
                   isSelected ? 'ring-2 ring-cyan-500 border-cyan-400 dark:border-cyan-500 scale-[1.02]' : 'hover:scale-[1.01]'
                 }`}
                 style={{
@@ -1187,7 +1181,7 @@ spec:
                 </div>
 
                 {/* Body */}
-                <div className="text-[10px] text-slate-505 dark:text-slate-400 truncate leading-normal">
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-normal">
                   {node.type === 'service' ? (
                     <span>Type: {node.config.serviceType}</span>
                   ) : node.type === 'ingress' ? (
@@ -1222,7 +1216,7 @@ spec:
                           e.stopPropagation();
                           handleDeleteNodeFromCluster(node);
                         }}
-                        className="text-red-500 hover:text-red-450 cursor-pointer"
+                        className="text-red-500 hover:text-red-400 cursor-pointer"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -1233,7 +1227,7 @@ spec:
                         e.stopPropagation();
                         handleRemoveNode(node.id);
                       }}
-                      className="text-slate-400 hover:text-slate-650 dark:text-slate-500 dark:hover:text-slate-300 cursor-pointer"
+                      className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 cursor-pointer"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -1248,16 +1242,16 @@ spec:
       {/* 3. Right configurator drawer */}
       {selectedNode && (
         !configuratorCollapsed ? (
-          <div className="w-96 bg-white dark:bg-[#0c0d12] border-l border-slate-200 dark:border-[#1e202a] flex flex-col justify-between shrink-0 h-full relative transition-all duration-300">
+          <div className="w-96 bg-white dark:bg-[#1a1932] border-l border-slate-200 dark:border-[#2d2c50] flex flex-col justify-between shrink-0 h-full relative transition-all duration-300">
             <button
               onClick={() => setConfiguratorCollapsed(true)}
-              className="absolute left-3 top-5 p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-555 hover:text-slate-700 cursor-pointer z-10"
+              className="absolute left-3 top-5 p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 cursor-pointer z-10"
               title="Collapse Configurator"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
 
-            <div className="p-4 border-b border-slate-200 dark:border-[#1e202a] flex justify-between items-center bg-slate-50 dark:bg-[#0f1017] pl-10">
+            <div className="p-4 border-b border-slate-200 dark:border-[#2d2c50] flex justify-between items-center bg-slate-50 dark:bg-[#161530] pl-10">
               <div>
                 <div className="flex items-center space-x-2 text-xs font-bold text-slate-500">
                   <span className="capitalize">{selectedNode.type} Configurator</span>
@@ -1270,7 +1264,7 @@ spec:
                 <button
                   onClick={() => { setConfigTab('form'); setYamlEditMode(false); }}
                   className={`px-2.5 py-1 rounded-md font-bold transition ${
-                    configTab === 'form' ? 'bg-white dark:bg-[#12141c] text-cyan-500 shadow-sm' : 'text-slate-555 hover:text-slate-700'
+                    configTab === 'form' ? 'bg-white dark:bg-[#12141c] text-cyan-500 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   Form
@@ -1278,7 +1272,7 @@ spec:
                 <button
                   onClick={() => setConfigTab('yaml')}
                   className={`px-2.5 py-1 rounded-md font-bold transition ${
-                    configTab === 'yaml' ? 'bg-white dark:bg-[#12141c] text-cyan-500 shadow-sm' : 'text-slate-555 hover:text-slate-705'
+                    configTab === 'yaml' ? 'bg-white dark:bg-[#12141c] text-cyan-500 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   YAML
@@ -1297,7 +1291,7 @@ spec:
                       type="text"
                       value={selectedNode.name}
                       onChange={(e) => handleUpdateForm('name', e.target.value.toLowerCase().replace(/[^a-z0-9\-]/g, ''))}
-                      className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                      className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                     />
                   </div>
 
@@ -1311,7 +1305,7 @@ spec:
                           type="text"
                           value={selectedNode.config.image}
                           onChange={(e) => handleUpdateForm('image', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
 
@@ -1323,7 +1317,7 @@ spec:
                           type="number"
                           value={selectedNode.config.port}
                           onChange={(e) => handleUpdateForm('port', parseInt(e.target.value) || 80)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
                     </>
@@ -1340,7 +1334,7 @@ spec:
                         max="10"
                         value={selectedNode.config.replicas}
                         onChange={(e) => handleUpdateForm('replicas', parseInt(e.target.value) || 1)}
-                        className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                       />
                     </div>
                   )}
@@ -1354,7 +1348,7 @@ spec:
                         type="text"
                         value={selectedNode.config.serviceName}
                         onChange={(e) => handleUpdateForm('serviceName', e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                       />
                     </div>
                   )}
@@ -1368,7 +1362,7 @@ spec:
                         <select
                           value={selectedNode.config.serviceType}
                           onChange={(e) => handleUpdateForm('serviceType', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500 font-bold"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500 font-bold"
                         >
                           <option value="ClusterIP">ClusterIP (Internal)</option>
                           <option value="NodePort">NodePort (External Node)</option>
@@ -1384,7 +1378,7 @@ spec:
                           type="number"
                           value={selectedNode.config.port}
                           onChange={(e) => handleUpdateForm('port', parseInt(e.target.value) || 80)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
 
@@ -1396,7 +1390,7 @@ spec:
                           type="number"
                           value={selectedNode.config.targetPort}
                           onChange={(e) => handleUpdateForm('targetPort', parseInt(e.target.value) || 80)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
 
@@ -1408,7 +1402,7 @@ spec:
                           type="text"
                           value={selectedNode.config.selector}
                           onChange={(e) => handleUpdateForm('selector', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
                     </>
@@ -1424,7 +1418,7 @@ spec:
                           type="text"
                           value={selectedNode.config.ingressHost}
                           onChange={(e) => handleUpdateForm('ingressHost', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
 
@@ -1436,7 +1430,7 @@ spec:
                           type="text"
                           value={selectedNode.config.ingressPath}
                           onChange={(e) => handleUpdateForm('ingressPath', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
 
@@ -1448,7 +1442,7 @@ spec:
                           type="text"
                           value={selectedNode.config.ingressService}
                           onChange={(e) => handleUpdateForm('ingressService', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
                     </>
@@ -1464,7 +1458,7 @@ spec:
                           type="text"
                           value={selectedNode.config.configKey}
                           onChange={(e) => handleUpdateForm('configKey', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
 
@@ -1476,7 +1470,7 @@ spec:
                           type="text"
                           value={selectedNode.config.configValue}
                           onChange={(e) => handleUpdateForm('configValue', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
                     </>
@@ -1492,7 +1486,7 @@ spec:
                           type="text"
                           value={selectedNode.config.secretKey}
                           onChange={(e) => handleUpdateForm('secretKey', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500"
                         />
                       </div>
 
@@ -1504,7 +1498,7 @@ spec:
                           type="text"
                           value={selectedNode.config.secretValue}
                           onChange={(e) => handleUpdateForm('secretValue', e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#1e202a] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500 font-mono"
+                          className="w-full bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 rounded-lg border border-slate-200/60 dark:border-[#2d2c50] px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-cyan-500 font-mono"
                         />
                       </div>
                     </>
@@ -1539,11 +1533,11 @@ spec:
                     value={yamlText}
                     onChange={(e) => handleYamlTextChange(e.target.value)}
                     disabled={!yamlEditMode}
-                    className="w-full flex-1 min-h-[300px] bg-slate-50 dark:bg-[#141620] text-slate-800 dark:text-slate-200 p-3 rounded-xl font-mono text-[11px] border border-slate-200/80 dark:border-[#1e202a] outline-none focus:ring-1 focus:ring-cyan-500 leading-normal"
+                    className="w-full flex-1 min-h-[300px] bg-slate-50 dark:bg-[#1e1d38] text-slate-800 dark:text-slate-200 p-3 rounded-xl font-mono text-[11px] border border-slate-200/80 dark:border-[#2d2c50] outline-none focus:ring-1 focus:ring-cyan-500 leading-normal"
                   />
 
                   {validationError && (
-                    <div className="p-3 bg-red-550/10 border border-red-500/30 rounded-xl text-red-650 dark:text-red-400 text-xs font-semibold leading-relaxed">
+                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-600 dark:text-red-400 text-xs font-semibold leading-relaxed">
                       {validationError}
                     </div>
                   )}
@@ -1551,11 +1545,11 @@ spec:
               )}
             </div>
 
-            <div className="p-4 border-t border-slate-200 dark:border-[#1e202a] bg-slate-50 dark:bg-[#0f1017] space-y-2">
+            <div className="p-4 border-t border-slate-200 dark:border-[#2d2c50] bg-slate-50 dark:bg-[#161530] space-y-2">
               <button
                 onClick={() => handleDeployNode(selectedNode)}
                 disabled={selectedNode.status === 'deploying'}
-                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-cyan-500/10"
+                className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 rounded-lg text-xs transition flex items-center justify-center space-x-2 cursor-pointer"
               >
                 {selectedNode.status === 'deploying' ? (
                   <>
@@ -1573,7 +1567,7 @@ spec:
               {(selectedNode.status === 'healthy' || selectedNode.status === 'failed') && (
                 <button
                   onClick={() => handleDeleteNodeFromCluster(selectedNode)}
-                  className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center space-x-2 cursor-pointer border border-red-500/30"
+                  className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold py-2.5 rounded-lg text-xs transition flex items-center justify-center space-x-2 cursor-pointer border border-red-500/30"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete from Cluster</span>
@@ -1584,7 +1578,7 @@ spec:
         ) : (
           <div 
             onClick={() => setConfiguratorCollapsed(false)}
-            className="w-8 bg-white dark:bg-[#0c0d12] border-l border-slate-200 dark:border-[#1e202a] flex flex-col items-center pt-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#11131c] transition-all shrink-0 select-none"
+            className="w-8 bg-white dark:bg-[#1a1932] border-l border-slate-200 dark:border-[#2d2c50] flex flex-col items-center pt-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1e1d38] transition-all shrink-0 select-none"
             title="Expand Configurator"
           >
             <ChevronLeft className="w-4 h-4 text-slate-400 hover:text-cyan-500" />
@@ -1596,23 +1590,23 @@ spec:
       )}
 
       {!selectedNode && (
-        <div className="w-96 bg-white dark:bg-[#0c0d12] border-l border-slate-200 dark:border-[#1e202a] flex flex-col justify-center items-center p-6 text-center text-slate-500 dark:text-slate-400 select-none shrink-0 h-full">
-          <div className="w-12 h-12 rounded-xl bg-slate-105 dark:bg-[#1a1c27] flex items-center justify-center text-slate-400 mb-3 border border-slate-200/40 dark:border-slate-800/40">
+        <div className="w-96 bg-white dark:bg-[#1a1932] border-l border-slate-200 dark:border-[#2d2c50] flex flex-col justify-center items-center p-6 text-center text-slate-500 dark:text-slate-400 select-none shrink-0 h-full">
+          <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-[#2a294a] flex items-center justify-center text-slate-400 mb-3 border border-slate-200/40 dark:border-slate-800/40">
             <Code className="w-6 h-6" />
           </div>
           <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">No Resource Selected</h4>
-          <p className="text-[11px] mt-1 text-slate-405 leading-normal max-w-[200px]">
+          <p className="text-[11px] mt-1 text-slate-400 leading-normal max-w-[200px]">
             Click on any Component Card on the canvas board to configure its parameters.
           </p>
         </div>
       )}
 
       {showClearConfirm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-905/65 dark:bg-[#000]/65 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0c0d12] border border-slate-205 dark:border-[#1e202a] p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 space-y-4">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/65 dark:bg-[#000]/65 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 space-y-4">
             <div className="flex items-center space-x-3 text-red-500">
               <AlertCircle className="w-6 h-6 animate-bounce" />
-              <h3 className="text-sm font-bold text-slate-850 dark:text-white">Clear Arena Workspace?</h3>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">Clear Arena Workspace?</h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
               Are you sure you want to clear all nodes and connections from the Arena? This will reset the workspace canvas, but will not delete any active resources from the Kubernetes cluster.
@@ -1620,7 +1614,7 @@ spec:
             <div className="flex space-x-3 pt-2">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2 rounded-xl text-xs transition cursor-pointer"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2 rounded-xl text-xs transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1631,7 +1625,7 @@ spec:
                   setSelectedNodeId(null);
                   setShowClearConfirm(false);
                 }}
-                className="flex-1 bg-red-500 hover:bg-red-650 text-white font-bold py-2 rounded-xl text-xs transition cursor-pointer animate-all"
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-xl text-xs transition cursor-pointer animate-all"
               >
                 Yes, Clear All
               </button>
@@ -1642,19 +1636,19 @@ spec:
 
       {/* Custom modal confirm overlay for Load study templates */}
       {templateConfirm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-905/65 dark:bg-[#000]/65 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0c0d12] border border-slate-205 dark:border-[#1e202a] p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 space-y-4 font-semibold text-xs">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/65 dark:bg-[#000]/65 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 space-y-4 font-semibold text-xs">
             <div className="flex items-center space-x-3 text-cyan-500">
               <Sparkles className="w-6 h-6 animate-pulse shrink-0" />
-              <h3 className="text-sm font-black text-slate-850 dark:text-white">Load Study Template?</h3>
+              <h3 className="text-sm font-black text-slate-800 dark:text-white">Load Study Template?</h3>
             </div>
-            <p className="text-xs text-slate-555 dark:text-slate-400 leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Loading this template will clear your current canvas and reset all connections. Active cluster resources will not be affected. Do you want to proceed?
             </p>
             <div className="flex space-x-3 pt-2">
               <button
                 onClick={() => setTemplateConfirm(null)}
-                className="flex-1 bg-slate-100 hover:bg-slate-250 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1674,19 +1668,19 @@ spec:
 
       {/* Custom modal confirm overlay for Delete stack */}
       {showDeleteStackConfirm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-905/65 dark:bg-[#000]/65 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0c0d12] border border-slate-205 dark:border-[#1e202a] p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 space-y-4 font-semibold text-xs">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/65 dark:bg-[#000]/65 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 space-y-4 font-semibold text-xs">
             <div className="flex items-center space-x-3 text-red-500">
               <AlertCircle className="w-6 h-6 animate-bounce shrink-0" />
-              <h3 className="text-sm font-black text-slate-850 dark:text-white">Delete Active Stack?</h3>
+              <h3 className="text-sm font-black text-slate-800 dark:text-white">Delete Active Stack?</h3>
             </div>
-            <p className="text-xs text-slate-555 dark:text-slate-400 leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Are you sure you want to delete all resources in this active stack from your live Kubernetes cluster? This action is permanent and cannot be undone.
             </p>
             <div className="flex space-x-3 pt-2">
               <button
                 onClick={() => setShowDeleteStackConfirm(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-250 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1695,7 +1689,7 @@ spec:
                   executeDeleteStack();
                   setShowDeleteStackConfirm(false);
                 }}
-                className="flex-1 bg-red-500 hover:bg-red-650 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
               >
                 Yes, Delete Stack
               </button>
