@@ -895,197 +895,159 @@ export default function App() {
 
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-[#0b0e14] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-150">
+    <div className="flex h-screen overflow-hidden transition-colors duration-150"
+      style={{ background: 'var(--color-bg-base)', color: 'var(--color-text-primary)' }}>
 
       {/* Sidebar NAVIGATION */}
-      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-slate-100 dark:bg-[#0d1018] border-r border-slate-200 dark:border-[#1e2235] flex flex-col justify-between select-none transition-all duration-200`}>
+      <aside className={`${sidebarCollapsed ? 'w-16' : 'w-60'} flex flex-col select-none transition-all duration-200 shrink-0`}
+        style={{ background: 'var(--color-bg-sidebar)', borderRight: '1px solid var(--color-border)' }}>
         {sidebarCollapsed ? (
-          /* SLIM SIDEBAR (Discord style icon strip) */
-          <div className="flex flex-col justify-between h-full py-6 items-center">
-            <div className="flex flex-col items-center space-y-6 w-full">
-              {/* Logo Brand Icon */}
-              <div
-                onClick={() => {
-                  setActiveTab('dashboard');
-                  setSelectedResource(null);
-                }}
-                className="w-10 h-10 rounded-lg bg-cyan-600 flex items-center justify-center font-bold text-lg text-white cursor-pointer hover:bg-cyan-500 transition"
-                title="Podex - Go to Dashboard"
-              >
-                P
-              </div>
-
-              {/* Nav List Icons */}
-              <nav className="flex flex-col items-center space-y-4 w-full px-2">
-                {[
-                  { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
-                  { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
-                  { id: 'diagram', label: 'Cluster Topology', icon: Network },
-                  { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
-                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
-                ].map(tab => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => {
-                        setActiveTab(tab.id as any);
-                        setSelectedResource(null);
-                      }}
-                      title={tab.label}
-                      className={`w-12 h-12 flex items-center justify-center rounded-xl transition cursor-pointer relative group ${isActive
-                          ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
-                          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
-                        }`}
-                    >
-                      <Icon className={`w-5 h-5 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
-                      
-                      {/* Tooltip */}
-                      <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
-                        {tab.label}
-                      </div>
-                    </button>
-                  );
-                })}
-              </nav>
+          <div className="flex flex-col items-center h-full py-4 gap-4">
+            {/* Logo */}
+            <div
+              onClick={() => { setActiveTab('dashboard'); setSelectedResource(null); }}
+              className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm text-white cursor-pointer hover:bg-blue-500 transition"
+              title="Podex"
+            >
+              P
             </div>
-
-            {/* Footer Utilities */}
-            <div className="flex flex-col items-center space-y-4 w-full">
-              {/* Settings button */}
+            <div className="w-6 h-px" style={{ background: 'var(--color-border)' }} />
+            {/* Nav */}
+            <nav className="flex flex-col items-center gap-2 w-full px-2">
+              {[
+                { id: 'dashboard', label: 'Overview', icon: Cpu },
+                { id: 'explorer', label: 'Explorer', icon: Layers },
+                { id: 'diagram', label: 'Topology', icon: Network },
+                { id: 'arena', label: 'Arena', icon: Gamepad2 },
+                { id: 'learn', label: 'Learn', icon: BookOpen },
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id as any); setSelectedResource(null); }}
+                    title={tab.label}
+                    className={`w-10 h-10 flex items-center justify-center rounded-lg transition cursor-pointer relative group ${
+                      isActive
+                        ? 'bg-blue-500/10 text-blue-500'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1b2332]'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <div className="absolute left-12 bg-slate-900 dark:bg-[#1e293b] text-white text-[10px] font-semibold px-2 py-1 rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-lg z-30">
+                      {tab.label}
+                    </div>
+                  </button>
+                );
+              })}
+            </nav>
+            <div className="flex-1" />
+            {/* Footer */}
+            <div className="flex flex-col items-center gap-2">
               <button
-                onClick={() => {
-                  setActiveTab('settings');
-                  setSelectedResource(null);
-                }}
-                className={`w-12 h-12 flex items-center justify-center rounded-xl transition cursor-pointer relative group ${activeTab === 'settings'
-                    ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
+                onClick={() => { setActiveTab('settings'); setSelectedResource(null); }}
+                className={`w-10 h-10 flex items-center justify-center rounded-lg transition cursor-pointer ${
+                  activeTab === 'settings' ? 'bg-blue-500/10 text-blue-500' : 'text-slate-500 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1b2332]'
+                }`}
                 title="Settings"
               >
-                <Settings className={`w-5 h-5 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-400'}`} />
-                <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
-                  Settings
-                </div>
+                <Settings className="w-4 h-4" />
               </button>
-
-              {/* Theme Toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-lg bg-slate-200 dark:bg-[#2a294a] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
-                title="Toggle Light/Dark Theme"
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-[#1b2332] transition cursor-pointer"
+                title="Toggle theme"
               >
-                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
               </button>
-
-              {/* Expand Button */}
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-[#2a294a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
-                title="Expand Sidebar"
+                className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1b2332] transition cursor-pointer"
+                title="Expand"
               >
                 <Menu className="w-4 h-4" />
               </button>
             </div>
           </div>
         ) : (
-          /* FULL SIDEBAR */
-          <div className="flex flex-col justify-between h-full">
-            <div>
-              {/* Logo Brand */}
-              <div className="p-6 flex items-center justify-between border-b border-slate-200 dark:border-[#2d2c50]">
-                <div
-                  onClick={() => {
-                    setActiveTab('dashboard');
-                    setSelectedResource(null);
-                  }}
-                  className="flex items-center space-x-3 cursor-pointer hover:opacity-90 active:scale-95 transition"
-                  title="Go to Dashboard"
-                >
-                   <div className="w-8 h-8 rounded-lg bg-cyan-600 flex items-center justify-center font-bold text-lg text-white">
-                    P
-                  </div>
-                  <div>
-                    <h1 className="text-sm font-extrabold text-slate-800 dark:text-cyan-400 m-0 tracking-wide">PODEX</h1>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold tracking-wider block">K8S FOR BEGINNERS</span>
-                  </div>
+          <div className="flex flex-col h-full">
+            {/* Logo */}
+            <div className="p-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <div
+                onClick={() => { setActiveTab('dashboard'); setSelectedResource(null); }}
+                className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition"
+              >
+                <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-xs text-white">P</div>
+                <div>
+                  <div className="text-xs font-bold tracking-wide" style={{ color: 'var(--color-text-primary)' }}>PODEX</div>
+                  <div className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>K8s Playground</div>
                 </div>
-                <button
-                  onClick={() => setSidebarCollapsed(true)}
-                  className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#2a294a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
-                  title="Hide Sidebar"
-                >
-                  <PanelLeftClose className="w-4 h-4" />
-                </button>
               </div>
-
-              {/* Nav List */}
-              <nav className="p-4 space-y-1.5">
-                {[
-                  { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
-                  { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
-                  { id: 'diagram', label: 'Cluster Topology', icon: Network },
-                  { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
-                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
-                ].map(tab => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => {
-                        setActiveTab(tab.id as any);
-                        setSelectedResource(null);
-                      }}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${isActive
-                        ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
-                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
-                        }`}
-                    >
-                      <Icon className={`w-4 h-4 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
+              <button
+                onClick={() => setSidebarCollapsed(true)}
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#1b2332] text-slate-400 transition cursor-pointer"
+              >
+                <PanelLeftClose className="w-3.5 h-3.5" />
+              </button>
             </div>
 
-            {/* Sidebar Footer */}
-            <div className="p-6 border-t border-slate-200 dark:border-[#2d2c50] space-y-3">
-              {/* Settings button */}
+            {/* Nav */}
+            <nav className="flex-1 p-3 space-y-0.5">
+              {[
+                { id: 'dashboard', label: 'Overview', icon: Cpu },
+                { id: 'explorer', label: 'Explorer', icon: Layers },
+                { id: 'diagram', label: 'Topology', icon: Network },
+                { id: 'arena', label: 'Arena', icon: Gamepad2 },
+                { id: 'learn', label: 'Learn', icon: BookOpen },
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setActiveTab(tab.id as any); setSelectedResource(null); }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[11px] font-semibold transition cursor-pointer ${
+                      isActive
+                        ? 'bg-blue-500/10 text-blue-500'
+                        : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-[#1b2332] hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Footer */}
+            <div className="p-3 space-y-1" style={{ borderTop: '1px solid var(--color-border)' }}>
               <button
-                onClick={() => {
-                  setActiveTab('settings');
-                  setSelectedResource(null);
-                }}
-                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition cursor-pointer ${activeTab === 'settings'
-                    ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
+                onClick={() => { setActiveTab('settings'); setSelectedResource(null); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[11px] font-semibold transition cursor-pointer ${
+                  activeTab === 'settings'
+                    ? 'bg-blue-500/10 text-blue-500'
+                    : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-[#1b2332] hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
               >
-                <Settings className={`w-4 h-4 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-400'}`} />
+                <Settings className="w-4 h-4" />
                 <span>Settings</span>
               </button>
-
-              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/50 dark:border-[#2d2c50]/50">
-                <span className="text-slate-500 font-bold">Theme Mode</span>
+              <div className="flex items-center justify-between px-3 py-1.5">
+                <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>Theme</span>
                 <button
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="p-1.5 rounded-lg bg-slate-200 dark:bg-[#2a294a] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
-                  title="Toggle Light/Dark Theme"
+                  className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-[#1b2332] text-slate-400 transition cursor-pointer"
                 >
-                  {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                  {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
                 </button>
               </div>
-              <div className="bg-slate-200/50 dark:bg-[#151824] p-3.5 rounded-lg border border-slate-300/40 dark:border-[#1e2235]">
-                <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-widest block font-bold mb-1">
-                  Active Connection
-                </span>
-                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
+              <div className="p-2.5 rounded-lg" style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+                <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--color-text-muted)' }}>Connected</div>
+                <div className="text-[10px] font-bold truncate" style={{ color: 'var(--color-text-secondary)' }}>
                   {stats?.status === 'healthy' ? 'kind-podex' : 'Connecting...'}
-                </span>
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ml-1.5 ${stats?.status === 'healthy' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                </div>
               </div>
             </div>
           </div>
@@ -1093,65 +1055,64 @@ export default function App() {
       </aside>
 
       {/* Main Workspace Frame */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0b0e14]">
+      <main className="flex-1 flex flex-col min-w-0" style={{ background: 'var(--color-bg-base)' }}>
 
-        {/* Top Header Workspace */}
-        <header className="h-16 border-b border-slate-200 dark:border-[#1e2235] flex items-center justify-between px-8 bg-white dark:bg-[#10131c]">
-          <div className="flex items-center space-x-4">
-            {/* Sidebar toggle button (only shown when collapsed to expand it) */}
+        {/* Top Header */}
+        <header className="h-12 flex items-center justify-between px-6 shrink-0"
+          style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-header)' }}>
+          <div className="flex items-center gap-3">
             {sidebarCollapsed && (
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#24233f] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
-                title="Show Sidebar"
+                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 transition cursor-pointer"
               >
-                <Menu className="w-5 h-5" />
+                <Menu className="w-4 h-4" />
               </button>
             )}
-            <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 capitalize m-0 tracking-wide">
-              {activeTab} Space
+            <h2 className="text-xs font-bold capitalize tracking-wide" style={{ color: 'var(--color-text-primary)' }}>
+              {activeTab === 'arena' ? 'Arena' : activeTab}
             </h2>
 
-            {/* Namespace Filter for Explorer */}
             {activeTab === 'explorer' && (
-              <div className="flex items-center bg-slate-100 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl px-3 py-1">
-                <Sliders className="w-3.5 h-3.5 text-slate-400 mr-2" />
-                <span className="text-[11px] text-slate-500 dark:text-slate-500 mr-2 font-bold">Namespace:</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+                <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>NS:</span>
                 <input
                   type="text"
-                  placeholder="all / default / etc."
+                  placeholder="all"
                   value={namespaceFilter}
                   onChange={(e) => setNamespaceFilter(e.target.value)}
-                  className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-24 font-bold"
+                  className="bg-transparent text-[11px] font-semibold border-none outline-none p-0 w-16"
+                  style={{ color: 'var(--color-text-primary)' }}
                 />
               </div>
             )}
 
-            {/* Show System Resources Toggle */}
             {(activeTab === 'explorer' || activeTab === 'dashboard') && (
-              <label className="flex items-center space-x-2 bg-slate-100 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl px-3 py-1 cursor-pointer select-none">
+              <label className="flex items-center gap-1.5 px-2.5 py-1 rounded-md cursor-pointer select-none"
+                style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
                 <input
                   type="checkbox"
                   checked={showSystemResources}
                   onChange={(e) => setShowSystemResources(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-[#2d2c50] focus:ring-0 cursor-pointer"
+                  className="w-3 h-3 rounded text-blue-500 focus:ring-0 cursor-pointer"
                 />
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Show System</span>
+                <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>System</span>
               </label>
             )}
           </div>
 
-          <div className="flex items-center space-x-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
-            <span>Kind Cluster Dev</span>
-              <span className={`w-2 h-2 rounded-full ${stats?.status === 'healthy' ? 'bg-cyan-500' : 'bg-amber-400'}`} />
+          <div className="flex items-center gap-2 text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+            <span>{activeContext || 'default'}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${stats?.status === 'healthy' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
           </div>
         </header>
 
         {/* Dynamic Views Content */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto" style={{ background: 'var(--color-bg-base)' }}>
 
           {/* TAB 1: DASHBOARD */}
           {activeTab === 'dashboard' && (
+            <div className="p-6 max-w-6xl mx-auto w-full animate-fade-in">
             <DashboardTab
               stats={stats}
               statsLoading={statsLoading}
@@ -1165,10 +1126,12 @@ export default function App() {
               setSelectedResource={setSelectedResource}
               setDetailTab={setDetailTab}
             />
+            </div>
           )}
 
           {/* TAB 2: EXPLORER */}
           {activeTab === 'explorer' && (
+            <div className="p-6 max-w-6xl mx-auto w-full animate-fade-in">
             <ExplorerTab
               explorerSubTab={explorerSubTab}
               setExplorerSubTab={setExplorerSubTab}
@@ -1186,10 +1149,12 @@ export default function App() {
               onRefresh={fetchResources}
               setToast={setToast}
             />
+            </div>
           )}
 
           {/* TAB 3: LEARN TEACHER */}
           {activeTab === 'learn' && (
+            <div className="p-6 max-w-4xl mx-auto w-full animate-fade-in">
             <LearnTab
               learnQuery={learnQuery}
               setLearnQuery={setLearnQuery}
@@ -1199,10 +1164,12 @@ export default function App() {
               learnSubTab={learnSubTab}
               setLearnSubTab={setLearnSubTab}
             />
+            </div>
           )}
 
           {/* TAB: TOPOLOGY DIAGRAM */}
           {activeTab === 'diagram' && (
+            <div className="p-6 max-w-6xl mx-auto w-full animate-fade-in">
             <TopologyDiagramTab
               filteredTopology={getFilteredTopology()}
               topologyLoading={topologyLoading}
@@ -1225,6 +1192,7 @@ export default function App() {
               setDetailTab={setDetailTab}
               getAccentColor={getAccentColor}
             />
+            </div>
           )}
 
           {/* TAB: ARENA PLAYGROUND */}
@@ -1242,6 +1210,7 @@ export default function App() {
           )}
           {/* TAB 4: SETTINGS */}
           {activeTab === 'settings' && (
+            <div className="p-6 max-w-4xl mx-auto w-full animate-fade-in">
             <SettingsTab
               contexts={contexts}
               activeContext={activeContext}
@@ -1269,6 +1238,7 @@ export default function App() {
               refreshInterval={refreshInterval}
               setRefreshInterval={setRefreshInterval}
             />
+            </div>
           )}
         </div>
       </main>
