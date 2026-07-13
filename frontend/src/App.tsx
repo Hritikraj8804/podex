@@ -215,11 +215,6 @@ export default function App() {
     return Number(localStorage.getItem('logsTailLimit')) || 100;
   });
 
-  // Theme Accent presets
-  const [accentColor, setAccentColorState] = useState<'cyan' | 'indigo' | 'violet' | 'emerald' | 'amber'>(() => {
-    return (localStorage.getItem('accentColor') as any) || 'cyan';
-  });
-
   const setAiModel = (val: string) => {
     setAiModelState(val);
     localStorage.setItem('aiModel', val);
@@ -244,53 +239,15 @@ export default function App() {
     setLogsTailLimitState(val);
     localStorage.setItem('logsTailLimit', String(val));
   };
-  const setAccentColor = (val: 'cyan' | 'indigo' | 'violet' | 'emerald' | 'amber') => {
-    setAccentColorState(val);
-    localStorage.setItem('accentColor', val);
-  };
-
   const getAccentColor = (type: 'text' | 'bg' | 'bgMuted' | 'border' | 'hoverText' | 'focusRing' | 'glow') => {
-    switch (accentColor) {
-      case 'indigo':
-        if (type === 'text') return 'text-indigo-650 dark:text-indigo-400';
-        if (type === 'bg') return 'bg-indigo-600';
-        if (type === 'bgMuted') return 'bg-indigo-500/10 dark:bg-indigo-500/5';
-        if (type === 'border') return 'border-indigo-500';
-        if (type === 'hoverText') return 'hover:text-indigo-650 dark:hover:text-indigo-400';
-        if (type === 'glow') return 'shadow-indigo-500/10';
-        return 'focus:ring-indigo-500';
-      case 'violet':
-        if (type === 'text') return 'text-violet-650 dark:text-violet-400';
-        if (type === 'bg') return 'bg-violet-600';
-        if (type === 'bgMuted') return 'bg-violet-500/10 dark:bg-violet-500/5';
-        if (type === 'border') return 'border-violet-500';
-        if (type === 'hoverText') return 'hover:text-violet-655 dark:hover:text-violet-400';
-        if (type === 'glow') return 'shadow-violet-500/10';
-        return 'focus:ring-violet-500';
-      case 'emerald':
-        if (type === 'text') return 'text-emerald-650 dark:text-emerald-400';
-        if (type === 'bg') return 'bg-emerald-600';
-        if (type === 'bgMuted') return 'bg-emerald-500/10 dark:bg-emerald-500/5';
-        if (type === 'border') return 'border-emerald-500';
-        if (type === 'hoverText') return 'hover:text-emerald-650 dark:hover:text-emerald-400';
-        if (type === 'glow') return 'shadow-emerald-500/10';
-        return 'focus:ring-emerald-500';
-      case 'amber':
-        if (type === 'text') return 'text-amber-650 dark:text-amber-400';
-        if (type === 'bg') return 'bg-amber-600';
-        if (type === 'bgMuted') return 'bg-amber-500/10 dark:bg-amber-500/5';
-        if (type === 'border') return 'border-amber-500';
-        if (type === 'hoverText') return 'hover:text-amber-650 dark:hover:text-amber-400';
-        if (type === 'glow') return 'shadow-amber-500/10';
-        return 'focus:ring-amber-500';
-      default: // cyan
-        if (type === 'text') return 'text-cyan-650 dark:text-cyan-400';
-        if (type === 'bg') return 'bg-cyan-500';
-        if (type === 'bgMuted') return 'bg-cyan-500/10 dark:bg-cyan-500/5';
-        if (type === 'border') return 'border-cyan-500';
-        if (type === 'hoverText') return 'hover:text-cyan-650 dark:hover:text-cyan-400';
-        if (type === 'glow') return 'shadow-cyan-500/10';
-        return 'focus:ring-cyan-500';
+    switch (type) {
+      case 'text': return 'text-cyan-600 dark:text-cyan-400';
+      case 'bg': return 'bg-cyan-500';
+      case 'bgMuted': return 'bg-cyan-500/10 dark:bg-cyan-500/5';
+      case 'border': return 'border-cyan-500';
+      case 'hoverText': return 'hover:text-cyan-600 dark:hover:text-cyan-400';
+      case 'glow': return 'shadow-cyan-500/10';
+      default: return 'focus:ring-cyan-500';
     }
   };
   const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services'>('pods');
@@ -679,39 +636,25 @@ export default function App() {
     setResourceDetailsLoading(true);
     const { type, name, namespace } = selectedResource;
 
+    setAiInvestigation(null);
+    setAiInvestigating(false);
+    setInvestigationSubTab('diagnosis');
+
+    const baseUrl = `${API_URL}/api/${type}/${namespace}/${name}`;
+
     try {
-      // 1. Fetch metadata overview JSON
-      const specRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/details`);
-      if (specRes.ok) {
-        setResourceDetails(await specRes.json());
-      }
+      const [specRes, eventsRes, yamlRes, logsRes] = await Promise.all([
+        fetch(`${baseUrl}/details`),
+        fetch(`${baseUrl}/events`),
+        fetch(`${baseUrl}/yaml`),
+        fetch(`${baseUrl}/logs?tail=${logsTailLimit}&timestamps=${logsShowTimestamps}`),
+      ]);
 
-      // 2. Fetch Events
-      const eventsRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/events`);
-      if (eventsRes.ok) {
-        setEventsList(await eventsRes.json());
-      }
-
-      // 3. Fetch YAML Config
-      const yamlRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/yaml`);
-      if (yamlRes.ok) {
-        const yData = await yamlRes.json();
-        setYamlText(yData.yaml || '');
-      }
-
-      // 4. Fetch Logs (backend supports pods, deployments, and services)
-      const logsRes = await fetch(`${API_URL}/api/${type}/${namespace}/${name}/logs?tail=${logsTailLimit}&timestamps=${logsShowTimestamps}`);
-      if (logsRes.ok) {
-        const lData = await logsRes.json();
-        setLogsText(lData.logs || '');
-      } else {
-        setLogsText(`Failed loading logs for ${type}.`);
-      }
-
-      // Reset AI states when switching resources
-      setAiInvestigation(null);
-      setAiInvestigating(false);
-      setInvestigationSubTab('diagnosis');
+      if (specRes.ok) setResourceDetails(await specRes.json());
+      if (eventsRes.ok) setEventsList(await eventsRes.json());
+      if (yamlRes.ok) { const yData = await yamlRes.json(); setYamlText(yData.yaml || ''); }
+      if (logsRes.ok) { const lData = await logsRes.json(); setLogsText(lData.logs || ''); }
+      else setLogsText(`Failed loading logs for ${type}.`);
     } catch (e) {
       console.error(e);
     } finally {
@@ -861,15 +804,15 @@ export default function App() {
   const getStatusColor = (status: string) => {
     const s = status.toLowerCase();
     if (s.includes('run') || s === 'ready' || s === 'completed' || s.includes('active')) {
-      return 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-450 border border-emerald-250 dark:border-emerald-900/40';
+      return 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40';
     }
     if (s.includes('backoff') || s.includes('fail') || s.includes('error') || s.includes('unhealthy')) {
-      return 'bg-red-50/80 dark:bg-red-950/40 text-red-700 dark:text-red-450 border border-red-250 dark:border-red-900/40';
+      return 'bg-red-50/80 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/40';
     }
     if (s.includes('pend') || s.includes('progress') || s.includes('terminat') || s.includes('creat')) {
-      return 'bg-amber-50/80 dark:bg-amber-950/40 text-amber-700 dark:text-amber-450 border border-amber-250 dark:border-amber-900/40';
+      return 'bg-amber-50/80 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40';
     }
-    return 'bg-slate-50 dark:bg-slate-900 text-slate-650 dark:text-slate-400 border border-slate-200 dark:border-slate-800';
+    return 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800';
   };
 
   // System namespaces that should be hidden from beginners by default
@@ -952,10 +895,10 @@ export default function App() {
 
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-[#07080b] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-200">
+    <div className="flex h-screen bg-slate-50 dark:bg-[#0b0e14] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-150">
 
       {/* Sidebar NAVIGATION */}
-      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-slate-100 dark:bg-[#0d0e12] border-r border-slate-200 dark:border-[#1e202a] flex flex-col justify-between select-none transition-all duration-300`}>
+      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-slate-100 dark:bg-[#0d1018] border-r border-slate-200 dark:border-[#1e2235] flex flex-col justify-between select-none transition-all duration-200`}>
         {sidebarCollapsed ? (
           /* SLIM SIDEBAR (Discord style icon strip) */
           <div className="flex flex-col justify-between h-full py-6 items-center">
@@ -966,7 +909,7 @@ export default function App() {
                   setActiveTab('dashboard');
                   setSelectedResource(null);
                 }}
-                className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-cyan-500/10 cursor-pointer hover:opacity-90 active:scale-95 transition"
+                className="w-10 h-10 rounded-lg bg-cyan-600 flex items-center justify-center font-bold text-lg text-white cursor-pointer hover:bg-cyan-500 transition"
                 title="Podex - Go to Dashboard"
               >
                 P
@@ -993,10 +936,10 @@ export default function App() {
                       title={tab.label}
                       className={`w-12 h-12 flex items-center justify-center rounded-xl transition cursor-pointer relative group ${isActive
                           ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
-                          : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
+                          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                     >
-                      <Icon className={`w-5 h-5 ${isActive ? getAccentColor('text') : 'text-slate-405'}`} />
+                      <Icon className={`w-5 h-5 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
                       
                       {/* Tooltip */}
                       <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
@@ -1018,11 +961,11 @@ export default function App() {
                 }}
                 className={`w-12 h-12 flex items-center justify-center rounded-xl transition cursor-pointer relative group ${activeTab === 'settings'
                     ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
-                    : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
                 title="Settings"
               >
-                <Settings className={`w-5 h-5 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-405'}`} />
+                <Settings className={`w-5 h-5 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-400'}`} />
                 <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
                   Settings
                 </div>
@@ -1031,7 +974,7 @@ export default function App() {
               {/* Theme Toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-605 dark:text-slate-300 transition cursor-pointer"
+                className="p-2 rounded-lg bg-slate-200 dark:bg-[#2a294a] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
                 title="Toggle Light/Dark Theme"
               >
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -1040,7 +983,7 @@ export default function App() {
               {/* Expand Button */}
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-[#1a1c25] text-slate-500 dark:text-slate-405 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-[#2a294a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
                 title="Expand Sidebar"
               >
                 <Menu className="w-4 h-4" />
@@ -1052,7 +995,7 @@ export default function App() {
           <div className="flex flex-col justify-between h-full">
             <div>
               {/* Logo Brand */}
-              <div className="p-6 flex items-center justify-between border-b border-slate-200 dark:border-[#1e202a]">
+              <div className="p-6 flex items-center justify-between border-b border-slate-200 dark:border-[#2d2c50]">
                 <div
                   onClick={() => {
                     setActiveTab('dashboard');
@@ -1061,17 +1004,17 @@ export default function App() {
                   className="flex items-center space-x-3 cursor-pointer hover:opacity-90 active:scale-95 transition"
                   title="Go to Dashboard"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-cyan-500/10">
+                   <div className="w-8 h-8 rounded-lg bg-cyan-600 flex items-center justify-center font-bold text-lg text-white">
                     P
                   </div>
                   <div>
-                    <h1 className="text-sm font-extrabold text-slate-800 dark:text-white m-0 tracking-wide">PODEX</h1>
+                    <h1 className="text-sm font-extrabold text-slate-800 dark:text-cyan-400 m-0 tracking-wide">PODEX</h1>
                     <span className="text-[10px] text-slate-500 dark:text-slate-500 font-bold tracking-wider block">K8S FOR BEGINNERS</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setSidebarCollapsed(true)}
-                  className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#1a1c25] text-slate-500 dark:text-slate-405 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                  className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#2a294a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
                   title="Hide Sidebar"
                 >
                   <PanelLeftClose className="w-4 h-4" />
@@ -1098,10 +1041,10 @@ export default function App() {
                       }}
                       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${isActive
                         ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
-                        : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-200'
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                     >
-                      <Icon className={`w-4 h-4 ${isActive ? getAccentColor('text') : 'text-slate-405'}`} />
+                      <Icon className={`w-4 h-4 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
                       <span>{tab.label}</span>
                     </button>
                   );
@@ -1110,7 +1053,7 @@ export default function App() {
             </div>
 
             {/* Sidebar Footer */}
-            <div className="p-6 border-t border-slate-200 dark:border-[#1e202a] space-y-3">
+            <div className="p-6 border-t border-slate-200 dark:border-[#2d2c50] space-y-3">
               {/* Settings button */}
               <button
                 onClick={() => {
@@ -1119,24 +1062,24 @@ export default function App() {
                 }}
                 className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition cursor-pointer ${activeTab === 'settings'
                     ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
-                    : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#12141a] hover:text-slate-800 dark:hover:text-slate-205'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
                   }`}
               >
-                <Settings className={`w-4 h-4 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-405'}`} />
+                <Settings className={`w-4 h-4 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-400'}`} />
                 <span>Settings</span>
               </button>
 
-              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/50 dark:border-[#1e202a]/50">
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/50 dark:border-[#2d2c50]/50">
                 <span className="text-slate-500 font-bold">Theme Mode</span>
                 <button
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="p-1.5 rounded-lg bg-slate-205 dark:bg-[#1a1c25] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-605 dark:text-slate-300 transition cursor-pointer"
+                  className="p-1.5 rounded-lg bg-slate-200 dark:bg-[#2a294a] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
                   title="Toggle Light/Dark Theme"
                 >
                   {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                 </button>
               </div>
-              <div className="bg-slate-200/50 dark:bg-[#111319] p-3.5 rounded-xl border border-slate-350/40 dark:border-slate-800/60">
+              <div className="bg-slate-200/50 dark:bg-[#151824] p-3.5 rounded-lg border border-slate-300/40 dark:border-[#1e2235]">
                 <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-widest block font-bold mb-1">
                   Active Connection
                 </span>
@@ -1150,16 +1093,16 @@ export default function App() {
       </aside>
 
       {/* Main Workspace Frame */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#07080b]">
+      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0b0e14]">
 
         {/* Top Header Workspace */}
-        <header className="h-16 border-b border-slate-200 dark:border-[#1e202a] flex items-center justify-between px-8 bg-white dark:bg-[#090b0e]">
+        <header className="h-16 border-b border-slate-200 dark:border-[#1e2235] flex items-center justify-between px-8 bg-white dark:bg-[#10131c]">
           <div className="flex items-center space-x-4">
             {/* Sidebar toggle button (only shown when collapsed to expand it) */}
             {sidebarCollapsed && (
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#12141a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#24233f] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
                 title="Show Sidebar"
               >
                 <Menu className="w-5 h-5" />
@@ -1171,27 +1114,27 @@ export default function App() {
 
             {/* Namespace Filter for Explorer */}
             {activeTab === 'explorer' && (
-              <div className="flex items-center bg-slate-100 dark:bg-[#111319] border border-slate-200 dark:border-[#1e202a] rounded-xl px-3 py-1">
-                <Sliders className="w-3.5 h-3.5 text-slate-405 mr-2" />
+              <div className="flex items-center bg-slate-100 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl px-3 py-1">
+                <Sliders className="w-3.5 h-3.5 text-slate-400 mr-2" />
                 <span className="text-[11px] text-slate-500 dark:text-slate-500 mr-2 font-bold">Namespace:</span>
                 <input
                   type="text"
                   placeholder="all / default / etc."
                   value={namespaceFilter}
                   onChange={(e) => setNamespaceFilter(e.target.value)}
-                  className="bg-transparent text-xs text-slate-750 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-24 font-bold"
+                  className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-24 font-bold"
                 />
               </div>
             )}
 
             {/* Show System Resources Toggle */}
             {(activeTab === 'explorer' || activeTab === 'dashboard') && (
-              <label className="flex items-center space-x-2 bg-slate-100 dark:bg-[#111319] border border-slate-200 dark:border-[#1e202a] rounded-xl px-3 py-1 cursor-pointer select-none">
+              <label className="flex items-center space-x-2 bg-slate-100 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl px-3 py-1 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={showSystemResources}
                   onChange={(e) => setShowSystemResources(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-350 dark:border-[#1e202a] focus:ring-0 cursor-pointer"
+                  className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-[#2d2c50] focus:ring-0 cursor-pointer"
                 />
                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Show System</span>
               </label>
@@ -1200,7 +1143,7 @@ export default function App() {
 
           <div className="flex items-center space-x-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
             <span>Kind Cluster Dev</span>
-            <span className={`w-2 h-2 rounded-full ${stats?.status === 'healthy' ? 'bg-cyan-400 animate-pulse shadow-md' : 'bg-amber-450'}`} />
+              <span className={`w-2 h-2 rounded-full ${stats?.status === 'healthy' ? 'bg-cyan-500' : 'bg-amber-400'}`} />
           </div>
         </header>
 
@@ -1321,13 +1264,10 @@ export default function App() {
               setLogsShowTimestamps={setLogsShowTimestamps}
               logsTailLimit={logsTailLimit}
               setLogsTailLimit={setLogsTailLimit}
-              accentColor={accentColor}
-              setAccentColor={setAccentColor}
               customNamespaces={customNamespaces}
               setCustomNamespaces={setCustomNamespaces}
               refreshInterval={refreshInterval}
               setRefreshInterval={setRefreshInterval}
-              getAccentColor={getAccentColor}
             />
           )}
         </div>
@@ -1370,16 +1310,16 @@ export default function App() {
 
       {/* CONFIRMATION / EDUCATION MODAL FRAME */}
       {confirmationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm select-none p-4">
-          <div className="w-full max-w-md bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-[#1e202d] rounded-3xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 select-none p-4">
+          <div className="w-full max-w-md bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-6 space-y-6 shadow-lg">
 
             {/* Modal Header */}
             <div className="flex items-center space-x-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black ${confirmationModal.type === 'delete'
-                ? 'bg-red-50 dark:bg-red-950/50 text-red-550'
+                ? 'bg-red-50 dark:bg-red-950/50 text-red-500'
                 : confirmationModal.type === 'restart'
-                  ? 'bg-cyan-50 dark:bg-cyan-950/50 text-cyan-550'
-                  : 'bg-amber-50 dark:bg-amber-950/50 text-amber-550'
+                  ? 'bg-cyan-50 dark:bg-cyan-950/50 text-cyan-500'
+                  : 'bg-amber-50 dark:bg-amber-950/50 text-amber-500'
                 }`}>
                 {confirmationModal.type === 'delete' ? (
                   <Trash2 className="w-5 h-5" />
@@ -1390,7 +1330,7 @@ export default function App() {
                 )}
               </div>
               <div>
-                <h4 className="text-base font-extrabold text-slate-850 dark:text-slate-100 capitalize m-0">
+                <h4 className="text-base font-extrabold text-slate-800 dark:text-slate-100 capitalize m-0">
                   {confirmationModal.type} {selectedResource?.type}
                 </h4>
                 <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-0.5 block">Action Confirmation</span>
@@ -1398,22 +1338,22 @@ export default function App() {
             </div>
 
             {/* Educational content - What Kubernetes does behind the scenes */}
-            <div className="bg-slate-50 dark:bg-[#11131c] border border-slate-200 dark:border-slate-800 p-4.5 rounded-2xl text-xs leading-relaxed space-y-2">
+            <div className="bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-slate-800 p-4.5 rounded-2xl text-xs leading-relaxed space-y-2">
               <span className="font-bold text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-widest block">
-                🧠 Behind The Scenes (Kubernetes Lifecycle)
+                Behind The Scenes (Kubernetes Lifecycle)
               </span>
               {confirmationModal.type === 'delete' && (
-                <p className="text-slate-650 dark:text-slate-350 m-0 font-bold">
-                  When you delete a Pod, Kubernetes sends a <code className="font-mono text-amber-500 bg-slate-100 dark:bg-slate-850 px-1 rounded">SIGTERM</code> signal to let containers shut down gracefully (defaulting to 30 seconds). Then it runs <code className="font-mono text-red-500 bg-slate-100 dark:bg-slate-850 px-1 rounded">SIGKILL</code> to remove it. Since Pods are usually managed by Deployments, **a new Pod instance will be spun up automatically** to replace it.
+                <p className="text-slate-500 dark:text-slate-300 m-0 font-bold">
+                  When you delete a Pod, Kubernetes sends a <code className="font-mono text-amber-500 bg-slate-100 dark:bg-slate-800 px-1 rounded">SIGTERM</code> signal to let containers shut down gracefully (defaulting to 30 seconds). Then it runs <code className="font-mono text-red-500 bg-slate-100 dark:bg-slate-800 px-1 rounded">SIGKILL</code> to remove it. Since Pods are usually managed by Deployments, **a new Pod instance will be spun up automatically** to replace it.
                 </p>
               )}
               {confirmationModal.type === 'restart' && (
-                <p className="text-slate-650 dark:text-slate-350 m-0 font-bold">
+                <p className="text-slate-500 dark:text-slate-300 m-0 font-bold">
                   Restarting a Deployment triggers a Rolling Update. Kubernetes spins up a new pod replica first, waits for it to become ready, and then kills the old replica. This guarantees zero downtime for your web applications.
                 </p>
               )}
               {confirmationModal.type === 'scale' && (
-                <p className="text-slate-650 dark:text-slate-350 m-0 font-bold">
+                <p className="text-slate-500 dark:text-slate-300 m-0 font-bold">
                   Scaling tells the Controller Manager to adjust the number of active Pod replicas. Scaling up starts new pods matching your specs; scaling down gracefully terminates excess replicas using a descending rank list.
                 </p>
               )}
@@ -1422,8 +1362,8 @@ export default function App() {
             {/* Inputs if Scale */}
             {confirmationModal.type === 'scale' && (
               <div className="space-y-2 text-xs">
-                <label className="font-bold text-slate-500 dark:text-slate-450 block">Target Replica Count:</label>
-                <div className="flex items-center space-x-3 bg-slate-50 dark:bg-[#10121a] border border-slate-200 dark:border-[#1e202a] rounded-xl p-2 max-w-[140px] select-none">
+                <label className="font-bold text-slate-500 dark:text-slate-400 block">Target Replica Count:</label>
+                <div className="flex items-center space-x-3 bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl p-2 max-w-[140px] select-none">
                   <button
                     onClick={() => setConfirmationModal({
                       ...confirmationModal,
@@ -1455,11 +1395,11 @@ export default function App() {
             </p>
 
             {/* Modal Actions */}
-            <div className="flex justify-end items-center space-x-3 border-t border-slate-200 dark:border-[#1e202a] pt-4">
+            <div className="flex justify-end items-center space-x-3 border-t border-slate-200 dark:border-[#2d2c50] pt-4">
               <button
                 onClick={() => setConfirmationModal(null)}
                 disabled={operationInProgress}
-                className="px-4.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1e202a] hover:bg-slate-105 dark:hover:bg-[#13141b] text-slate-600 dark:text-slate-300 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                className="px-4.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#2d2c50] hover:bg-slate-100 dark:hover:bg-[#24233f] text-slate-600 dark:text-slate-300 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -1484,15 +1424,15 @@ export default function App() {
 
       {/* Toast Notification Banner */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4.5 py-3 rounded-2xl border shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 backdrop-blur-md bg-white/90 dark:bg-[#0c0e15]/90 border-slate-205 dark:border-[#1e202d]">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4.5 py-3 rounded-2xl border shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 backdrop-blur-md bg-white/90 dark:bg-[#1a1932]/90 border-slate-200 dark:border-[#2d2c50]">
           {toast.type === 'success' ? (
             <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
           ) : toast.type === 'error' ? (
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 animate-bounce" />
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
           ) : (
             <Info className="w-5 h-5 text-cyan-500 shrink-0" />
           )}
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-250">{toast.message}</span>
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{toast.message}</span>
         </div>
       )}
 

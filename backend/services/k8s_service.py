@@ -500,7 +500,7 @@ class K8sService:
                         for cs in pod.status.container_statuses:
                             if cs.state and cs.state.waiting:
                                 status = "degraded"
-                            if cs.restart_count > 5:
+                            if cs.restart_count > 5 and not cs.ready:
                                 status = "degraded"
                 elif phase in ["pending", "succeeded"]:
                     status = "degraded"

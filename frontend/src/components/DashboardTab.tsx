@@ -48,18 +48,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Left Welcome Content (2/3 width) */}
-        <div className="lg:col-span-2 relative overflow-hidden rounded-3xl bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-slate-800 p-8 shadow-sm flex flex-col justify-between min-h-[220px]">
-          <div className="absolute right-0 top-0 w-64 h-64 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-3xl" />
-          <div className="relative z-10 space-y-3">
+        <div className="lg:col-span-2 rounded-2xl bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] p-8 flex flex-col justify-between min-h-[220px]">
+          <div className="space-y-3">
             <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 tracking-widest uppercase">Kubernetes Interactive Workspace</span>
             <h3 className="text-xl font-black text-slate-800 dark:text-white leading-tight">Inspect container states & diagnose errors reactively.</h3>
-            <p className="text-slate-500 dark:text-slate-405 text-xs leading-relaxed font-semibold max-w-lg">
+            <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed font-semibold max-w-lg">
               Podex fetches live logs, details, and events from your Kind cluster, highlighting degraded pods. Click on the live status grid below to troubleshoot.
             </p>
           </div>
 
           {/* Interactive Status Grid (CNCF K9s Cell Graphic) */}
-          <div className="relative z-10 pt-6 border-t border-slate-100 dark:border-slate-800/80 mt-6">
+          <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80 mt-6">
             <div className="flex justify-between items-center mb-2.5">
               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 Cluster Pod Map ({filteredPods.length} total)
@@ -100,7 +99,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
 
         {/* Right Circular Health Donut (1/3 width) */}
-        <div className="bg-white dark:bg-[#0c0e15] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 flex flex-col items-center justify-center space-y-4 shadow-sm min-h-[220px]">
+        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-8 flex flex-col items-center justify-center space-y-4 min-h-[220px]">
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Cluster Health</span>
 
           {/* SVG Donut Track */}
@@ -127,7 +126,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               />
             </svg>
             <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-2xl font-black text-slate-850 dark:text-white leading-none">
+              <span className="text-2xl font-black text-slate-800 dark:text-white leading-none">
                 {healthPercentage}%
               </span>
               <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
@@ -146,10 +145,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
 
         {/* Nodes Stat */}
-        <div className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-6 hover:border-cyan-500/30 transition duration-200 shadow-sm">
+        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 hover:border-cyan-500/30 transition duration-200">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nodes</span>
-            <Cpu className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
+            <Cpu className="w-5 h-5 text-cyan-500" />
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-black text-slate-800 dark:text-white">
@@ -160,10 +159,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
 
         {/* Pods Stat */}
-        <div className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-6 hover:border-violet-500/30 transition duration-200 shadow-sm">
+        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 hover:border-cyan-500/30 transition duration-200">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pods</span>
-            <Layers className="w-5 h-5 text-violet-500 dark:text-violet-400" />
+            <Layers className="w-5 h-5 text-cyan-500" />
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-black text-slate-800 dark:text-white">
@@ -174,10 +173,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
 
         {/* Deployments Stat */}
-        <div className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-6 hover:border-indigo-500/30 transition duration-200 shadow-sm">
+        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 hover:border-cyan-500/30 transition duration-200">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deployments</span>
-            <Activity className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+            <Activity className="w-5 h-5 text-cyan-500" />
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-black text-slate-800 dark:text-white">
@@ -188,10 +187,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
 
         {/* Services Stat */}
-        <div className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-6 hover:border-emerald-500/30 transition duration-200 shadow-sm">
+        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 hover:border-cyan-500/30 transition duration-200">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Services</span>
-            <Terminal className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+            <Terminal className="w-5 h-5 text-cyan-500" />
           </div>
           <div className="flex items-baseline space-x-2">
             <span className="text-3xl font-black text-slate-800 dark:text-white">
@@ -218,7 +217,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 setActiveTab('learn');
                 handleLearnQuery(card.query);
               }}
-              className="bg-white dark:bg-[#0c0e13] border border-slate-200 dark:border-[#1e202a] rounded-2xl p-5 hover:border-cyan-500 cursor-pointer transition group shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300"
+              className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] rounded-2xl p-5 hover:border-cyan-500 cursor-pointer transition group shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300"
             >
               <h5 className="font-bold text-slate-800 dark:text-slate-200 m-0 group-hover:text-cyan-500 transition">{card.title}</h5>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed font-semibold">{card.desc}</p>
