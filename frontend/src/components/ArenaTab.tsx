@@ -200,7 +200,7 @@ const InnerArena: React.FC<ArenaTabProps> = ({
   const [yamlEditMode, setYamlEditMode] = useState(false);
   const [yamlText, setYamlText] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const onboardingSeen = React.useRef(false);
   const [templateConfirm, setTemplateConfirm] = useState<'web' | 'db' | 'full' | null>(null);
   const [showDeleteStackConfirm, setShowDeleteStackConfirm] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -209,7 +209,7 @@ const InnerArena: React.FC<ArenaTabProps> = ({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [stackDeploying, setStackDeploying] = useState(false);
 
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, fitView } = useReactFlow();
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
@@ -475,27 +475,27 @@ const InnerArena: React.FC<ArenaTabProps> = ({
       web: [
         { id: `svc-${ts}`, type: 'service', name: 'web-service', x: 100, y: 200, status: 'draft',
           config: { ...emptyCfg, port: 80, targetPort: 80, serviceType: 'NodePort', selector: 'web-app' } },
-        { id: `deploy-${ts}`, type: 'deployment', name: 'web-app', x: 380, y: 200, status: 'draft',
+        { id: `deploy-${ts}`, type: 'deployment', name: 'web-app', x: 240, y: 200, status: 'draft',
           config: { ...emptyCfg, image: 'nginx:alpine', replicas: 3, port: 80, targetPort: 80 } },
       ],
       db: [
         { id: `svc-${ts}`, type: 'service', name: 'postgres-svc', x: 80, y: 220, status: 'draft',
           config: { ...emptyCfg, port: 5432, targetPort: 5432, selector: 'postgres-db' } },
-        { id: `ss-${ts}`, type: 'statefulset', name: 'postgres-db', x: 360, y: 220, status: 'draft',
+        { id: `ss-${ts}`, type: 'statefulset', name: 'postgres-db', x: 220, y: 220, status: 'draft',
           config: { ...emptyCfg, image: 'postgres:15-alpine', port: 5432, targetPort: 5432, serviceName: 'postgres-svc' } },
-        { id: `sec-${ts}`, type: 'secret', name: 'db-credentials', x: 600, y: 120, status: 'draft',
+        { id: `sec-${ts}`, type: 'secret', name: 'db-credentials', x: 360, y: 140, status: 'draft',
           config: { ...emptyCfg, secretKey: 'POSTGRES_PASSWORD', secretValue: 'postgres123' } },
-        { id: `cm-${ts}`, type: 'configmap', name: 'db-configs', x: 600, y: 320, status: 'draft',
+        { id: `cm-${ts}`, type: 'configmap', name: 'db-configs', x: 360, y: 300, status: 'draft',
           config: { ...emptyCfg, configKey: 'POSTGRES_DB', configValue: 'appdb' } },
       ],
       full: [
-        { id: `ing-${ts}`, type: 'ingress', name: 'frontend-ingress', x: 50, y: 220, status: 'draft',
+        { id: `ing-${ts}`, type: 'ingress', name: 'frontend-ingress', x: 60, y: 220, status: 'draft',
           config: { ...emptyCfg, ingressHost: 'frontend.local', ingressPath: '/', ingressService: 'frontend-svc' } },
-        { id: `svc-${ts}`, type: 'service', name: 'frontend-svc', x: 310, y: 220, status: 'draft',
+        { id: `svc-${ts}`, type: 'service', name: 'frontend-svc', x: 200, y: 220, status: 'draft',
           config: { ...emptyCfg, port: 80, targetPort: 80, selector: 'frontend-deployment' } },
-        { id: `dep-${ts}`, type: 'deployment', name: 'frontend-deployment', x: 570, y: 220, status: 'draft',
+        { id: `dep-${ts}`, type: 'deployment', name: 'frontend-deployment', x: 340, y: 220, status: 'draft',
           config: { ...emptyCfg, image: 'nginx:alpine', replicas: 2, port: 80, targetPort: 80 } },
-        { id: `cm-${ts}`, type: 'configmap', name: 'frontend-configs', x: 830, y: 220, status: 'draft',
+        { id: `cm-${ts}`, type: 'configmap', name: 'frontend-configs', x: 480, y: 220, status: 'draft',
           config: { ...emptyCfg, configKey: 'APP_TITLE', configValue: 'Podex Visual Tutor' } },
       ],
     };
@@ -517,6 +517,7 @@ const InnerArena: React.FC<ArenaTabProps> = ({
     setNodes(configs[templateName]);
     setConnections(connMap[templateName]);
     setSelectedNodeId(null);
+    setTimeout(() => fitView({ duration: 300 }), 50);
   };
 
   return (
@@ -663,10 +664,10 @@ const InnerArena: React.FC<ArenaTabProps> = ({
             zoomable
           />
 
-          {/* Onboarding overlay */}
-          {nodes.length === 0 && !onboardingDismissed && (
-            <Panel position="top-center" className="pointer-events-auto mt-20">
-              <div className="bg-white dark:bg-[#0f1219] border border-slate-200 dark:border-[#1b2332] p-8 rounded-xl shadow-2xl max-w-lg text-center space-y-5">
+          {/* Onboarding overlay - first visit only */}
+          {nodes.length === 0 && !onboardingSeen.current && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10 dark:bg-black/30">
+              <div className="bg-white dark:bg-[#0f1219] border border-slate-200 dark:border-[#1b2332] p-8 rounded-xl shadow-2xl max-w-lg text-center space-y-5 mx-6">
                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mx-auto">
                   <Box className="w-6 h-6 text-blue-500" />
                 </div>
@@ -678,20 +679,20 @@ const InnerArena: React.FC<ArenaTabProps> = ({
                 </div>
                 <div className="flex gap-3 justify-center">
                   <button
-                    onClick={() => executeLoadTemplate('web')}
+                    onClick={() => { executeLoadTemplate('web'); onboardingSeen.current = true; }}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition"
                   >
                     Start with Template
                   </button>
                   <button
-                    onClick={() => setOnboardingDismissed(true)}
+                    onClick={() => { onboardingSeen.current = true; }}
                     className="px-4 py-2 bg-slate-100 dark:bg-[#1b2332] hover:bg-slate-200 dark:hover:bg-[#242d3d] text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-lg transition"
                   >
                     Start Empty
                   </button>
                 </div>
               </div>
-            </Panel>
+            </div>
           )}
 
           {/* Canvas toolbar */}
@@ -941,17 +942,44 @@ const InnerArena: React.FC<ArenaTabProps> = ({
               ) : (
                 /* YAML Editor */
                 <div className="space-y-2">
-                  <textarea
-                    value={yamlText}
-                    onChange={(e) => handleYamlTextChange(e.target.value)}
-                    className="w-full h-80 bg-slate-50 dark:bg-[#080b10] border border-slate-200 dark:border-[#1b2332] rounded-lg p-3 text-[11px] font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none leading-relaxed"
-                    spellCheck={false}
-                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">YAML Definition</span>
+                    <button
+                      onClick={() => {
+                        try {
+                          const formatted = yamlText.split('\n').map(l => l.trimEnd()).join('\n');
+                          setYamlText(formatted);
+                        } catch {}
+                      }}
+                      className="text-[10px] font-medium text-blue-500 hover:text-blue-400 px-2 py-1 rounded hover:bg-blue-500/10 transition cursor-pointer"
+                    >
+                      Format
+                    </button>
+                  </div>
+                  <div className="relative border border-slate-200 dark:border-[#1b2332] rounded-lg overflow-hidden">
+                    <div className="flex">
+                      <div className="select-none text-right px-2 py-3 text-[11px] leading-relaxed font-mono text-slate-400 dark:text-slate-600 bg-slate-100/50 dark:bg-[#06090e] border-r border-slate-200 dark:border-[#1b2332] min-w-[36px]">
+                        {yamlText.split('\n').map((_, i) => (
+                          <div key={i}>{i + 1}</div>
+                        ))}
+                      </div>
+                      <textarea
+                        value={yamlText}
+                        onChange={(e) => handleYamlTextChange(e.target.value)}
+                        className="flex-1 bg-slate-50 dark:bg-[#080b10] p-3 text-[11px] font-mono text-slate-800 dark:text-slate-200 focus:outline-none resize-none leading-relaxed whitespace-pre border-none"
+                        spellCheck={false}
+                        style={{ minHeight: '320px' }}
+                      />
+                    </div>
+                  </div>
                   {validationError && (
                     <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-[11px] font-medium">
                       {validationError}
                     </div>
                   )}
+                  <div className="text-[9px] text-slate-400 dark:text-slate-500 italic">
+                    Edit YAML directly for full control. Changes are reflected in the form.
+                  </div>
                 </div>
               )}
             </div>
