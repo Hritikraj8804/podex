@@ -1281,7 +1281,7 @@ export default function App() {
       {/* CONFIRMATION / EDUCATION MODAL FRAME */}
       {confirmationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 select-none p-4">
-          <div className="w-full max-w-md bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-6 space-y-6 shadow-lg">
+          <div className="w-full max-w-md bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 space-y-6 shadow-lg">
 
             {/* Modal Header */}
             <div className="flex items-center space-x-3">
@@ -1308,7 +1308,7 @@ export default function App() {
             </div>
 
             {/* Educational content - What Kubernetes does behind the scenes */}
-            <div className="bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-slate-800 p-4.5 rounded-2xl text-xs leading-relaxed space-y-2">
+            <div className="bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-slate-800 p-4.5 rounded-lg text-xs leading-relaxed space-y-2">
               <span className="font-bold text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-widest block">
                 Behind The Scenes (Kubernetes Lifecycle)
               </span>
@@ -1333,7 +1333,7 @@ export default function App() {
             {confirmationModal.type === 'scale' && (
               <div className="space-y-2 text-xs">
                 <label className="font-bold text-slate-500 dark:text-slate-400 block">Target Replica Count:</label>
-                <div className="flex items-center space-x-3 bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl p-2 max-w-[140px] select-none">
+                <div className="flex items-center space-x-3 bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-lg p-2 max-w-[140px] select-none">
                   <button
                     onClick={() => setConfirmationModal({
                       ...confirmationModal,
@@ -1365,11 +1365,11 @@ export default function App() {
             </p>
 
             {/* Modal Actions */}
-            <div className="flex justify-end items-center space-x-3 border-t border-slate-200 dark:border-[#2d2c50] pt-4">
+            <div className="flex justify-end items-center space-x-3 border-t border-slate-200 dark:border-[#1b2332] pt-4">
               <button
                 onClick={() => setConfirmationModal(null)}
                 disabled={operationInProgress}
-                className="px-4.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#2d2c50] hover:bg-slate-100 dark:hover:bg-[#24233f] text-slate-600 dark:text-slate-300 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                className="px-4.5 py-2.5 rounded-lg border border-slate-200 dark:border-[#1b2332] hover:bg-slate-100 dark:hover:bg-[#111820] text-slate-600 dark:text-slate-300 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -1394,7 +1394,7 @@ export default function App() {
 
       {/* Toast Notification Banner */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4.5 py-3 rounded-2xl border shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 backdrop-blur-md bg-white/90 dark:bg-[#1a1932]/90 border-slate-200 dark:border-[#2d2c50]">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4.5 py-3 rounded-lg border shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 backdrop-blur-md bg-white/90 dark:bg-[#0d1117]/90 border-slate-200 dark:border-[#1b2332]">
           {toast.type === 'success' ? (
             <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
           ) : toast.type === 'error' ? (

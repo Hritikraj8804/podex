@@ -143,7 +143,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
   return (
     <aside
       style={{ width: isDrawerMaximized ? '90vw' : `${detailsWidth}px` }}
-      className="relative border-l border-slate-200 dark:border-[#2d2c50] bg-white dark:bg-[#121124] flex flex-col z-20 shadow-2xl transition-all duration-75"
+      className="relative border-l border-slate-200 dark:border-[#1b2332] bg-white dark:bg-[#121124] flex flex-col z-20 shadow-2xl transition-all duration-75"
     >
       {/* Resize Handle Drag Border */}
       <div
@@ -152,7 +152,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
       />
 
       {/* Header */}
-      <div className="p-6 border-b border-slate-200 dark:border-[#2d2c50] flex items-center justify-between">
+      <div className="p-6 border-b border-slate-200 dark:border-[#1b2332] flex items-center justify-between">
         <div className="min-w-0">
           <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block mb-1">
             {selectedResource.type} Details
@@ -183,7 +183,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
       </div>
 
       {/* Quick Operations Confirmation triggers */}
-      <div className="px-6 py-4 bg-slate-50 dark:bg-[#0d0f15] border-b border-slate-200 dark:border-[#2d2c50] flex items-center justify-start space-x-2">
+      <div className="px-6 py-4 bg-slate-50 dark:bg-[#0d0f15] border-b border-slate-200 dark:border-[#1b2332] flex items-center justify-start space-x-2">
 
         {/* Delete Pod */}
         {selectedResource.type === 'pod' && (
@@ -233,7 +233,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
       </div>
 
       {/* Sub-tab Select for Resource details */}
-      <div className="flex border-b border-slate-200 dark:border-[#2d2c50] text-xs select-none">
+      <div className="flex border-b border-slate-200 dark:border-[#1b2332] text-xs select-none">
         {([
           'overview',
           'logs',
@@ -270,7 +270,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
               <div className="space-y-5 text-xs">
 
                 {/* Status overview list info */}
-                <div className="bg-white dark:bg-[#1e1d38] p-4 rounded-xl border border-slate-200 dark:border-[#2d2c50] space-y-3 shadow-sm">
+                <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-3 shadow-sm">
                   <h4 className="font-bold text-slate-800 dark:text-slate-300">Specifications</h4>
                   <div className="grid grid-cols-3 gap-2">
                     <span className="text-slate-500 font-bold">Resource:</span>
@@ -289,11 +289,11 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
 
                 {/* Metadata labels */}
                 {resourceDetails.metadata?.labels && (
-                  <div className="bg-white dark:bg-[#1e1d38] p-4 rounded-xl border border-slate-200 dark:border-[#2d2c50] space-y-2 shadow-sm">
+                  <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-2 shadow-sm">
                     <h4 className="font-bold text-slate-800 dark:text-slate-300">Labels</h4>
                     <div className="flex flex-wrap gap-1.5">
                       {Object.entries(resourceDetails.metadata.labels).map(([k, v]) => (
-                        <span key={k} className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#161a25] border border-slate-200 dark:border-[#2d2c50] text-cyan-600 dark:text-cyan-400 font-mono text-[10px]">
+                        <span key={k} className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-[#161a25] border border-slate-200 dark:border-[#1b2332] text-cyan-600 dark:text-cyan-400 font-mono text-[10px]">
                           {k}={String(v)}
                         </span>
                       ))}
@@ -303,7 +303,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
 
                 {/* Visual K8s Conditions Timeline (CNCF Observability) */}
                 {resourceDetails.status?.conditions && (
-                  <div className="bg-white dark:bg-[#1e1d38] p-4 rounded-xl border border-slate-200 dark:border-[#2d2c50] space-y-3 shadow-sm">
+                  <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-3 shadow-sm">
                     <h4 className="font-bold text-slate-800 dark:text-slate-300">Conditions</h4>
                     <div className="grid grid-cols-1 gap-2">
                       {resourceDetails.status.conditions.map((cond: any) => {
@@ -331,7 +331,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
 
                 {/* Clickable Related Resources Map (CNCF Connections) */}
                 {relatedList.length > 0 && (
-                  <div className="bg-white dark:bg-[#1e1d38] p-4 rounded-xl border border-slate-200 dark:border-[#2d2c50] space-y-3 shadow-sm">
+                  <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-3 shadow-sm">
                     <h4 className="font-bold text-slate-800 dark:text-slate-300 flex items-center space-x-1.5">
                       <Link2 className="w-4 h-4 text-cyan-500" />
                       <span>Connected Components</span>
@@ -361,10 +361,10 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
 
                 {/* Container details if Pod */}
                 {selectedResource.type === 'pod' && resourceDetails.spec?.containers && (
-                  <div className="bg-white dark:bg-[#1e1d38] p-4 rounded-xl border border-slate-200 dark:border-[#2d2c50] space-y-3 shadow-sm">
+                  <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-3 shadow-sm">
                     <h4 className="font-bold text-slate-800 dark:text-slate-400">Containers</h4>
                     {resourceDetails.spec.containers.map((container: any) => (
-                      <div key={container.name} className="border-t border-slate-200 dark:border-[#2d2c50] pt-3 mt-3 first:border-none first:pt-0 first:mt-0 space-y-1.5">
+                      <div key={container.name} className="border-t border-slate-200 dark:border-[#1b2332] pt-3 mt-3 first:border-none first:pt-0 first:mt-0 space-y-1.5">
                         <div className="flex justify-between font-bold text-slate-700 dark:text-slate-200">
                           <span>{container.name}</span>
                         </div>
@@ -387,7 +387,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
                   {/* Search log filter */}
-                  <div className="flex items-center bg-white dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl px-2.5 py-1.5 flex-grow max-w-xs shadow-sm">
+                  <div className="flex items-center bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-xl px-2.5 py-1.5 flex-grow max-w-xs shadow-sm">
                     <Search className="w-3.5 h-3.5 text-slate-400 mr-2 shrink-0" />
                     <input
                       type="text"
@@ -405,12 +405,12 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                         type="checkbox"
                         checked={autoScrollLogs}
                         onChange={(e) => setAutoScrollLogs(e.target.checked)}
-                        className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-[#2d2c50] focus:ring-0 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-[#1b2332] focus:ring-0 cursor-pointer"
                       />
                       <span className="text-[10px]">Auto-Scroll</span>
                     </label>
 
-                    <div className="flex items-center space-x-1 border border-slate-200 dark:border-[#2d2c50] rounded-lg p-0.5 bg-slate-100 dark:bg-[#1e1d38]">
+                    <div className="flex items-center space-x-1 border border-slate-200 dark:border-[#1b2332] rounded-lg p-0.5 bg-slate-100 dark:bg-[#111820]">
                       <button
                         onClick={() => setCodeFontSize(Math.max(10, codeFontSize - 1))}
                         className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
@@ -471,7 +471,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                         key={idx}
                         className={`p-3.5 rounded-xl border flex items-start space-x-3 shadow-sm ${ev.type === 'Warning'
                           ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-400 animate-pulse'
-                          : 'bg-white dark:bg-[#1e1d38] border-slate-200 dark:border-[#2d2c50] text-slate-700 dark:text-slate-300'
+                          : 'bg-white dark:bg-[#111820] border-slate-200 dark:border-[#1b2332] text-slate-700 dark:text-slate-300'
                           }`}
                       >
                         {ev.type === 'Warning' ? (
@@ -500,7 +500,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                 <div className="flex justify-between items-center text-xs">
                   <div className="flex items-center space-x-2 font-bold">
                     <span className="text-slate-500 dark:text-slate-400">Kubernetes YAML</span>
-                    <div className="flex items-center space-x-1 border border-slate-200 dark:border-[#2d2c50] rounded-lg p-0.5 bg-slate-100 dark:bg-[#1e1d38]">
+                    <div className="flex items-center space-x-1 border border-slate-200 dark:border-[#1b2332] rounded-lg p-0.5 bg-slate-100 dark:bg-[#111820]">
                       <button
                         onClick={() => setCodeFontSize(Math.max(10, codeFontSize - 1))}
                         className="px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-[10px] font-bold cursor-pointer"
@@ -543,7 +543,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
 
                 {/* Explain workflow trigger */}
                 {!aiInvestigating && !aiInvestigation && (
-                  <div className="bg-white dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] p-6 rounded-2xl text-center space-y-4 shadow-sm">
+                  <div className="bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] p-6 rounded-lg text-center space-y-4 shadow-sm">
                     <HelpCircle className="w-8 h-8 text-cyan-500 dark:text-cyan-400 mx-auto" />
                     <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">Run Diagnosis</h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -560,7 +560,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
 
                 {/* Investigation Loading states */}
                 {aiInvestigating && (
-                  <div className="bg-white dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] p-8 rounded-2xl text-center space-y-4 flex flex-col items-center shadow-sm">
+                  <div className="bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] p-8 rounded-lg text-center space-y-4 flex flex-col items-center shadow-sm">
                     <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
                     <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">Analyzing Cluster State</h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-bold animate-pulse">
@@ -574,7 +574,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                   <div className="space-y-5 text-xs animate-in fade-in slide-in-from-bottom-2 duration-300">
 
                     {/* Status Callout Card */}
-                    <div className={`p-4 rounded-2xl border flex items-start space-x-3 shadow-md transition duration-300 hover:scale-[1.01] ${aiInvestigation.status === 'healthy'
+                    <div className={`p-4 rounded-lg border flex items-start space-x-3 shadow-md transition duration-300 hover:scale-[1.01] ${aiInvestigation.status === 'healthy'
                       ? 'bg-emerald-500/10 dark:bg-emerald-950/20 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
                       : aiInvestigation.status === 'degraded'
                         ? 'bg-amber-500/10 dark:bg-amber-950/20 border-amber-500/30 text-amber-800 dark:text-amber-300'
@@ -596,7 +596,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                     </div>
 
                     {/* Sub-tabs Navigation inside Investigate Panel */}
-                    <div className="flex bg-slate-200/50 dark:bg-[#24233f] rounded-xl p-0.5 border border-slate-200/60 dark:border-[#2d2c50] select-none">
+                    <div className="flex bg-slate-200/50 dark:bg-[#111820] rounded-xl p-0.5 border border-slate-200/60 dark:border-[#1b2332] select-none">
                       {([
                         { id: 'diagnosis', label: 'Diagnosis' },
                         { id: 'fix', label: 'Action Plan' },
@@ -619,7 +619,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                     {investigationSubTab === 'diagnosis' && (
                       <div className="space-y-4 animate-in fade-in duration-200">
                         {/* Confidence Score Gauge */}
-                        <div className="bg-white dark:bg-[#1e1d38] p-4 rounded-2xl border border-slate-200 dark:border-[#2d2c50] space-y-2.5 shadow-sm">
+                        <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-2.5 shadow-sm">
                           <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
                             <span>AI Confidence</span>
                             <span className="text-cyan-600 dark:text-cyan-400 font-extrabold text-xs">{aiInvestigation.confidence}%</span>
@@ -633,14 +633,14 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                         </div>
 
                         {/* Analysis Summary */}
-                        <div className="bg-white dark:bg-[#1e1d38] p-4 rounded-2xl border border-slate-200 dark:border-[#2d2c50] space-y-2 shadow-sm">
+                        <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-2 shadow-sm">
                           <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Analysis Summary</h5>
                           <FormattedText text={aiInvestigation.explanation} onShowToast={(msg, type) => setToast({ message: msg, type })} />
                         </div>
 
                         {/* Evidence list */}
                         {aiInvestigation.evidence && aiInvestigation.evidence.length > 0 && (
-                          <div className="bg-white dark:bg-[#1e1d38] p-4 rounded-2xl border border-slate-200 dark:border-[#2d2c50] space-y-3 shadow-sm">
+                          <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-3 shadow-sm">
                             <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Evidence Gathered</h5>
                             <div className="space-y-2">
                               {aiInvestigation.evidence.map((ev: string, idx: number) => (
@@ -658,7 +658,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                     {/* TAB CONTENT: ACTION PLAN */}
                     {investigationSubTab === 'fix' && (
                       <div className="space-y-4 animate-in fade-in duration-200">
-                        <div className="bg-cyan-50/40 dark:bg-[#0c161e] p-5 rounded-2xl border border-cyan-200 dark:border-cyan-900/35 space-y-3.5 shadow-sm">
+                        <div className="bg-cyan-50/40 dark:bg-[#0c161e] p-5 rounded-lg border border-cyan-200 dark:border-cyan-900/35 space-y-3.5 shadow-sm">
                           <h5 className="font-bold text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-wider flex items-center space-x-1.5">
                             <Sliders className="w-3.5 h-3.5" />
                             <span>Suggested Fix Action</span>
@@ -671,7 +671,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                     {/* TAB CONTENT: CONCEPT LESSON */}
                     {investigationSubTab === 'lesson' && (
                       <div className="space-y-4 animate-in fade-in duration-200">
-                        <div className="bg-white dark:bg-[#1e1d38] p-5 rounded-2xl border border-slate-200 dark:border-[#2d2c50] space-y-4 shadow-sm">
+                        <div className="bg-white dark:bg-[#111820] p-5 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-4 shadow-sm">
                           <div className="space-y-1">
                             <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Core Concept</h5>
                             <span className="font-extrabold text-slate-800 dark:text-slate-100 block text-xs">{aiInvestigation.k8s_lesson.concept}</span>
@@ -693,7 +693,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                     {/* Re-run button */}
                     <button
                       onClick={runInvestigation}
-                      className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-[#2d2c50] hover:bg-slate-100 dark:hover:bg-[#13151f] text-slate-700 dark:text-slate-300 font-bold text-xs transition duration-150 cursor-pointer shadow-sm"
+                      className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-[#1b2332] hover:bg-slate-100 dark:hover:bg-[#13151f] text-slate-700 dark:text-slate-300 font-bold text-xs transition duration-150 cursor-pointer shadow-sm"
                     >
                       Refresh Diagnosis
                     </button>
