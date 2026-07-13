@@ -1,5 +1,9 @@
 import yaml
 import subprocess
+import re
+import time
+import os
+import signal
 from fastapi import APIRouter, HTTPException, Query, Header
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
@@ -57,6 +61,15 @@ class DeleteResourceRequest(BaseModel):
     name: str
     namespace: str
 
+class PortForwardRequest(BaseModel):
+    kind: str
+    name: str
+    namespace: str
+    port: int = 0
+
+# In-memory port-forward registry
+port_forward_processes: Dict[int, subprocess.Popen] = {}
+
 class ExplainCommandResponse(BaseModel):
     explanation: str
 
@@ -90,12 +103,60 @@ def get_resources(namespace: Optional[str] = Query(None)):
         return {
             "pods": k8s_service.list_pods(namespace),
             "deployments": k8s_service.list_deployments(namespace),
-            "services": k8s_service.list_services(namespace)
+            "services": k8s_service.list_services(namespace),
+            "nodes": k8s_service.list_nodes(),
+            "configmaps": k8s_service.list_configmaps(namespace),
+            "secrets": k8s_service.list_secrets(namespace),
+            "statefulsets": k8s_service.list_statefulsets(namespace),
+            "daemonsets": k8s_service.list_daemonsets(namespace),
+            "events": k8s_service.list_events(namespace),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 3. Resource Tabs
+@router.get("/nodes")
+def get_nodes():
+    return k8s_service.list_nodes()
+
+@router.get("/configmaps")
+def get_configmaps(namespace: Optional[str] = Query(None)):
+    return k8s_service.list_configmaps(namespace)
+
+@router.get("/secrets")
+def get_secrets(namespace: Optional[str] = Query(None)):
+    return k8s_service.list_secrets(namespace)
+
+@router.get("/statefulsets")
+def get_statefulsets(namespace: Optional[str] = Query(None)):
+    return k8s_service.list_statefulsets(namespace)
+
+@router.get("/daemonsets")
+def get_daemonsets(namespace: Optional[str] = Query(None)):
+    return k8s_service.list_daemonsets(namespace)
+
+@router.get("/events-all")
+def get_events_all(namespace: Optional[str] = Query(None)):
+    return k8s_service.list_events(namespace)
+
+# 3. Node-specific routes (cluster-scoped, no namespace)
+@router.get("/node/{name}/details")
+def get_node_details(name: str):
+    try:
+        return k8s_service.get_node_details(name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/node/{name}/yaml")
+def get_node_yaml(name: str):
+    try:
+        data = k8s_service.get_node_details(name)
+        cleaned_data = clean_kubernetes_dict(data)
+        yaml_str = yaml.dump(cleaned_data, default_flow_style=False)
+        return {"yaml": yaml_str}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 4. Resource Tabs
 @router.get("/{resource_type}/{namespace}/{name}/details")
 def get_details(resource_type: str, namespace: str, name: str):
     rt = resource_type.lower()
@@ -106,6 +167,16 @@ def get_details(resource_type: str, namespace: str, name: str):
             return k8s_service.get_deployment_details(namespace, name)
         elif rt == "service":
             return k8s_service.get_service_details(namespace, name)
+        elif rt == "node":
+            return k8s_service.get_node_details(name)
+        elif rt == "configmap":
+            return k8s_service.get_configmap_details(namespace, name)
+        elif rt == "secret":
+            return k8s_service.get_secret_details(namespace, name)
+        elif rt == "statefulset":
+            return k8s_service.get_statefulset_details(namespace, name)
+        elif rt == "daemonset":
+            return k8s_service.get_daemonset_details(namespace, name)
         else:
             raise HTTPException(status_code=400, detail=f"Invalid resource type: {resource_type}")
     except Exception as e:
@@ -121,9 +192,19 @@ def get_yaml(resource_type: str, namespace: str, name: str):
             data = k8s_service.get_deployment_details(namespace, name)
         elif rt == "service":
             data = k8s_service.get_service_details(namespace, name)
+        elif rt == "node":
+            data = k8s_service.get_node_details(name)
+        elif rt == "configmap":
+            data = k8s_service.get_configmap_details(namespace, name)
+        elif rt == "secret":
+            data = k8s_service.get_secret_details(namespace, name)
+        elif rt == "statefulset":
+            data = k8s_service.get_statefulset_details(namespace, name)
+        elif rt == "daemonset":
+            data = k8s_service.get_daemonset_details(namespace, name)
         else:
             raise HTTPException(status_code=400, detail=f"Invalid resource type: {resource_type}")
-        
+
         # Clean Kubernetes dict to remove system fields and null values
         cleaned_data = clean_kubernetes_dict(data)
         yaml_str = yaml.dump(cleaned_data, default_flow_style=False)
@@ -308,5 +389,42 @@ def delete_resource(req: DeleteResourceRequest):
         if proc.returncode != 0:
             raise HTTPException(status_code=500, detail=stderr)
         return {"success": True, "message": stdout}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 11. Port Forwarding
+
+@router.post("/kube/port-forward")
+def start_port_forward(req: PortForwardRequest):
+    try:
+        kind = req.kind.lower()
+        port_arg = f":{req.port}" if req.port > 0 else ""
+        proc = subprocess.Popen(
+            ["kubectl", "port-forward", f"{kind}/{req.name}", port_arg, "-n", req.namespace],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        time.sleep(1.5)
+        stderr_line = proc.stderr.readline() if proc.stderr else ""
+        match = re.search(r'127\.0\.0\.1:(\d+)', stderr_line)
+        local_port = int(match.group(1)) if match else (req.port if req.port > 0 else 0)
+        pid = proc.pid
+        port_forward_processes[pid] = proc
+        return {"pid": pid, "port": local_port, "message": f"Forwarding to {req.name} on port {local_port}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/kube/port-forward/{pid}")
+def stop_port_forward(pid: int):
+    try:
+        proc = port_forward_processes.pop(pid, None)
+        if proc:
+            if os.name == 'nt':
+                proc.terminate()
+            else:
+                os.kill(pid, signal.SIGTERM)
+            return {"success": True, "message": f"Port forward {pid} stopped."}
+        return {"success": False, "message": "Process not found."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

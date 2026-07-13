@@ -32,18 +32,29 @@ async def ws_updates(websocket: WebSocket, namespace: str = "default"):
     try:
         while True:
             try:
-                stats = k8s_service.get_cluster_stats()
+                    stats = k8s_service.get_cluster_stats()
                 pods = k8s_service.list_pods(active_namespace)
                 deployments = k8s_service.list_deployments(active_namespace)
                 services = k8s_service.list_services(active_namespace)
+                configmaps = k8s_service.list_configmaps(active_namespace)
+                secrets = k8s_service.list_secrets(active_namespace)
+                statefulsets = k8s_service.list_statefulsets(active_namespace)
+                daemonsets = k8s_service.list_daemonsets(active_namespace)
+                events = k8s_service.list_events(active_namespace)
                 topology = k8s_service.get_topology(active_namespace)
-                
+
                 payload = {
                     "stats": stats,
                     "resources": {
                         "pods": pods,
                         "deployments": deployments,
-                        "services": services
+                        "services": services,
+                        "nodes": k8s_service.list_nodes(),
+                        "configmaps": configmaps,
+                        "secrets": secrets,
+                        "statefulsets": statefulsets,
+                        "daemonsets": daemonsets,
+                        "events": events,
                     },
                     "topology": topology
                 }

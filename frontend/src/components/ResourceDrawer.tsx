@@ -68,7 +68,7 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, onShowToast 
 };
 
 interface ResourceDrawerProps {
-  selectedResource: { type: 'pod' | 'deployment' | 'service', name: string, namespace: string } | null;
+  selectedResource: { type: 'pod' | 'deployment' | 'service' | 'node' | 'configmap' | 'secret' | 'statefulset' | 'daemonset', name: string, namespace: string } | null;
   setSelectedResource: (resource: { type: 'pod' | 'deployment' | 'service', name: string, namespace: string } | null) => void;
   isDrawerMaximized: boolean;
   setIsDrawerMaximized: (max: boolean) => void;

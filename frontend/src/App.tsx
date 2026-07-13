@@ -260,7 +260,7 @@ export default function App() {
       default: return 'focus:ring-cyan-500';
     }
   };
-  const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services'>('pods');
+  const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services' | 'nodes' | 'configmaps' | 'secrets' | 'statefulsets' | 'daemonsets' | 'events'>('pods');
   const [namespaceFilter, setNamespaceFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showSystemResources, setShowSystemResources] = useState<boolean>(false);
@@ -290,11 +290,17 @@ export default function App() {
   const [pods, setPods] = useState<PodResource[]>([]);
   const [deployments, setDeployments] = useState<DeploymentResource[]>([]);
   const [services, setServices] = useState<ServiceResource[]>([]);
+  const [nodes, setNodesRes] = useState<any[]>([]);
+  const [configmaps, setConfigmaps] = useState<any[]>([]);
+  const [secrets, setSecrets] = useState<any[]>([]);
+  const [statefulsets, setStatefulsets] = useState<any[]>([]);
+  const [daemonsets, setDaemonsets] = useState<any[]>([]);
+  const [eventsAll, setEventsAll] = useState<any[]>([]);
   const [resourcesLoading, setResourcesLoading] = useState(false);
 
   // Detail panel states
   const [selectedResource, setSelectedResource] = useState<{
-    type: 'pod' | 'deployment' | 'service';
+    type: 'pod' | 'deployment' | 'service' | 'node' | 'configmap' | 'secret' | 'statefulset' | 'daemonset';
     name: string;
     namespace: string;
   } | null>(null);
@@ -463,6 +469,12 @@ export default function App() {
         setPods(data.pods || []);
         setDeployments(data.deployments || []);
         setServices(data.services || []);
+        setNodesRes(data.nodes || []);
+        setConfigmaps(data.configmaps || []);
+        setSecrets(data.secrets || []);
+        setStatefulsets(data.statefulsets || []);
+        setDaemonsets(data.daemonsets || []);
+        setEventsAll(data.events || []);
       }
     } catch (e) {
       console.error("Failed fetching resources", e);
@@ -518,6 +530,12 @@ export default function App() {
             setPods(data.resources.pods);
             setDeployments(data.resources.deployments);
             setServices(data.resources.services);
+            if (data.resources.nodes) setNodesRes(data.resources.nodes);
+            if (data.resources.configmaps) setConfigmaps(data.resources.configmaps);
+            if (data.resources.secrets) setSecrets(data.resources.secrets);
+            if (data.resources.statefulsets) setStatefulsets(data.resources.statefulsets);
+            if (data.resources.daemonsets) setDaemonsets(data.resources.daemonsets);
+            if (data.resources.events) setEventsAll(data.resources.events);
           }
           if (data.topology) setTopologyData(data.topology);
         } catch (err) {
@@ -859,6 +877,33 @@ export default function App() {
     return matchesSearch && matchesSystem;
   });
 
+  const filteredNodes = nodes.filter(n => n.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredConfigmaps = configmaps.filter(cm => {
+    const matchesSearch = cm.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(cm.namespace);
+    return matchesSearch && matchesSystem;
+  });
+  const filteredSecrets = secrets.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(s.namespace);
+    return matchesSearch && matchesSystem;
+  });
+  const filteredStatefulsets = statefulsets.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(s.namespace);
+    return matchesSearch && matchesSystem;
+  });
+  const filteredDaemonsets = daemonsets.filter(ds => {
+    const matchesSearch = ds.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(ds.namespace);
+    return matchesSearch && matchesSystem;
+  });
+  const filteredEventsAll = eventsAll.filter(e => {
+    const matchesSearch = e.message?.toLowerCase().includes(searchTerm.toLowerCase()) || e.reason?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(e.namespace);
+    return matchesSearch && matchesSystem;
+  });
+
   // Client-side resource relations mapper (traced dynamically in explorer)
   const getRelatedResources = () => {
     if (!selectedResource || !resourceDetails) return [];
@@ -1194,6 +1239,12 @@ export default function App() {
               filteredPods={filteredPods}
               filteredDeployments={filteredDeployments}
               filteredServices={filteredServices}
+              filteredNodes={filteredNodes}
+              filteredConfigmaps={filteredConfigmaps}
+              filteredSecrets={filteredSecrets}
+              filteredStatefulsets={filteredStatefulsets}
+              filteredDaemonsets={filteredDaemonsets}
+              filteredEventsAll={filteredEventsAll}
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
               resourcesLoading={resourcesLoading}

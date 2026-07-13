@@ -6,6 +6,9 @@ from kubernetes.stream import stream
 from kubernetes.client.exceptions import ApiException
 from backend.kubernetes.client import get_core_api, get_apps_api
 
+def get_networking_api() -> client.NetworkingV1Api:
+    return client.NetworkingV1Api()
+
 class K8sService:
     @property
     def core_api(self) -> client.CoreV1Api:
@@ -175,6 +178,148 @@ class K8sService:
             print(f"Error listing services: {e}")
             return []
 
+    def list_nodes(self) -> List[Dict[str, Any]]:
+        try:
+            nodes = self.core_api.list_node()
+            result = []
+            for n in nodes.items:
+                age = self._format_age(n.metadata.creation_timestamp)
+                ready = any(c.type == "Ready" and c.status == "True" for c in n.status.conditions) if n.status.conditions else False
+                result.append({
+                    "name": n.metadata.name,
+                    "status": "Ready" if ready else "NotReady",
+                    "role": n.metadata.labels.get("kubernetes.io/role", n.metadata.labels.get("node-role.kubernetes.io/control-plane", "worker")),
+                    "internal_ip": n.status.addresses[0].address if n.status.addresses else "Unknown",
+                    "kubelet": n.status.node_info.kubelet_version if n.status.node_info else "Unknown",
+                    "age": age,
+                })
+            return result
+        except Exception as e:
+            print(f"Error listing nodes: {e}")
+            return []
+
+    def list_configmaps(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+        try:
+            if namespace:
+                items = self.core_api.list_namespaced_config_map(namespace)
+            else:
+                items = self.core_api.list_config_map_for_all_namespaces()
+            result = []
+            for cm in items.items:
+                age = self._format_age(cm.metadata.creation_timestamp)
+                data_keys = list(cm.data.keys()) if cm.data else []
+                result.append({
+                    "name": cm.metadata.name,
+                    "namespace": cm.metadata.namespace,
+                    "keys": data_keys,
+                    "data_count": len(data_keys),
+                    "age": age,
+                })
+            return result
+        except Exception as e:
+            print(f"Error listing configmaps: {e}")
+            return []
+
+    def list_secrets(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+        try:
+            if namespace:
+                items = self.core_api.list_namespaced_secret(namespace)
+            else:
+                items = self.core_api.list_secret_for_all_namespaces()
+            result = []
+            for s in items.items:
+                if s.type == "kubernetes.io/service-account-token":
+                    continue
+                age = self._format_age(s.metadata.creation_timestamp)
+                key_count = len(s.data) if s.data else 0
+                result.append({
+                    "name": s.metadata.name,
+                    "namespace": s.metadata.namespace,
+                    "type": s.type,
+                    "key_count": key_count,
+                    "age": age,
+                })
+            return result
+        except Exception as e:
+            print(f"Error listing secrets: {e}")
+            return []
+
+    def list_statefulsets(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+        try:
+            api = client.AppsV1Api()
+            if namespace:
+                items = api.list_namespaced_stateful_set(namespace)
+            else:
+                items = api.list_stateful_set_for_all_namespaces()
+            result = []
+            for s in items.items:
+                age = self._format_age(s.metadata.creation_timestamp)
+                desired = s.spec.replicas or 0
+                ready = s.status.ready_replicas or 0
+                result.append({
+                    "name": s.metadata.name,
+                    "namespace": s.metadata.namespace,
+                    "status": "Ready" if ready == desired else "Progressing",
+                    "replicas_desired": desired,
+                    "replicas_ready": ready,
+                    "service_name": s.spec.service_name or "",
+                    "age": age,
+                })
+            return result
+        except Exception as e:
+            print(f"Error listing statefulsets: {e}")
+            return []
+
+    def list_daemonsets(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+        try:
+            api = client.AppsV1Api()
+            if namespace:
+                items = api.list_namespaced_daemon_set(namespace)
+            else:
+                items = api.list_daemon_set_for_all_namespaces()
+            result = []
+            for ds in items.items:
+                age = self._format_age(ds.metadata.creation_timestamp)
+                desired = ds.status.desired_number_scheduled or 0
+                ready = ds.status.number_ready or 0
+                result.append({
+                    "name": ds.metadata.name,
+                    "namespace": ds.metadata.namespace,
+                    "status": "Ready" if ready == desired else "Progressing",
+                    "desired": desired,
+                    "ready": ready,
+                    "current": ds.status.current_number_scheduled or 0,
+                    "age": age,
+                })
+            return result
+        except Exception as e:
+            print(f"Error listing daemonsets: {e}")
+            return []
+
+    def list_events(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+        try:
+            if namespace:
+                items = self.core_api.list_namespaced_event(namespace)
+            else:
+                items = self.core_api.list_event_for_all_namespaces()
+            result = []
+            for ev in items.items:
+                age = self._format_age(ev.last_timestamp or ev.event_time or ev.metadata.creation_timestamp)
+                result.append({
+                    "type": ev.type,
+                    "reason": ev.reason,
+                    "message": ev.message,
+                    "count": ev.count or 1,
+                    "namespace": ev.metadata.namespace,
+                    "involved_kind": ev.involved_object.kind if ev.involved_object else "",
+                    "involved_name": ev.involved_object.name if ev.involved_object else "",
+                    "age": age,
+                })
+            return result
+        except Exception as e:
+            print(f"Error listing events: {e}")
+            return []
+
     def get_pod_details(self, namespace: str, name: str) -> Dict[str, Any]:
         """
         Fetches full details for a Pod.
@@ -195,6 +340,28 @@ class K8sService:
         """
         svc = self.core_api.read_namespaced_service(name, namespace)
         return client.ApiClient().sanitize_for_serialization(svc)
+
+    def get_node_details(self, name: str) -> Dict[str, Any]:
+        node = self.core_api.read_node(name)
+        return client.ApiClient().sanitize_for_serialization(node)
+
+    def get_configmap_details(self, namespace: str, name: str) -> Dict[str, Any]:
+        cm = self.core_api.read_namespaced_config_map(name, namespace)
+        return client.ApiClient().sanitize_for_serialization(cm)
+
+    def get_secret_details(self, namespace: str, name: str) -> Dict[str, Any]:
+        s = self.core_api.read_namespaced_secret(name, namespace)
+        return client.ApiClient().sanitize_for_serialization(s)
+
+    def get_statefulset_details(self, namespace: str, name: str) -> Dict[str, Any]:
+        api = client.AppsV1Api()
+        s = api.read_namespaced_stateful_set(name, namespace)
+        return client.ApiClient().sanitize_for_serialization(s)
+
+    def get_daemonset_details(self, namespace: str, name: str) -> Dict[str, Any]:
+        api = client.AppsV1Api()
+        ds = api.read_namespaced_daemon_set(name, namespace)
+        return client.ApiClient().sanitize_for_serialization(ds)
 
     def get_pod_logs(self, namespace: str, name: str, container: Optional[str] = None, tail_lines: int = 100, timestamps: bool = False) -> str:
         """
