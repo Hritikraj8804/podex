@@ -31,89 +31,48 @@ const K8sNode: React.FC<NodeProps> = ({ data, selected }) => {
       className={`
         group relative flex flex-col items-center
         bg-white dark:bg-[#0f1219]
-        border-[1.5px] rounded-xl
+        border border-slate-200 dark:border-[#1e2536]
+        rounded-lg
         transition-all duration-150 select-none
         ${selected
-          ? 'border-cyan-400 dark:border-cyan-400 shadow-[0_0_0_3px_rgba(6,182,212,0.15)]'
-          : 'border-slate-200 dark:border-[#1e2536] hover:border-slate-300 dark:hover:border-[#2a3348]'
+          ? 'border-cyan-400 dark:border-cyan-400 shadow-[0_0_0_2px_rgba(6,182,212,0.15)]'
+          : 'hover:border-slate-300 dark:hover:border-[#2a3348]'
         }
-        hover:shadow-lg dark:hover:shadow-black/30
+        hover:shadow-md dark:hover:shadow-black/20
       `}
-      style={{ width: 200 }}
+      style={{ width: 100 }}
     >
-      {/* Input Handle (left) */}
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-3 !h-3 !-left-1.5 !bg-[#1e2536] dark:!bg-[#2a3348] !border-2 !border-slate-400 dark:!border-slate-500 hover:!bg-cyan-500 hover:!border-cyan-400 transition-colors"
+        className="!w-2 !h-2 !-left-1 !bg-[#1e2536] dark:!bg-[#2a3348] !border-[1.5px] !border-slate-400 dark:!border-slate-500 hover:!bg-cyan-500 hover:!border-cyan-400 transition-colors"
         style={{ borderRadius: '50%' }}
       />
 
-      {/* Top accent stripe */}
-      <div
-        className="w-full h-[3px] rounded-t-xl"
-        style={{ background: config.color }}
-      />
+      <div className="w-full h-[2px] rounded-t-lg" style={{ background: config.color }} />
 
-      {/* Content */}
-      <div className="w-full px-4 py-3 flex items-center gap-3">
-        {/* Hexagonal icon container */}
-        <div
-          className="relative flex items-center justify-center shrink-0"
-          style={{ width: 36, height: 36 }}
-        >
-          <div
-            className="absolute inset-0 opacity-15"
-            style={{
-              background: config.color,
-              clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-            }}
-          />
-          <div
-            className="absolute inset-[2px] opacity-25"
-            style={{
-              background: config.color,
-              clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-            }}
-          />
-          <Icon
-            className="relative z-10"
-            style={{ width: 18, height: 18, color: config.color }}
-            strokeWidth={2}
-          />
+      <div className="w-full px-2 py-1.5 flex items-center gap-1.5">
+        <div className="relative flex items-center justify-center shrink-0" style={{ width: 18, height: 18 }}>
+          <div className="absolute inset-0 opacity-15" style={{ background: config.color, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }} />
+          <div className="absolute inset-[1.5px] opacity-25" style={{ background: config.color, clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }} />
+          <Icon className="relative z-10" style={{ width: 9, height: 9, color: config.color }} strokeWidth={2} />
         </div>
-
-        {/* Text */}
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-none mb-1">
-            {config.label}
-          </div>
-          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight">
+          <div className="text-[9px] font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight">
             {(data.label as string) || `my-${config.label.toLowerCase()}`}
           </div>
+          <div className="flex items-center gap-1">
+            <div className="w-1 h-1 rounded-full shrink-0" style={{ background: status.color, boxShadow: `0 0 3px ${status.color}40` }} />
+            <span className="text-[7px] font-medium text-slate-400 dark:text-slate-500 uppercase">{config.label}</span>
+          </div>
         </div>
       </div>
 
-      {/* Status bar */}
-      <div className="w-full px-4 pb-3 flex items-center gap-2">
-        <div
-          className="w-2 h-2 rounded-full shrink-0"
-          style={{
-            background: status.color,
-            boxShadow: `0 0 6px ${status.color}40`,
-          }}
-        />
-        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-          {status.label}
-        </span>
-      </div>
-
-      {/* Output Handle (right) */}
       {hasOutput && (
         <Handle
           type="source"
           position={Position.Right}
-          className="!w-3 !h-3 !-right-1.5 !bg-[#1e2536] dark:!bg-[#2a3348] !border-2 !border-slate-400 dark:!border-slate-500 hover:!bg-cyan-500 hover:!border-cyan-400 transition-colors"
+          className="!w-2 !h-2 !-right-1 !bg-[#1e2536] dark:!bg-[#2a3348] !border-[1.5px] !border-slate-400 dark:!border-slate-500 hover:!bg-cyan-500 hover:!border-cyan-400 transition-colors"
           style={{ borderRadius: '50%' }}
         />
       )}
