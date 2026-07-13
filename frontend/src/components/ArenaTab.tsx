@@ -736,7 +736,7 @@ spec:
     <div className="flex-1 flex overflow-hidden h-full relative">
       {/* 1. Sidebar - Toolbox & Templates */}
       {!sidebarCollapsed ? (
-        <div className="w-64 bg-white dark:bg-[#1a1932] border-r border-slate-200 dark:border-[#2d2c50] p-4 flex flex-col justify-between shrink-0 select-none overflow-y-auto relative transition-all duration-300">
+        <div className="w-64 bg-white dark:bg-[#151824] border-r border-slate-200 dark:border-[#1e2235] p-4 flex flex-col justify-between shrink-0 select-none overflow-y-auto relative transition-all duration-300">
           <button
             onClick={() => setSidebarCollapsed(true)}
             className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:bg-slate-105 dark:hover:bg-[#2a294a] hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
@@ -894,7 +894,7 @@ spec:
       ) : (
         <div 
           onClick={() => setSidebarCollapsed(false)}
-          className="w-8 bg-white dark:bg-[#1a1932] border-r border-slate-200 dark:border-[#2d2c50] flex flex-col items-center pt-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1e1d38] transition-all shrink-0 select-none"
+          className="w-8 bg-white dark:bg-[#151824] border-r border-slate-200 dark:border-[#1e2235] flex flex-col items-center pt-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1e1d38] transition-all shrink-0 select-none"
           title="Expand Sidebar"
         >
           <ChevronRight className="w-4 h-4 text-slate-400 hover:text-cyan-500" />
@@ -905,9 +905,9 @@ spec:
       )}
 
       {/* 2. Main Checkboard Canvas Area */}
-      <div className="flex-1 flex flex-col relative bg-slate-50 dark:bg-[#0f0e17] h-full overflow-hidden">
+      <div className="flex-1 flex flex-col relative bg-slate-50 dark:bg-[#0b0e14] h-full overflow-hidden">
         {/* Top Canvas Toolbar */}
-        <div className="h-14 border-b border-slate-200 dark:border-[#2d2c50] bg-white dark:bg-[#1a1932] px-6 flex justify-between items-center select-none shrink-0 z-30 shadow-xs">
+        <div className="h-14 border-b border-slate-200 dark:border-[#1e2235] bg-white dark:bg-[#151824] px-6 flex justify-between items-center select-none shrink-0 z-30 shadow-xs">
           <div className="flex items-center space-x-3">
             <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
               Playground Workspace
@@ -984,8 +984,8 @@ spec:
           {/* Onboarding Guidance Overlay for New Users */}
           {nodes.length === 0 && !onboardingDismissed && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-6 z-20">
-              <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-8 rounded-2xl shadow-2xl max-w-lg w-full pointer-events-auto text-center space-y-6 transform translate-y-0 scale-100 transition animate-in zoom-in-95 duration-300">
-                <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center mx-auto border border-cyan-500/20">
+              <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] p-8 rounded-lg shadow-2xl max-w-lg w-full pointer-events-auto text-center space-y-6 transform translate-y-0 scale-100 transition animate-in zoom-in-95 duration-300">
+                <div className="w-14 h-14 rounded-lg bg-cyan-500/10 text-cyan-500 flex items-center justify-center mx-auto border border-cyan-500/20">
                   <Sparkles className="w-7 h-7" />
                 </div>
                 <div>
@@ -996,24 +996,24 @@ spec:
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                  <div className="p-3 bg-slate-55/50 dark:bg-[#24233f]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
+                  <div className="p-3 bg-slate-50 dark:bg-[#151824]/50 border border-slate-200/30 dark:border-[#1e2235]/30 rounded-lg flex items-start space-x-2.5">
                     <div className="w-5 h-5 rounded-full bg-cyan-500/10 text-cyan-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">1</div>
-                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-350 leading-snug">Click items in the left **Toolbox** to add nodes onto the checkered canvas.</span>
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 leading-snug">Click items in the left **Toolbox** to add nodes onto the checkered canvas.</span>
                   </div>
 
-                  <div className="p-3 bg-slate-55/50 dark:bg-[#24233f]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
+                  <div className="p-3 bg-slate-50 dark:bg-[#151824]/50 border border-slate-200/30 dark:border-[#1e2235]/30 rounded-lg flex items-start space-x-2.5">
                     <div className="w-5 h-5 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">2</div>
-                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-350 leading-snug">Drag and drop nodes to organize layout. Click snap port borders to draw links.</span>
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 leading-snug">Drag and drop nodes to organize layout. Click snap port borders to draw links.</span>
                   </div>
 
-                  <div className="p-3 bg-slate-55/50 dark:bg-[#24233f]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
+                  <div className="p-3 bg-slate-50 dark:bg-[#151824]/50 border border-slate-200/30 dark:border-[#1e2235]/30 rounded-lg flex items-start space-x-2.5">
                     <div className="w-5 h-5 rounded-full bg-violet-500/10 text-violet-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">3</div>
-                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-350 leading-snug">Configure settings in the Form, or unlock YAML to edit text files directly.</span>
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 leading-snug">Configure settings in the Form, or unlock YAML to edit text files directly.</span>
                   </div>
 
-                  <div className="p-3 bg-slate-55/50 dark:bg-[#24233f]/50 border border-slate-200/30 dark:border-slate-800/30 rounded-2xl flex items-start space-x-2.5">
+                  <div className="p-3 bg-slate-50 dark:bg-[#151824]/50 border border-slate-200/30 dark:border-[#1e2235]/30 rounded-lg flex items-start space-x-2.5">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">4</div>
-                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-350 leading-snug">Deploy to cluster, view feedback indicators, and inspect live resources in Explorer.</span>
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 leading-snug">Deploy to cluster, view feedback indicators, and inspect live resources in Explorer.</span>
                   </div>
                 </div>
 
@@ -1142,7 +1142,7 @@ spec:
                 {/* Snap Connection circles */}
                 <div
                   onClick={(e) => handleConnectPortClick(e, node.id)}
-                  className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border border-slate-350 dark:border-[#2d3142] bg-white dark:bg-[#1f2231] hover:bg-cyan-500 dark:hover:bg-cyan-500 transition-all cursor-pointer z-20 flex items-center justify-center hover:scale-120 shadow-sm"
+                  className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border border-slate-400 dark:border-[#2d3142] bg-white dark:bg-[#1f2231] hover:bg-cyan-500 dark:hover:bg-cyan-500 transition-all cursor-pointer z-20 flex items-center justify-center hover:scale-120 shadow-sm"
                   title="Link Input Target"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
@@ -1155,7 +1155,7 @@ spec:
                     className={`absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border transition-all cursor-pointer z-20 flex items-center justify-center hover:scale-120 shadow-sm ${
                       connectingFromId === node.id
                         ? 'bg-cyan-500 border-cyan-400 text-white animate-ping'
-                        : 'border-slate-350 dark:border-[#2d3142] bg-white dark:bg-[#1f2231] hover:bg-cyan-500'
+                        : 'border-slate-400 dark:border-[#2d3142] bg-white dark:bg-[#1f2231] hover:bg-cyan-500'
                     }`}
                     title="Drag Link Source"
                     onMouseDown={(e) => e.stopPropagation()}
@@ -1242,7 +1242,7 @@ spec:
       {/* 3. Right configurator drawer */}
       {selectedNode && (
         !configuratorCollapsed ? (
-          <div className="w-96 bg-white dark:bg-[#1a1932] border-l border-slate-200 dark:border-[#2d2c50] flex flex-col justify-between shrink-0 h-full relative transition-all duration-300">
+          <div className="w-96 bg-white dark:bg-[#151824] border-l border-slate-200 dark:border-[#1e2235] flex flex-col justify-between shrink-0 h-full relative transition-all duration-300">
             <button
               onClick={() => setConfiguratorCollapsed(true)}
               className="absolute left-3 top-5 p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 cursor-pointer z-10"
@@ -1251,7 +1251,7 @@ spec:
               <ChevronRight className="w-4 h-4" />
             </button>
 
-            <div className="p-4 border-b border-slate-200 dark:border-[#2d2c50] flex justify-between items-center bg-slate-50 dark:bg-[#161530] pl-10">
+            <div className="p-4 border-b border-slate-200 dark:border-[#1e2235] flex justify-between items-center bg-slate-50 dark:bg-[#10131c] pl-10">
               <div>
                 <div className="flex items-center space-x-2 text-xs font-bold text-slate-500">
                   <span className="capitalize">{selectedNode.type} Configurator</span>
@@ -1545,7 +1545,7 @@ spec:
               )}
             </div>
 
-            <div className="p-4 border-t border-slate-200 dark:border-[#2d2c50] bg-slate-50 dark:bg-[#161530] space-y-2">
+            <div className="p-4 border-t border-slate-200 dark:border-[#1e2235] bg-slate-50 dark:bg-[#10131c] space-y-2">
               <button
                 onClick={() => handleDeployNode(selectedNode)}
                 disabled={selectedNode.status === 'deploying'}
@@ -1578,7 +1578,7 @@ spec:
         ) : (
           <div 
             onClick={() => setConfiguratorCollapsed(false)}
-            className="w-8 bg-white dark:bg-[#1a1932] border-l border-slate-200 dark:border-[#2d2c50] flex flex-col items-center pt-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1e1d38] transition-all shrink-0 select-none"
+            className="w-8 bg-white dark:bg-[#151824] border-l border-slate-200 dark:border-[#1e2235] flex flex-col items-center pt-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1e1d38] transition-all shrink-0 select-none"
             title="Expand Configurator"
           >
             <ChevronLeft className="w-4 h-4 text-slate-400 hover:text-cyan-500" />
@@ -1603,9 +1603,9 @@ spec:
 
       {showClearConfirm && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/65 dark:bg-[#000]/65 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 space-y-4">
+          <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 space-y-4">
             <div className="flex items-center space-x-3 text-red-500">
-              <AlertCircle className="w-6 h-6 animate-bounce" />
+              <AlertCircle className="w-6 h-6 shrink-0" />
               <h3 className="text-sm font-bold text-slate-800 dark:text-white">Clear Arena Workspace?</h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
@@ -1614,7 +1614,7 @@ spec:
             <div className="flex space-x-3 pt-2">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2 rounded-xl text-xs transition cursor-pointer"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2 rounded-lg text-xs transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1625,7 +1625,7 @@ spec:
                   setSelectedNodeId(null);
                   setShowClearConfirm(false);
                 }}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-xl text-xs transition cursor-pointer animate-all"
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-lg text-xs transition cursor-pointer"
               >
                 Yes, Clear All
               </button>
@@ -1637,9 +1637,9 @@ spec:
       {/* Custom modal confirm overlay for Load study templates */}
       {templateConfirm && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/65 dark:bg-[#000]/65 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 space-y-4 font-semibold text-xs">
+          <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 space-y-4 font-semibold text-xs">
             <div className="flex items-center space-x-3 text-cyan-500">
-              <Sparkles className="w-6 h-6 animate-pulse shrink-0" />
+              <Sparkles className="w-6 h-6 shrink-0" />
               <h3 className="text-sm font-black text-slate-800 dark:text-white">Load Study Template?</h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
@@ -1648,7 +1648,7 @@ spec:
             <div className="flex space-x-3 pt-2">
               <button
                 onClick={() => setTemplateConfirm(null)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2.5 rounded-lg text-xs transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -1657,7 +1657,7 @@ spec:
                   executeLoadTemplate(templateConfirm);
                   setTemplateConfirm(null);
                 }}
-                className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2.5 rounded-lg text-xs transition cursor-pointer"
               >
                 Yes, Load
               </button>
@@ -1669,9 +1669,9 @@ spec:
       {/* Custom modal confirm overlay for Delete stack */}
       {showDeleteStackConfirm && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/65 dark:bg-[#000]/65 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-6 rounded-2xl shadow-xl max-w-sm w-full mx-4 space-y-4 font-semibold text-xs">
+          <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 space-y-4 font-semibold text-xs">
             <div className="flex items-center space-x-3 text-red-500">
-              <AlertCircle className="w-6 h-6 animate-bounce shrink-0" />
+              <AlertCircle className="w-6 h-6 shrink-0" />
               <h3 className="text-sm font-black text-slate-800 dark:text-white">Delete Active Stack?</h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
