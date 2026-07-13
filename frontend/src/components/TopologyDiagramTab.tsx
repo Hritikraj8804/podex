@@ -254,23 +254,20 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
           onMouseLeave={handleMouseUp}
           className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-[#1b2332] bg-slate-50 dark:bg-[#080b12] h-[72vh] min-h-[480px] select-none cursor-grab active:cursor-grabbing"
         >
+          {/* Tech-grid background - covers entire canvas */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-15"
+            style={{
+              backgroundImage: `
+                linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px)
+              `,
+              backgroundSize: '32px 32px',
+            }}
+          />
+
           {/* ---- Toolbar overlay ---- */}
           <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
-            {/* Column headers */}
-            <div className="flex pointer-events-auto" style={{ gap: `${CARD_W + COL_GAP - 84}px` }}>
-              {[
-                { label: 'Services', count: services.length, color: '#06b6d4' },
-                { label: 'Workloads', count: deployments.length, color: '#10b981' },
-                { label: 'Pods', count: pods.length, color: '#3b82f6' },
-              ].map(col => (
-                <div key={col.label} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/90 dark:bg-[#0d1117]/90 border border-slate-200 dark:border-[#1b2332] shadow-sm backdrop-blur-sm" style={{ width: CARD_W }}>
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: col.color }} />
-                  <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 tracking-wide">{col.label}</span>
-                  <span className="ml-auto text-[10px] font-bold text-slate-400 dark:text-slate-500">{col.count}</span>
-                </div>
-              ))}
-            </div>
-
             {/* Search + reset view */}
             <div className="flex items-center gap-2 pointer-events-auto">
               <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/90 dark:bg-[#0d1117]/90 border border-slate-200 dark:border-[#1b2332] backdrop-blur-sm">
@@ -309,18 +306,6 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
             }}
             className="absolute inset-0 p-6 transition-transform duration-75 ease-out"
           >
-            {/* Tech-grid background */}
-            <div
-              className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-15"
-              style={{
-                backgroundImage: `
-                  linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px)
-                `,
-                backgroundSize: '32px 32px',
-              }}
-            />
-
             {/* ---- SVG connector lines ---- */}
             <svg className="absolute inset-0 pointer-events-none w-full h-full overflow-visible z-0">
               <SvgDefs />
@@ -436,10 +421,6 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
               <Maximize2 className="w-3 h-3" />
             </button>
             <div className="w-px h-4 bg-slate-200 dark:bg-[#1b2332] mx-1" />
-            <button onClick={handleResetView}
-              className="px-1.5 py-0.5 rounded text-[9px] font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1b2332] transition cursor-pointer">
-              Reset
-            </button>
           </div>
         </div>
       )}
