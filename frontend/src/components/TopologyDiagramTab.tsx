@@ -130,6 +130,49 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
     }
   };
 
+  const cleanEdges = useMemo(() => {
+    const allNodes = filteredTopology.nodes;
+    const allEdges = filteredTopology.edges;
+
+    // Keep Ingress → Service
+    const ingressEdges = allEdges.filter(e => {
+      const src = allNodes.find(n => n.id === e.source);
+      return src?.type === 'ingress';
+    });
+
+    // Keep Deployment → Pod
+    const deployEdges = allEdges.filter(e => {
+      const src = allNodes.find(n => n.id === e.source);
+      return src?.type === 'deployment';
+    });
+
+    // Derive Service → Deployment via shared Pods:
+    // Service connects to Pod X, Deployment connects to Pod X → Service connects to Deployment
+    const servicePodEdges = allEdges.filter(e => {
+      const src = allNodes.find(n => n.id === e.source);
+      const tgt = allNodes.find(n => n.id === e.target);
+      return src?.type === 'service' && tgt?.type === 'pod';
+    });
+
+    const serviceDeployEdges: { source: string; target: string; relation: string }[] = [];
+    for (const sp of servicePodEdges) {
+      const podId = sp.target;
+      const matchingDeploy = deployEdges.find(de => de.target === podId);
+      if (matchingDeploy) {
+        const key = `${sp.source}->${matchingDeploy.source}`;
+        if (!serviceDeployEdges.some(e => `${e.source}->${e.target}` === key)) {
+          serviceDeployEdges.push({
+            source: sp.source,
+            target: matchingDeploy.source,
+            relation: 'routes_to',
+          });
+        }
+      }
+    }
+
+    return [...ingressEdges, ...serviceDeployEdges, ...deployEdges];
+  }, [filteredTopology]);
+
   const filteredNodes = useMemo(() => {
     if (!searchQuery) return filteredTopology.nodes;
     const q = searchQuery.toLowerCase();
@@ -171,7 +214,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
       {topologyLoading && topologyData.nodes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 space-y-4 bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl">
           <Loader2 className="w-7 h-7 animate-spin text-blue-500" />
-          <span className="text-xs text-slate-500 font-medium">Mapping cluster topology...</span>
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Mapping cluster topology...</span>
         </div>
       ) : topologyData.nodes.length === 0 ? (
         <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl py-16 text-center space-y-4">
@@ -189,7 +232,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-[#1b2332] bg-[#080b12] h-[620px] select-none cursor-grab active:cursor-grabbing"
+          className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-[#1b2332] bg-slate-50 dark:bg-[#080b12] h-[620px] select-none cursor-grab active:cursor-grabbing"
         >
           {/* ---- Toolbar overlay ---- */}
           <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
@@ -200,33 +243,33 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                 { label: 'Workloads', count: deployments.length, color: '#10b981' },
                 { label: 'Pods', count: pods.length, color: '#3b82f6' },
               ].map(col => (
-                <div key={col.label} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0d1117]/90 border border-[#1b2332] shadow-sm backdrop-blur-sm" style={{ width: CARD_W }}>
+                <div key={col.label} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/90 dark:bg-[#0d1117]/90 border border-slate-200 dark:border-[#1b2332] shadow-sm backdrop-blur-sm" style={{ width: CARD_W }}>
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: col.color }} />
-                  <span className="text-[10px] font-semibold text-slate-300 tracking-wide">{col.label}</span>
-                  <span className="ml-auto text-[10px] font-bold text-slate-500">{col.count}</span>
+                  <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 tracking-wide">{col.label}</span>
+                  <span className="ml-auto text-[10px] font-bold text-slate-400 dark:text-slate-500">{col.count}</span>
                 </div>
               ))}
             </div>
 
             {/* Search + refresh */}
             <div className="flex items-center gap-2 pointer-events-auto">
-              <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-[#0d1117]/90 border border-[#1b2332] backdrop-blur-sm">
-                <Search className="w-3 h-3 text-slate-500" />
+              <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/90 dark:bg-[#0d1117]/90 border border-slate-200 dark:border-[#1b2332] backdrop-blur-sm">
+                <Search className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                 <input
                   type="text"
                   placeholder="Filter..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none outline-none text-[10px] text-slate-300 w-20 placeholder:text-slate-600 font-medium"
+                  className="bg-transparent border-none outline-none text-[10px] text-slate-700 dark:text-slate-300 w-20 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-medium"
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery('')} className="text-slate-500 hover:text-slate-300 cursor-pointer text-[10px] font-bold px-1">&times;</button>
                 )}
               </div>
-              <div className="w-px h-5 bg-[#1b2332]" />
+              <div className="w-px h-5 bg-slate-200 dark:bg-[#1b2332]" />
               <button
                 onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}
-                className="p-1.5 rounded-lg bg-[#0d1117]/90 border border-[#1b2332] hover:bg-[#111820] text-slate-400 hover:text-slate-300 transition cursor-pointer pointer-events-auto"
+                className="p-1.5 rounded-lg bg-white/90 dark:bg-[#0d1117]/90 border border-slate-200 dark:border-[#1b2332] hover:bg-slate-100 dark:hover:bg-[#111820] text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition cursor-pointer pointer-events-auto"
                 title="Fit view"
               >
                 <Focus className="w-3.5 h-3.5" />
@@ -247,11 +290,11 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
           >
             {/* Tech-grid background */}
             <div
-              className="absolute inset-0 pointer-events-none opacity-15"
+              className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-15"
               style={{
                 backgroundImage: `
-                  linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px)
+                  linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px)
                 `,
                 backgroundSize: '32px 32px',
               }}
@@ -260,7 +303,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
             {/* ---- SVG connector lines ---- */}
             <svg className="absolute inset-0 pointer-events-none w-full h-full overflow-visible z-0">
               <SvgDefs />
-              {filteredTopology.edges.map(edge => {
+              {cleanEdges.map(edge => {
                 const srcPos = nodePositions[edge.source];
                 const tgtPos = nodePositions[edge.target];
                 if (!srcPos || !tgtPos) return null;
@@ -277,11 +320,11 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                 return (
                   <g key={edge.id || `${edge.source}--${edge.target}`}>
                     {/* Glow underlay */}
-                    <path d={d} fill="none" stroke={active ? '#3b82f6' : '#1e293b'} strokeWidth={active ? 4 : 1.5}
-                      className={`transition-all duration-300 ${active ? 'opacity-20' : 'opacity-10'}`} />
-                    {/* Main line */}
-                    <path d={d} fill="none" stroke={active ? '#3b82f6' : '#334155'} strokeWidth={active ? 1.5 : 0.8}
-                      className={`transition-all duration-300 ${active ? 'opacity-80' : 'opacity-20'}`}
+                <path d={d} fill="none" stroke={active ? '#3b82f6' : '#cbd5e1'} strokeWidth={active ? 4 : 1.5}
+                  className={`transition-all duration-300 ${active ? 'opacity-20' : 'opacity-10'}`} />
+                {/* Main line */}
+                <path d={d} fill="none" stroke={active ? '#3b82f6' : '#94a3b8'} strokeWidth={active ? 1.5 : 0.8}
+                  className={`transition-all duration-300 ${active ? 'opacity-80' : 'opacity-40 dark:opacity-20'}`}
                       markerEnd={active ? 'url(#arrow-topo-active)' : 'url(#arrow-topo)'} />
                     {/* Animated dashes */}
                     {active && (
@@ -328,9 +371,9 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                     setSelectedResource({ type: node.type, name: node.name, namespace: node.namespace });
                     setDetailTab('overview');
                   }}
-                  className={`p-2.5 bg-[#0c101a] border border-[#1b2332] rounded-lg flex items-center gap-2 cursor-pointer relative z-10
+                  className={`p-2.5 bg-white dark:bg-[#0c101a] border border-slate-200 dark:border-[#1b2332] rounded-lg flex items-center gap-2 cursor-pointer relative z-10
                     transition-all duration-200 shadow-sm
-                    hover:border-blue-500/30 hover:shadow-md hover:shadow-blue-500/5 hover:bg-[#0f1520]
+                    hover:border-blue-400 dark:hover:border-blue-500/30 hover:shadow-md hover:shadow-blue-500/10 dark:hover:shadow-blue-500/5 hover:bg-slate-50 dark:hover:bg-[#0f1520]
                     ${health.border} border-l-[3px]
                     ${connected ? 'opacity-100' : 'opacity-35 hover:opacity-80'}
                   `}
@@ -342,21 +385,21 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-semibold text-slate-200 truncate leading-snug">{node.name}</div>
+                    <div className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 truncate leading-snug">{node.name}</div>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className={`w-1 h-1 rounded-full shrink-0 ${health.dot}`} />
                       <span className={`text-[9px] font-medium ${health.text} capitalize`}>{health.label}</span>
                       {hasReplicas && (
                         <>
-                          <span className="text-slate-600 text-[8px]">&middot;</span>
-                          <span className="text-[9px] text-slate-500 font-mono">{node.details.replicas} replicas</span>
+                          <span className="text-slate-300 dark:text-slate-600 text-[8px]">&middot;</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">{node.details.replicas} replicas</span>
                         </>
                       )}
                     </div>
                   </div>
 
                   {/* Type badge */}
-                  <span className="text-[8px] font-medium text-slate-600 bg-[#151e2c] px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                  <span className="text-[8px] font-medium text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-[#151e2c] px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
                     {node.type === 'service' ? 'SVC' : node.type === 'deployment' ? 'DEP' : node.type === 'pod' ? 'POD' : 'NODE'}
                   </span>
                 </div>
@@ -365,21 +408,21 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
           </div>
 
           {/* ---- Zoom controls ---- */}
-          <div className="absolute bottom-3 left-3 z-20 flex items-center gap-1 bg-[#0d1117]/90 border border-[#1b2332] rounded-lg px-1.5 py-1 shadow-lg backdrop-blur-sm">
+          <div className="absolute bottom-3 left-3 z-20 flex items-center gap-1 bg-white/90 dark:bg-[#0d1117]/90 border border-slate-200 dark:border-[#1b2332] rounded-lg px-1.5 py-1 shadow-lg backdrop-blur-sm">
             <button onClick={() => setZoomScale(Math.max(0.5, +(zoomScale - 0.1).toFixed(1)))}
               disabled={zoomScale <= 0.5}
-              className="p-1 rounded hover:bg-[#1b2332] text-slate-400 hover:text-slate-300 disabled:opacity-30 transition cursor-pointer">
+              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-[#1b2332] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30 transition cursor-pointer">
               <Minimize2 className="w-3 h-3" />
             </button>
-            <span className="text-[9px] font-semibold text-slate-500 min-w-[32px] text-center select-none">{Math.round(zoomScale * 100)}%</span>
+            <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 min-w-[32px] text-center select-none">{Math.round(zoomScale * 100)}%</span>
             <button onClick={() => setZoomScale(Math.min(1.5, +(zoomScale + 0.1).toFixed(1)))}
               disabled={zoomScale >= 1.5}
-              className="p-1 rounded hover:bg-[#1b2332] text-slate-400 hover:text-slate-300 disabled:opacity-30 transition cursor-pointer">
+              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-[#1b2332] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30 transition cursor-pointer">
               <Maximize2 className="w-3 h-3" />
             </button>
-            <div className="w-px h-4 bg-[#1b2332] mx-1" />
+            <div className="w-px h-4 bg-slate-200 dark:bg-[#1b2332] mx-1" />
             <button onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}
-              className="px-1.5 py-0.5 rounded text-[9px] font-medium text-slate-400 hover:text-slate-300 hover:bg-[#1b2332] transition cursor-pointer">
+              className="px-1.5 py-0.5 rounded text-[9px] font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1b2332] transition cursor-pointer">
               Reset
             </button>
           </div>
