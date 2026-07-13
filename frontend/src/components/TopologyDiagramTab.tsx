@@ -18,6 +18,7 @@ interface TopologyDiagramTabProps {
   handleMouseUp: () => void;
   handleNodeMouseDown: (e: React.MouseEvent, nodeId: string, initialX: number, initialY: number) => void;
   customNodePositions: { [id: string]: { x: number, y: number } };
+  setCustomNodePositions?: (pos: { [id: string]: { x: number, y: number } } | ((prev: { [id: string]: { x: number, y: number } }) => any)) => void;
   isNodeConnected: (nodeId: string) => boolean;
   setHoveredNodeId: (id: string | null) => void;
   hoveredNodeId: string | null;
@@ -31,18 +32,19 @@ const CARD_W = 230;
 const CARD_H = 64;
 const COL_GAP = 100;
 
-const HEALTH_CONFIG = {
+const HEALTH_CONFIG: Record<string, { border: string; bg: string; text: string; dot: string; label: string }> = {
   healthy:  { border: 'border-l-emerald-500', bg: 'bg-emerald-500/10', text: 'text-emerald-500', dot: 'bg-emerald-500', label: 'Healthy' },
   running:  { border: 'border-l-emerald-500', bg: 'bg-emerald-500/10', text: 'text-emerald-500', dot: 'bg-emerald-500', label: 'Running' },
   degraded: { border: 'border-l-amber-500',   bg: 'bg-amber-500/10',   text: 'text-amber-500',   dot: 'bg-amber-500',   label: 'Degraded' },
   pending:  { border: 'border-l-amber-500',   bg: 'bg-amber-500/10',   text: 'text-amber-500',   dot: 'bg-amber-500',   label: 'Pending' },
+  critical: { border: 'border-l-red-500',     bg: 'bg-red-500/10',     text: 'text-red-500',     dot: 'bg-red-500',     label: 'Critical' },
   failed:   { border: 'border-l-red-500',     bg: 'bg-red-500/10',     text: 'text-red-500',     dot: 'bg-red-500',     label: 'Failed' },
-  crash:    { border: 'border-l-red-500',     bg: 'bg-red-500/10',     text: 'text-red-500',     dot: 'bg-red-500',     label: 'Crash' },
+  crash:    { border: 'border-l-red-500',     bg: 'bg-red-500/10',     text: 'text-red-500',     dot: 'bg-red-500',     label: 'CrashLoop' },
 };
 
 const resolveHealth = (status: string) => {
   const s = status.toLowerCase();
-  return HEALTH_CONFIG[s as keyof typeof HEALTH_CONFIG] || HEALTH_CONFIG.failed;
+  return HEALTH_CONFIG[s] || HEALTH_CONFIG.failed;
 };
 
 const SvgDefs = () => (
@@ -70,6 +72,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
   handleMouseUp,
   handleNodeMouseDown,
   customNodePositions,
+  setCustomNodePositions,
   isNodeConnected,
   setHoveredNodeId,
   hoveredNodeId,
@@ -84,7 +87,6 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
   const pods = useMemo(() => filteredTopology.nodes.filter(n => n.type === 'pod'), [filteredTopology]);
   const others = useMemo(() => filteredTopology.nodes.filter(n => !['service', 'deployment', 'pod'].includes(n.type)), [filteredTopology]);
 
-  // Health summary counts
   const healthCounts = useMemo(() => {
     const counts = { healthy: 0, degraded: 0, failed: 0 };
     filteredTopology.nodes.forEach(n => {
@@ -134,20 +136,16 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
     const allNodes = filteredTopology.nodes;
     const allEdges = filteredTopology.edges;
 
-    // Keep Ingress → Service
     const ingressEdges = allEdges.filter(e => {
       const src = allNodes.find(n => n.id === e.source);
       return src?.type === 'ingress';
     });
 
-    // Keep Deployment → Pod
     const deployEdges = allEdges.filter(e => {
       const src = allNodes.find(n => n.id === e.source);
       return src?.type === 'deployment';
     });
 
-    // Derive Service → Deployment via shared Pods:
-    // Service connects to Pod X, Deployment connects to Pod X → Service connects to Deployment
     const servicePodEdges = allEdges.filter(e => {
       const src = allNodes.find(n => n.id === e.source);
       const tgt = allNodes.find(n => n.id === e.target);
@@ -179,6 +177,16 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
     return filteredTopology.nodes.filter(n => n.name?.toLowerCase().includes(q) || n.type?.toLowerCase().includes(q));
   }, [filteredTopology, searchQuery]);
 
+  const handleResetView = () => {
+    setZoomScale(1);
+    setPanOffset({ x: 0, y: 0 });
+    if (setCustomNodePositions) {
+      setCustomNodePositions({});
+    }
+  };
+
+  const totalNodes = filteredTopology.nodes.length;
+
   return (
     <div className="space-y-4 animate-fade-in">
       {/* ---- Header ---- */}
@@ -189,12 +197,24 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
           </div>
           <div>
             <h2 className="text-sm font-bold text-slate-800 dark:text-white leading-none">Cluster Topology</h2>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Live resource map &mdash; {namespaceFilter || 'default'}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">{namespaceFilter || 'default'}</span>
+              <span className="text-slate-300 dark:text-slate-600 text-[8px]">&middot;</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                <span className="font-semibold text-slate-600 dark:text-slate-400">{totalNodes}</span> resources
+              </span>
+              <span className="text-slate-300 dark:text-slate-600 text-[8px]">&middot;</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] text-cyan-500 font-medium">{services.length} svc</span>
+                <span className="text-[9px] text-emerald-500 font-medium">{deployments.length} dep</span>
+                <span className="text-[9px] text-blue-500 font-medium">{pods.length} pods</span>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Health Summary Badges */}
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <span className="text-[10px] font-semibold text-emerald-500">{healthCounts.healthy}</span>
@@ -232,7 +252,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-[#1b2332] bg-slate-50 dark:bg-[#080b12] h-[620px] select-none cursor-grab active:cursor-grabbing"
+          className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-[#1b2332] bg-slate-50 dark:bg-[#080b12] h-[72vh] min-h-[480px] select-none cursor-grab active:cursor-grabbing"
         >
           {/* ---- Toolbar overlay ---- */}
           <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
@@ -251,7 +271,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
               ))}
             </div>
 
-            {/* Search + refresh */}
+            {/* Search + reset view */}
             <div className="flex items-center gap-2 pointer-events-auto">
               <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/90 dark:bg-[#0d1117]/90 border border-slate-200 dark:border-[#1b2332] backdrop-blur-sm">
                 <Search className="w-3 h-3 text-slate-400 dark:text-slate-500" />
@@ -268,11 +288,12 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
               </div>
               <div className="w-px h-5 bg-slate-200 dark:bg-[#1b2332]" />
               <button
-                onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}
-                className="p-1.5 rounded-lg bg-white/90 dark:bg-[#0d1117]/90 border border-slate-200 dark:border-[#1b2332] hover:bg-slate-100 dark:hover:bg-[#111820] text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition cursor-pointer pointer-events-auto"
-                title="Fit view"
+                onClick={handleResetView}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/90 dark:bg-[#0d1117]/90 border border-slate-200 dark:border-[#1b2332] hover:bg-slate-100 dark:hover:bg-[#111820] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition cursor-pointer pointer-events-auto text-[10px] font-medium"
+                title="Reset view &amp; node positions"
               >
-                <Focus className="w-3.5 h-3.5" />
+                <Focus className="w-3 h-3" />
+                Reset View
               </button>
             </div>
           </div>
@@ -319,14 +340,11 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
 
                 return (
                   <g key={edge.id || `${edge.source}--${edge.target}`}>
-                    {/* Glow underlay */}
-                <path d={d} fill="none" stroke={active ? '#3b82f6' : '#cbd5e1'} strokeWidth={active ? 4 : 1.5}
-                  className={`transition-all duration-300 ${active ? 'opacity-20' : 'opacity-10'}`} />
-                {/* Main line */}
-                <path d={d} fill="none" stroke={active ? '#3b82f6' : '#94a3b8'} strokeWidth={active ? 1.5 : 0.8}
-                  className={`transition-all duration-300 ${active ? 'opacity-80' : 'opacity-40 dark:opacity-20'}`}
+                    <path d={d} fill="none" stroke={active ? '#3b82f6' : '#cbd5e1'} strokeWidth={active ? 4 : 1.5}
+                      className={`transition-all duration-300 ${active ? 'opacity-20' : 'opacity-10'}`} />
+                    <path d={d} fill="none" stroke={active ? '#3b82f6' : '#94a3b8'} strokeWidth={active ? 1.5 : 0.8}
+                      className={`transition-all duration-300 ${active ? 'opacity-80' : 'opacity-40 dark:opacity-20'}`}
                       markerEnd={active ? 'url(#arrow-topo-active)' : 'url(#arrow-topo)'} />
-                    {/* Animated dashes */}
                     {active && (
                       <path d={d} fill="none" stroke="rgba(96,165,250,0.5)" strokeWidth={1.5} strokeDasharray="4 8"
                         className="topo-flow-line" />
@@ -378,12 +396,10 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                     ${connected ? 'opacity-100' : 'opacity-35 hover:opacity-80'}
                   `}
                 >
-                  {/* Icon */}
                   <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${health.bg}`}>
                     {resourceIcon(node.type, 'w-3.5 h-3.5')}
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 truncate leading-snug">{node.name}</div>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -392,13 +408,12 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                       {hasReplicas && (
                         <>
                           <span className="text-slate-300 dark:text-slate-600 text-[8px]">&middot;</span>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">{node.details.replicas} replicas</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">{node.details.replicas}</span>
                         </>
                       )}
                     </div>
                   </div>
 
-                  {/* Type badge */}
                   <span className="text-[8px] font-medium text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-[#151e2c] px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
                     {node.type === 'service' ? 'SVC' : node.type === 'deployment' ? 'DEP' : node.type === 'pod' ? 'POD' : 'NODE'}
                   </span>
@@ -421,7 +436,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
               <Maximize2 className="w-3 h-3" />
             </button>
             <div className="w-px h-4 bg-slate-200 dark:bg-[#1b2332] mx-1" />
-            <button onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}
+            <button onClick={handleResetView}
               className="px-1.5 py-0.5 rounded text-[9px] font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1b2332] transition cursor-pointer">
               Reset
             </button>

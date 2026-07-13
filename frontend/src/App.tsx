@@ -1169,7 +1169,7 @@ export default function App() {
 
           {/* TAB: TOPOLOGY DIAGRAM */}
           {activeTab === 'diagram' && (
-            <div className="p-6 max-w-6xl mx-auto w-full animate-fade-in">
+            <div className="p-6 w-full animate-fade-in">
             <TopologyDiagramTab
               filteredTopology={getFilteredTopology()}
               topologyLoading={topologyLoading}
@@ -1184,6 +1184,7 @@ export default function App() {
               handleMouseUp={handleMouseUp}
               handleNodeMouseDown={handleNodeMouseDown}
               customNodePositions={customNodePositions}
+              setCustomNodePositions={setCustomNodePositions}
               isNodeConnected={isNodeConnected}
               setHoveredNodeId={setHoveredNodeId}
               hoveredNodeId={hoveredNodeId}
