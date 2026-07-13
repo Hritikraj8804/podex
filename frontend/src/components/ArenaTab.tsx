@@ -712,10 +712,11 @@ const InnerArena: React.FC<ArenaTabProps> = ({
                 <button
                   onClick={() => setShowClearConfirm(true)}
                   disabled={nodes.length === 0}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-30 transition cursor-pointer"
-                  title="Clear canvas"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-30 transition cursor-pointer text-[11px] font-medium border border-transparent hover:border-red-200 dark:hover:border-red-900/40"
+                  title="Remove all nodes from canvas"
                 >
-                  <Trash className="w-3.5 h-3.5" />
+                  <Trash className="w-3 h-3" />
+                  Clear
                 </button>
                 <div className="w-px h-5 bg-slate-200 dark:bg-[#1b2332]" />
                 <button
