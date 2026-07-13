@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Loader2, Terminal, Trash2, AlertCircle, ExternalLink, X, ChevronDown, ChevronUp, Copy } from 'lucide-react';
+import { Search, Loader2, Terminal, Trash2, AlertCircle, ExternalLink } from 'lucide-react';
 
 interface ExplorerTabProps {
   explorerSubTab: string;
@@ -67,7 +67,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [yamlPreview, setYamlPreview] = useState<{ type: string; name: string; namespace: string; yaml: string } | null>(null);
   const [portForwarding, setPortForwarding] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -109,7 +108,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
   };
 
   const handleRowClick = useCallback(async (type: string, name: string, namespace: string) => {
-    setYamlPreview(null);
     if (selectedResource?.name === name && selectedResource?.type === type) {
       setSelectedResource(null);
       return;
@@ -120,25 +118,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
       setDetailTab('overview');
     }
   }, [selectedResource, setSelectedResource, setDetailTab]);
-
-  const handleYamlPreview = useCallback(async (e: React.MouseEvent, type: string, name: string, namespace: string) => {
-    e.stopPropagation();
-    if (yamlPreview?.name === name && yamlPreview?.type === type) {
-      setYamlPreview(null);
-      return;
-    }
-    setYamlPreview(null);
-    try {
-      const url = type === 'node'
-        ? `${apiUrl}/api/node/${name}/yaml`
-        : `${apiUrl}/api/${type}/${namespace}/${name}/yaml`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setYamlPreview({ type, name, namespace, yaml: data.yaml || '' });
-      }
-    } catch { }
-  }, [apiUrl, yamlPreview]);
 
   const handlePortForward = useCallback(async (kind: string, name: string, namespace: string) => {
     const key = `${namespace}/${name}`;
@@ -190,13 +169,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
     return map[id] ?? 0;
   };
 
-  const copyYaml = () => {
-    if (yamlPreview) {
-      navigator.clipboard.writeText(yamlPreview.yaml);
-      setToast?.({ message: 'YAML copied to clipboard.', type: 'success' });
-    }
-  };
-
   const canDelete = explorerSubTab === 'pods' || explorerSubTab === 'deployments' || explorerSubTab === 'services';
 
   const renderTable = () => {
@@ -242,7 +214,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{pod.age}</td>
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={(ev) => handleYamlPreview(ev, 'pod', pod.name, pod.namespace)} className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#1b2332] transition cursor-pointer" title="View YAML"><ChevronDown className="w-3.5 h-3.5" /></button>
                       <button onClick={() => handlePortForward('pod', pod.name, pod.namespace)} className={`p-1.5 rounded-md border transition cursor-pointer ${pfActive ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-[#1b2332]'}`} title={pfActive ? `Stop port (port ${pfActive.port})` : 'Port forward'}>
                         {portForwarding[key] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
                       </button>
@@ -292,7 +263,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                   <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{dep.replicas_available}</td>
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{dep.age}</td>
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={(ev) => handleYamlPreview(ev, 'deployment', dep.name, dep.namespace)} className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#1b2332] transition cursor-pointer" title="View YAML"><ChevronDown className="w-3.5 h-3.5" /></button>
                   </td>
                 </tr>
               );
@@ -339,7 +309,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{svc.age}</td>
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={(ev) => handleYamlPreview(ev, 'service', svc.name, svc.namespace)} className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#1b2332] transition cursor-pointer" title="View YAML"><ChevronDown className="w-3.5 h-3.5" /></button>
                       <button onClick={() => handlePortForward('service', svc.name, svc.namespace)} className={`p-1.5 rounded-md border transition cursor-pointer ${pfActive ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-[#1b2332]'}`} title={pfActive ? `Stop port (port ${pfActive.port})` : 'Port forward'}>
                         {portForwarding[key] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
                       </button>
@@ -381,7 +350,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{n.kubelet}</td>
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{n.age}</td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={(ev) => handleYamlPreview(ev, 'node', n.name, '')} className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#1b2332] transition cursor-pointer" title="View YAML"><ChevronDown className="w-3.5 h-3.5" /></button>
                 </td>
               </tr>
             ))}
@@ -416,7 +384,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{cm.data_count ?? 0}</td>
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{cm.age}</td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={(ev) => handleYamlPreview(ev, 'configmap', cm.name, cm.namespace)} className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#1b2332] transition cursor-pointer" title="View YAML"><ChevronDown className="w-3.5 h-3.5" /></button>
                 </td>
               </tr>
             ))}
@@ -451,7 +418,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{s.key_count ?? 0}</td>
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{s.age}</td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={(ev) => handleYamlPreview(ev, 'secret', s.name, s.namespace)} className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#1b2332] transition cursor-pointer" title="View YAML"><ChevronDown className="w-3.5 h-3.5" /></button>
                 </td>
               </tr>
             ))}
@@ -490,7 +456,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono">{s.service_name}</td>
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{s.age}</td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={(ev) => handleYamlPreview(ev, 'statefulset', s.name, s.namespace)} className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#1b2332] transition cursor-pointer" title="View YAML"><ChevronDown className="w-3.5 h-3.5" /></button>
                 </td>
               </tr>
             ))}
@@ -529,7 +494,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{ds.current}</td>
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{ds.age}</td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={(ev) => handleYamlPreview(ev, 'daemonset', ds.name, ds.namespace)} className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#1b2332] transition cursor-pointer" title="View YAML"><ChevronDown className="w-3.5 h-3.5" /></button>
                 </td>
               </tr>
             ))}
@@ -581,7 +545,7 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
 
       {/* Explorer Table Header tabs */}
       <div className="border-b border-slate-200 dark:border-[#1b2332] bg-slate-50/50 dark:bg-[#111820] p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="flex items-center space-x-3.5 w-full sm:w-auto overflow-x-auto shrink-0 select-none">
+        <div className="flex items-center space-x-3.5 w-full sm:w-auto overflow-x-auto min-w-0 select-none">
           <div className="flex bg-slate-200/60 dark:bg-[#111820] rounded-lg p-0.5 border border-slate-200 dark:border-[#1b2332] select-none shrink-0 overflow-x-auto">
             {TABS.map(tab => (
               <button
@@ -612,27 +576,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
             className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-full font-bold" />
         </div>
       </div>
-
-      {/* Inline YAML Preview */}
-      {yamlPreview && (
-        <div className="border-b border-slate-200 dark:border-[#1b2332] bg-slate-50 dark:bg-[#0a0d14]">
-          <div className="flex items-center justify-between px-6 py-2.5 border-b border-slate-200/50 dark:border-[#1b2332]/50">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-400">
-              <ChevronUp className="w-3.5 h-3.5" />
-              YAML — {yamlPreview.type}/{yamlPreview.name}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button onClick={copyYaml} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-[#1b2332] text-slate-400 transition cursor-pointer" title="Copy YAML">
-                <Copy className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={() => setYamlPreview(null)} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-[#1b2332] text-slate-400 transition cursor-pointer" title="Close">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-          <pre className="text-[11px] font-mono leading-relaxed text-slate-800 dark:text-slate-200 p-6 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap">{yamlPreview.yaml}</pre>
-        </div>
-      )}
 
       {/* Data Lists Table */}
       <div className="overflow-x-auto flex-1">

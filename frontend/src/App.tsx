@@ -276,9 +276,13 @@ export default function App() {
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
 
   // Drawer Resizing & Layout States
-  const [detailsWidth, setDetailsWidth] = useState<number>(520);
-  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [detailsWidth] = useState<number>(520);
   const [isDrawerMaximized, setIsDrawerMaximized] = useState<boolean>(false);
+
+  const handleSetIsDrawerMaximized = useCallback((max: boolean) => {
+    setIsDrawerMaximized(max);
+    if (max) setSidebarCollapsed(true);
+  }, []);
 
   // Sidebar collapse state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
@@ -365,31 +369,6 @@ export default function App() {
     }
     localStorage.setItem('theme', theme);
   }, [theme]);
-
-  // Handle details panel mouse resize drag
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isResizing) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = window.innerWidth - e.clientX;
-      if (newWidth >= 340 && newWidth <= window.innerWidth * 0.85) {
-        setDetailsWidth(newWidth);
-      }
-    };
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
 
   // Auto-scroll logs logic
   useEffect(() => {
@@ -1212,7 +1191,7 @@ export default function App() {
         </header>
 
         {/* Dynamic Views Content */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-auto p-8 min-w-0">
 
           {/* TAB 1: DASHBOARD */}
           {activeTab === 'dashboard' && (
@@ -1348,9 +1327,8 @@ export default function App() {
         selectedResource={selectedResource}
         setSelectedResource={setSelectedResource}
         isDrawerMaximized={isDrawerMaximized}
-        setIsDrawerMaximized={setIsDrawerMaximized}
+        setIsDrawerMaximized={handleSetIsDrawerMaximized}
         detailsWidth={detailsWidth}
-        handleResizeMouseDown={handleResizeMouseDown}
         setConfirmationModal={setConfirmationModal}
         detailTab={detailTab}
         setDetailTab={setDetailTab}

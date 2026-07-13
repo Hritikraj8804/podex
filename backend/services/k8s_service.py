@@ -6,9 +6,6 @@ from kubernetes.stream import stream
 from kubernetes.client.exceptions import ApiException
 from backend.kubernetes.client import get_core_api, get_apps_api
 
-def get_networking_api() -> client.NetworkingV1Api:
-    return client.NetworkingV1Api()
-
 class K8sService:
     @property
     def core_api(self) -> client.CoreV1Api:
@@ -246,11 +243,10 @@ class K8sService:
 
     def list_statefulsets(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
         try:
-            api = client.AppsV1Api()
             if namespace:
-                items = api.list_namespaced_stateful_set(namespace)
+                items = self.apps_api.list_namespaced_stateful_set(namespace)
             else:
-                items = api.list_stateful_set_for_all_namespaces()
+                items = self.apps_api.list_stateful_set_for_all_namespaces()
             result = []
             for s in items.items:
                 age = self._format_age(s.metadata.creation_timestamp)
@@ -272,11 +268,10 @@ class K8sService:
 
     def list_daemonsets(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
         try:
-            api = client.AppsV1Api()
             if namespace:
-                items = api.list_namespaced_daemon_set(namespace)
+                items = self.apps_api.list_namespaced_daemon_set(namespace)
             else:
-                items = api.list_daemon_set_for_all_namespaces()
+                items = self.apps_api.list_daemon_set_for_all_namespaces()
             result = []
             for ds in items.items:
                 age = self._format_age(ds.metadata.creation_timestamp)
@@ -354,13 +349,11 @@ class K8sService:
         return client.ApiClient().sanitize_for_serialization(s)
 
     def get_statefulset_details(self, namespace: str, name: str) -> Dict[str, Any]:
-        api = client.AppsV1Api()
-        s = api.read_namespaced_stateful_set(name, namespace)
+        s = self.apps_api.read_namespaced_stateful_set(name, namespace)
         return client.ApiClient().sanitize_for_serialization(s)
 
     def get_daemonset_details(self, namespace: str, name: str) -> Dict[str, Any]:
-        api = client.AppsV1Api()
-        ds = api.read_namespaced_daemon_set(name, namespace)
+        ds = self.apps_api.read_namespaced_daemon_set(name, namespace)
         return client.ApiClient().sanitize_for_serialization(ds)
 
     def get_pod_logs(self, namespace: str, name: str, container: Optional[str] = None, tail_lines: int = 100, timestamps: bool = False) -> str:

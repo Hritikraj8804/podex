@@ -32,7 +32,7 @@ async def ws_updates(websocket: WebSocket, namespace: str = "default"):
     try:
         while True:
             try:
-                    stats = k8s_service.get_cluster_stats()
+                stats = k8s_service.get_cluster_stats()
                 pods = k8s_service.list_pods(active_namespace)
                 deployments = k8s_service.list_deployments(active_namespace)
                 services = k8s_service.list_services(active_namespace)
