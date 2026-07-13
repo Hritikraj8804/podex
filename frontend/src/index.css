@@ -9,71 +9,129 @@
     --color-bg-input: #f1f5f9;
     --color-bg-hover: #e2e8f0;
     --color-bg-button: #e2e8f0;
-    --color-bg-sidebar: #f1f5f9;
+    --color-bg-sidebar: #f8fafc;
     --color-bg-header: #ffffff;
     --color-border: #e2e8f0;
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #475569;
+    --color-text-muted: #94a3b8;
+    --color-accent: #3b82f6;
+    --color-accent-light: #eff6ff;
+    --color-accent-dark: #2563eb;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
   }
 
   .dark {
-    --color-bg-base: #0b0e14;
-    --color-bg-surface: #10131c;
-    --color-bg-card: #151824;
-    --color-bg-input: #1a1d2e;
-    --color-bg-hover: #1e2235;
-    --color-bg-button: #232740;
-    --color-bg-sidebar: #0d1018;
-    --color-bg-header: #10131c;
-    --color-bg-footer: #0d1018;
-    --color-border: #1e2235;
+    --color-bg-base: #080b10;
+    --color-bg-surface: #0d1117;
+    --color-bg-card: #111820;
+    --color-bg-input: #111820;
+    --color-bg-hover: #1b2332;
+    --color-bg-button: #1b2332;
+    --color-bg-sidebar: #0d1117;
+    --color-bg-header: #0d1117;
+    --color-bg-footer: #0d1117;
+    --color-border: #1b2332;
+    --color-text-primary: #e2e8f0;
+    --color-text-secondary: #94a3b8;
+    --color-text-muted: #64748b;
+    --color-accent: #3b82f6;
+    --color-accent-light: rgba(59, 130, 246, 0.1);
+    --color-accent-dark: #60a5fa;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
   }
 
   body {
-    font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    transition-property: color, background-color, border-color;
-    transition-duration: 150ms;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-bg-base);
+    color: var(--color-text-primary);
   }
 
-  code, pre {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  * {
+    border-color: var(--color-border);
   }
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+.dark ::-webkit-scrollbar-thumb { background: #1e293b; }
+::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+/* Selection */
+::selection {
+  background: rgba(59, 130, 246, 0.2);
+  color: inherit;
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
 }
 
-.dark ::-webkit-scrollbar-track {
-  background: #0b0e14;
+/* React Flow overrides */
+.react-flow__node {
+  cursor: grab;
+}
+.react-flow__node:active {
+  cursor: grabbing;
+}
+.react-flow__handle {
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+.react-flow__minimap {
+  border-radius: 8px;
+  overflow: hidden;
+}
+.react-flow__controls {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.react-flow__controls button {
+  border-color: var(--color-border);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  width: 28px;
+  height: 28px;
+}
+.react-flow__controls button:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+.react-flow__controls button svg {
+  fill: currentColor;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+/* Subtle glow for selected elements */
+.k8s-glow {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2), 0 0 12px rgba(59, 130, 246, 0.08);
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: #1e2235;
-  border-radius: 3px;
+/* Animate-in utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #2a2e4a;
-}
-
-.arena-grid {
-  background-image: radial-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 0);
-}
-
-.dark .arena-grid {
-  background-image: radial-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 0);
-}
+.animate-fade-in { animation: fadeIn 0.2s ease-out; }
+.animate-slide-in { animation: slideInRight 0.2s ease-out; }

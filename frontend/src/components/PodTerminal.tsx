@@ -172,7 +172,7 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200 h-full flex flex-col min-h-[440px]">
-      <div className="flex justify-between items-center bg-white dark:bg-[#1e1d38] p-3 rounded-xl border border-slate-200/60 dark:border-[#2d2c50]">
+      <div className="flex justify-between items-center bg-white dark:bg-[#111820] p-3 rounded-lg border border-slate-200/60 dark:border-[#1b2332]">
         <div className="flex items-center space-x-2 text-xs font-bold text-slate-500">
           <span>Active Container:</span>
           {containers.length <= 1 ? (
@@ -217,12 +217,12 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 bg-[#121124] rounded-xl border border-slate-200 dark:border-[#2d2c50] p-3 overflow-hidden relative">
+      <div className="flex-1 min-h-0 bg-[#121124] rounded-lg border border-slate-200 dark:border-[#1b2332] p-3 overflow-hidden relative">
         <div ref={terminalRef} className="w-full h-full min-h-[380px] overflow-hidden" />
       </div>
 
       {/* AI Assistant Input */}
-      <div className="bg-white dark:bg-[#1e1d38] p-3 rounded-xl border border-slate-200/60 dark:border-[#2d2c50] flex flex-col space-y-2">
+      <div className="bg-white dark:bg-[#111820] p-3 rounded-lg border border-slate-200/60 dark:border-[#1b2332] flex flex-col space-y-2">
         <div className="flex items-center space-x-2 text-xs font-bold text-slate-500">
           <Sparkles className="w-4 h-4 text-cyan-500 animate-pulse" />
           <span>AI Command Generator</span>
@@ -234,7 +234,7 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
             disabled={aiLoading}
-            className="flex-1 bg-slate-50 dark:bg-[#161822] text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg px-3 py-2 text-sm border border-slate-200/60 dark:border-[#2d2c50] focus:outline-none focus:ring-1 focus:ring-cyan-500 font-medium"
+            className="flex-1 bg-slate-50 dark:bg-[#161822] text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg px-3 py-2 text-sm border border-slate-200/60 dark:border-[#1b2332] focus:outline-none focus:ring-1 focus:ring-cyan-500 font-medium"
           />
           <button
             type="submit"
@@ -249,7 +249,7 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
           </button>
         </form>
         {generatedCommand && (
-          <div className="flex items-center space-x-2 bg-slate-50 dark:bg-[#161822] p-2.5 rounded-lg border border-slate-200/40 dark:border-[#2d2c50]">
+          <div className="flex items-center space-x-2 bg-slate-50 dark:bg-[#161822] p-2.5 rounded-lg border border-slate-200/40 dark:border-[#1b2332]">
             <span className="text-[10px] font-extrabold uppercase text-cyan-500 shrink-0">Generated:</span>
             <input
               type="text"

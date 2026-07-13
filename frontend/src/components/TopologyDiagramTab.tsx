@@ -112,7 +112,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-xl shadow-sm select-none">
+        <div className="flex items-center space-x-3 text-[10px] font-extrabold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1e202c] px-3.5 py-2 rounded-lg shadow-sm select-none">
           <div className="flex items-center space-x-1.5">
             <span className="w-2 h-2.5 rounded bg-emerald-500" />
             <span>Healthy</span>
@@ -135,7 +135,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
           <span className="text-xs text-slate-500 font-bold">Mapping cluster topology...</span>
         </div>
       ) : topologyData.nodes.length === 0 ? (
-        <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] p-12 rounded-3xl text-center space-y-4 shadow-sm">
+        <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] p-12 rounded-lg text-center space-y-4 shadow-sm">
           <Network className="w-10 h-10 text-slate-400 mx-auto" />
           <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">No Active Resources Found</h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed font-semibold">
@@ -149,11 +149,11 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-[#2d2c50] bg-slate-50 dark:bg-[#121124] h-[620px] select-none cursor-grab active:cursor-grabbing"
+            className="relative overflow-hidden rounded-lg border border-slate-200 dark:border-[#1b2332] bg-slate-50 dark:bg-[#121124] h-[620px] select-none cursor-grab active:cursor-grabbing"
           >
             
             {/* Floating Zoom & Pan Reset Toolbar overlay */}
-            <div className="absolute bottom-4 left-4 flex items-center space-x-1.5 bg-white/95 dark:bg-[#1a1932]/95 border border-slate-200 dark:border-[#1e202c] p-1.5 rounded-xl shadow-lg z-25 backdrop-blur-md">
+            <div className="absolute bottom-4 left-4 flex items-center space-x-1.5 bg-white/95 dark:bg-[#0d1117]/95 border border-slate-200 dark:border-[#1e202c] p-1.5 rounded-lg shadow-lg z-25 backdrop-blur-md">
               <button
                 onClick={() => setZoomScale(Math.max(0.6, zoomScale - 0.1))}
                 disabled={zoomScale <= 0.6}

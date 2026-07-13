@@ -69,9 +69,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* Cluster Connection Settings */}
-      <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-6 space-y-6">
+      <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 space-y-6">
         <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e2235]">
-          <Cpu className="w-5 h-5 text-cyan-600" />
+          <Cpu className="w-5 h-5 text-blue-500" />
           <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 m-0">Kubernetes Cluster Context Switcher</h4>
         </div>
 
@@ -79,7 +79,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <div className="flex flex-col space-y-2">
             <label className="text-xs font-bold text-slate-500 dark:text-slate-400">Select Active Context:</label>
             {contexts.length === 0 ? (
-              <div className="text-xs text-slate-400 dark:text-slate-500 italic p-3.5 bg-slate-50 dark:bg-[#1e1d38] rounded-xl border border-slate-200/50 dark:border-slate-800/40 font-semibold">
+                <div className="text-xs text-slate-400 dark:text-slate-500 italic p-3.5 bg-slate-50 dark:bg-[#111820] rounded-lg border border-slate-200/50 dark:border-[#1b2332] font-medium">
                 No external kubeconfig contexts found. Using default/in-cluster client.
               </div>
             ) : (
@@ -93,7 +93,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       className={`flex items-center justify-between p-3.5 rounded-lg border text-xs font-bold text-left transition cursor-pointer ${
                         isCtxActive
                           ? 'border-cyan-500 bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400'
-                          : 'border-slate-200 dark:border-[#2d2c50] bg-slate-50 hover:bg-slate-100 dark:bg-[#1e1d38] dark:hover:bg-[#151821] text-slate-700 dark:text-slate-300'
+                          : 'border-slate-200 dark:border-[#1b2332] bg-slate-50 hover:bg-slate-100 dark:bg-[#111820] dark:hover:bg-[#151824] text-slate-700 dark:text-slate-300'
                       }`}
                     >
                       <span className="truncate mr-2">{ctx}</span>
@@ -110,7 +110,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* AI Service Provider Settings */}
-        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-6 space-y-6">
+        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 space-y-6">
         <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e2235]">
           <Sliders className="w-5 h-5 text-cyan-600" />
           <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 m-0">AI Engine Parameters</h4>
@@ -140,7 +140,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </div>
 
           {/* Force Mock Mode */}
-          <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#1e1d38] rounded-2xl border border-slate-200 dark:border-slate-800/80">
+          <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#111820] rounded-lg border border-slate-200 dark:border-[#1b2332]">
             <div className="space-y-0.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Force Offline Sandbox Mode</label>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Uses local mock answers. Saves credits & works without Internet.</span>
@@ -172,7 +172,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       placeholder="Enter GEMINI_API_KEY..."
                       value={geminiKey}
                       onChange={(e) => setGeminiKey(e.target.value)}
-                      className="bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
+                      className="bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] text-xs font-medium rounded-lg px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
                     />
                   </div>
 
@@ -182,7 +182,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <select
                       value={aiModel}
                       onChange={(e) => setAiModel(e.target.value)}
-                      className="bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
+                      className="bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] text-xs font-medium rounded-lg px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
                     >
                       <option value="gemini-2.5-flash">gemini-2.5-flash (Fast & cost-efficient)</option>
                       <option value="gemini-2.5-pro">gemini-2.5-pro (High intelligence, complex diagnostics)</option>
@@ -202,7 +202,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       placeholder="Enter OPENAI_API_KEY..."
                       value={openaiKey}
                       onChange={(e) => setOpenaiKey(e.target.value)}
-                      className="bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
+                      className="bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] text-xs font-medium rounded-lg px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
                     />
                   </div>
 
@@ -212,7 +212,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     <select
                       value={aiModel}
                       onChange={(e) => setAiModel(e.target.value)}
-                      className="bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
+                      className="bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] text-xs font-medium rounded-lg px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
                     >
                       <option value="gpt-4o-mini">gpt-4o-mini (Default high performance)</option>
                       <option value="gpt-4o">gpt-4o (Strict reasoning & analysis)</option>
@@ -244,7 +244,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           )}
 
           {/* Connection indicator */}
-          <div className="bg-slate-50 dark:bg-[#1e1d38]/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 font-semibold space-y-1.5">
+          <div className="bg-slate-50 dark:bg-[#111820]/60 p-4 rounded-lg border border-slate-100 dark:border-[#1b2332] text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 font-medium space-y-1.5">
             <span className="font-extrabold text-cyan-600 dark:text-cyan-400 block">API Override Information:</span>
             <p className="m-0">
               If overrides are left blank, Podex will automatically look for environmental variables (<code className="font-mono text-cyan-600 dark:text-cyan-400">GEMINI_API_KEY</code> / <code className="font-mono text-cyan-600 dark:text-cyan-400">OPENAI_API_KEY</code>) set in your docker-compose parameters or host settings. If none are present, the workspace runs in Sandbox Fallback Mode automatically.
@@ -254,7 +254,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* Log Display Preferences */}
-        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-6 space-y-6">
+        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 space-y-6">
         <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e2235]">
           <Terminal className="w-5 h-5 text-cyan-600" />
           <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 m-0">Terminal Logs Preferences</h4>
@@ -262,7 +262,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
         <div className="space-y-4 text-xs font-bold">
           {/* Line Wrapping */}
-          <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#1e1d38] rounded-2xl border border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#111820] rounded-lg border border-slate-100 dark:border-slate-800/80">
             <div className="space-y-0.5">
               <span className="text-slate-700 dark:text-slate-300 block">Log Line Wrap</span>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-normal">Wraps text inside the log screen instead of scrolling horizontally.</span>
@@ -279,7 +279,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </div>
 
           {/* Show Timestamps */}
-          <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#1e1d38] rounded-2xl border border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#111820] rounded-lg border border-slate-100 dark:border-slate-800/80">
             <div className="space-y-0.5">
               <span className="text-slate-700 dark:text-slate-300 block">Show Container Timestamps</span>
               <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-normal">Toggles Kubernetes log timestamps (`kubectl logs --timestamps`).</span>
@@ -301,7 +301,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             <select
               value={logsTailLimit}
               onChange={(e) => setLogsTailLimit(Number(e.target.value))}
-              className="bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
+              className="bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] text-xs font-medium rounded-lg px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
             >
               <option value={50}>50 lines</option>
               <option value={100}>100 lines (recommended)</option>
@@ -314,7 +314,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* UI Customization */}
-      <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-6 space-y-6">
+      <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 space-y-6">
         <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e2235]">
           <Sun className="w-5 h-5 text-cyan-600" />
           <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 m-0">Theme Configuration</h4>
@@ -325,9 +325,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       </div>
 
       {/* Kubernetes settings */}
-      <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-6 space-y-6">
+      <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 space-y-6">
         <div className="flex items-center space-x-2.5 pb-4 border-b border-slate-100 dark:border-[#1e2235]">
-          <Cpu className="w-5 h-5 text-cyan-600" />
+          <Cpu className="w-5 h-5 text-blue-500" />
           <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-100 m-0">Cluster Workspace Configurations</h4>
         </div>
 
@@ -340,7 +340,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               placeholder="e.g. kube-system, kube-public, local-path-storage"
               value={customNamespaces}
               onChange={(e) => setCustomNamespaces(e.target.value)}
-              className="bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] text-xs font-bold rounded-xl px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
+              className="bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] text-xs font-medium rounded-lg px-4 py-2.5 w-full outline-none text-slate-800 dark:text-slate-200"
             />
             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Namespaces added here will be hidden by default in the explorer layout to keep noise low.</span>
           </div>

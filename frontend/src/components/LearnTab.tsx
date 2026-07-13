@@ -31,19 +31,19 @@ export const LearnTab: React.FC<LearnTabProps> = ({
       </div>
 
       {/* Chat Input query */}
-      <div className="flex bg-white dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-2xl p-2 max-w-2xl mx-auto shadow-sm">
+      <div className="flex bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-lg p-1.5 max-w-2xl mx-auto shadow-sm">
         <input
           type="text"
           placeholder="Explain: Port Forwarding / CrashLoopBackOff / ConfigMap..."
           value={learnQuery}
           onChange={(e) => setLearnQuery(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleLearnQuery(''); }}
-          className="bg-transparent text-sm text-slate-800 dark:text-slate-200 border-none outline-none focus:ring-0 p-3 flex-grow font-bold"
+          className="bg-transparent text-sm text-slate-800 dark:text-slate-200 border-none outline-none focus:ring-0 p-3 flex-grow font-medium"
         />
         <button
           onClick={() => handleLearnQuery('')}
           disabled={aiLearningLoading}
-          className="px-6 py-3 rounded-lg bg-cyan-600 hover:bg-cyan-500 font-bold text-xs text-white transition disabled:opacity-50 flex items-center space-x-2 cursor-pointer"
+          className="px-6 py-2.5 rounded-md bg-blue-600 hover:bg-blue-500 font-semibold text-xs text-white transition disabled:opacity-50 flex items-center gap-2 cursor-pointer"
         >
           {aiLearningLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Explain</span>}
         </button>
@@ -55,7 +55,7 @@ export const LearnTab: React.FC<LearnTabProps> = ({
           <button
             key={tag}
             onClick={() => { setLearnQuery(tag); handleLearnQuery(tag); }}
-            className="px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 dark:bg-[#1e1d38] dark:hover:bg-[#161a24] border border-slate-200 dark:border-[#2d2c50] text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition font-bold shadow-sm cursor-pointer"
+            className="px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 dark:bg-[#0d1117] dark:hover:bg-[#111820] border border-slate-200 dark:border-[#1b2332] text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition font-medium shadow-sm cursor-pointer"
           >
             {tag}
           </button>
@@ -64,28 +64,28 @@ export const LearnTab: React.FC<LearnTabProps> = ({
 
       {/* AI Explanation Card Render */}
       {aiLearningLoading && (
-        <div className="bg-white dark:bg-[#0b0c10] border border-slate-200 dark:border-[#2d2c50] rounded-3xl p-12 flex flex-col items-center justify-center space-y-4 max-w-2xl mx-auto shadow-sm animate-pulse">
-          <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">Tutor is compiling explanation...</span>
+        <div className="bg-white dark:bg-[#0b0e14] border border-slate-200 dark:border-[#1b2332] rounded-xl p-12 flex flex-col items-center justify-center space-y-4 max-w-2xl mx-auto shadow-sm">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Loading explanation...</span>
         </div>
       )}
 
       {aiLearning && !aiLearningLoading && (
-        <div className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] rounded-3xl p-8 space-y-6 max-w-2xl mx-auto shadow-sm">
+        <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl p-6 space-y-5 max-w-2xl mx-auto shadow-sm">
 
           {/* Topic Title */}
-          <div className="flex items-center space-x-3 border-b border-slate-200 dark:border-[#2d2c50] pb-4">
-            <div className="w-10 h-10 rounded-xl bg-cyan-50 dark:bg-cyan-950/50 border border-cyan-200 dark:border-cyan-800 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-black">
+          <div className="flex items-center space-x-3 border-b border-slate-200 dark:border-[#1b2332] pb-4">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black">
               ?
             </div>
             <div>
-              <h4 className="text-base font-black text-slate-800 dark:text-slate-100 m-0">{aiLearning.concept}</h4>
-              <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-wider block font-bold mt-0.5">AI-Powered Explanation</span>
+              <h4 className="text-base font-extrabold text-slate-800 dark:text-slate-100 m-0">{aiLearning.concept}</h4>
+              <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-wider block font-medium mt-0.5">AI Explanation</span>
             </div>
           </div>
 
           {/* Sub-tabs Selection */}
-          <div className="flex bg-slate-200/50 dark:bg-[#24233f] rounded-xl p-0.5 border border-slate-250/60 dark:border-[#2d2c50] select-none">
+          <div className="flex bg-slate-200/50 dark:bg-[#111820] rounded-lg p-0.5 border border-slate-200 dark:border-[#1b2332] select-none">
             {([
               { id: 'concept', label: 'Concept Overview' },
               { id: 'why', label: 'Why it Exists' },
@@ -94,9 +94,9 @@ export const LearnTab: React.FC<LearnTabProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setLearnSubTab(tab.id)}
-                className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${learnSubTab === tab.id
-                  ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                className={`flex-1 py-1.5 rounded-md font-semibold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${learnSubTab === tab.id
+                  ? 'bg-white dark:bg-[#1f2330] text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                   }`}
               >
                 {tab.label}
@@ -116,8 +116,8 @@ export const LearnTab: React.FC<LearnTabProps> = ({
                 </div>
 
                 {aiLearning.real_world_analogy && aiLearning.real_world_analogy !== 'N/A' && (
-                  <div className="bg-indigo-50/50 dark:bg-[#0f121d] border border-indigo-100 dark:border-indigo-900/30 rounded-2xl p-5 space-y-2">
-                    <h5 className="font-bold text-[10px] text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
+                  <div className="bg-indigo-50/50 dark:bg-[#0f121d] border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-4 space-y-2">
+                    <h5 className="font-semibold text-[10px] text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
                       <Info className="w-3.5 h-3.5" />
                       <span>Analogy for Beginners</span>
                     </h5>
@@ -132,7 +132,7 @@ export const LearnTab: React.FC<LearnTabProps> = ({
             {/* SUBTAB: WHY IT EXISTS */}
             {learnSubTab === 'why' && (
               <div className="space-y-2 animate-in fade-in duration-200">
-                <h5 className="font-bold text-[10px] text-slate-405 uppercase tracking-wider">Why it exists in K8s</h5>
+                <h5 className="font-semibold text-[10px] text-slate-500 uppercase tracking-wider">Why it exists in K8s</h5>
                 <p className="text-slate-700 dark:text-slate-300 font-medium text-xs leading-relaxed">{aiLearning.why_it_exists}</p>
               </div>
             )}
@@ -145,8 +145,8 @@ export const LearnTab: React.FC<LearnTabProps> = ({
                     <h5 className="font-bold text-[10px] text-amber-600 dark:text-amber-500 uppercase tracking-wider mb-2">Gotchas & Pitfalls to Avoid</h5>
                     <div className="space-y-2.5">
                       {aiLearning.common_gotchas.map((gotcha: string, idx: number) => (
-                        <div key={idx} className="flex items-start space-x-3 p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/10 text-slate-700 dark:text-slate-300">
-                          <AlertCircle className="w-4 h-4 text-amber-550 shrink-0 mt-0.5" />
+                        <div key={idx} className="flex items-start space-x-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 text-slate-700 dark:text-slate-300">
+                          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                           <span className="text-xs font-medium leading-relaxed">{gotcha}</span>
                         </div>
                       ))}

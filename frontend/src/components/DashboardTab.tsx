@@ -48,7 +48,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Left Welcome Content (2/3 width) */}
-        <div className="lg:col-span-2 rounded-2xl bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] p-8 flex flex-col justify-between min-h-[220px]">
+        <div className="lg:col-span-2 rounded-lg bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] p-8 flex flex-col justify-between min-h-[220px]">
           <div className="space-y-3">
             <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 tracking-widest uppercase">Kubernetes Interactive Workspace</span>
             <h3 className="text-xl font-black text-slate-800 dark:text-white leading-tight">Inspect container states & diagnose errors reactively.</h3>
@@ -63,7 +63,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 Cluster Pod Map ({filteredPods.length} total)
               </span>
-              <span className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold italic">Click cell to inspect</span>
+              <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">Click cell to inspect</span>
             </div>
             {filteredPods.length === 0 ? (
               <span className="text-xs text-slate-400 block italic font-medium">No user pods running in cluster.</span>
@@ -89,7 +89,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         setActiveTab('explorer');
                       }}
                       title={`${p.name} (${p.status})`}
-                      className={`w-4.5 h-4.5 rounded-lg cursor-pointer hover:scale-125 hover:rotate-6 transition duration-150 shadow-md ${color}`}
+                      className={`w-4 h-4 rounded cursor-pointer hover:scale-110 transition duration-150 shadow-sm ${color}`}
                     />
                   );
                 })}
@@ -99,7 +99,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         </div>
 
         {/* Right Circular Health Donut (1/3 width) */}
-        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-8 flex flex-col items-center justify-center space-y-4 min-h-[220px]">
+        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-8 flex flex-col items-center justify-center space-y-4 min-h-[220px]">
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Cluster Health</span>
 
           {/* SVG Donut Track */}
@@ -217,7 +217,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 setActiveTab('learn');
                 handleLearnQuery(card.query);
               }}
-              className="bg-white dark:bg-[#1a1932] border border-slate-200 dark:border-[#2d2c50] rounded-2xl p-5 hover:border-cyan-500 cursor-pointer transition group shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300"
+              className="bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-xl p-5 hover:border-blue-500 cursor-pointer transition group shadow-sm"
             >
               <h5 className="font-bold text-slate-800 dark:text-slate-200 m-0 group-hover:text-cyan-500 transition">{card.title}</h5>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed font-semibold">{card.desc}</p>
