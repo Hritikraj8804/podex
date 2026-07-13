@@ -68,12 +68,11 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, onShowToast 
 };
 
 interface ResourceDrawerProps {
-  selectedResource: { type: 'pod' | 'deployment' | 'service', name: string, namespace: string } | null;
+  selectedResource: { type: 'pod' | 'deployment' | 'service' | 'node' | 'configmap' | 'secret' | 'statefulset' | 'daemonset', name: string, namespace: string } | null;
   setSelectedResource: (resource: { type: 'pod' | 'deployment' | 'service', name: string, namespace: string } | null) => void;
   isDrawerMaximized: boolean;
   setIsDrawerMaximized: (max: boolean) => void;
   detailsWidth: number;
-  handleResizeMouseDown: (e: React.MouseEvent) => void;
   setConfirmationModal: (modal: any) => void;
   detailTab: 'overview' | 'yaml' | 'logs' | 'investigate' | 'terminal' | 'events';
   setDetailTab: (tab: 'overview' | 'yaml' | 'logs' | 'investigate' | 'terminal' | 'events') => void;
@@ -110,7 +109,6 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
   isDrawerMaximized,
   setIsDrawerMaximized,
   detailsWidth,
-  handleResizeMouseDown,
   setConfirmationModal,
   detailTab,
   setDetailTab,
@@ -142,14 +140,9 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
 
   return (
     <aside
-      style={{ width: isDrawerMaximized ? '90vw' : `${detailsWidth}px` }}
-      className="relative border-l border-slate-200 dark:border-[#1b2332] bg-white dark:bg-[#121124] flex flex-col z-20 shadow-2xl transition-all duration-75"
+      style={{ width: isDrawerMaximized ? 'calc(100vw - 5rem)' : `${detailsWidth}px` }}
+      className="border-l border-slate-200 dark:border-[#1b2332] bg-white dark:bg-[#121124] flex flex-col z-20 shadow-2xl transition-all duration-75 shrink-0"
     >
-      {/* Resize Handle Drag Border */}
-      <div
-        onMouseDown={handleResizeMouseDown}
-        className="absolute top-0 left-0 w-1.5 h-full cursor-ew-resize hover:bg-cyan-500/50 active:bg-cyan-500 z-50 transition-colors"
-      />
 
       {/* Header */}
       <div className="p-6 border-b border-slate-200 dark:border-[#1b2332] flex items-center justify-between">

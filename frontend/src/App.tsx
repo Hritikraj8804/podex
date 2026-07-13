@@ -130,8 +130,18 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram' | 'arena'>('dashboard');
 
   // Arena States
-  const [arenaNodes, setArenaNodes] = useState<ArenaNode[]>([]);
-  const [arenaConnections, setArenaConnections] = useState<ArenaConnection[]>([]);
+  const [arenaNodes, setArenaNodes] = useState<ArenaNode[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('arenaNodes');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [arenaConnections, setArenaConnections] = useState<ArenaConnection[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('arenaConnections');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [arenaSelectedNodeId, setArenaSelectedNodeId] = useState<string | null>(null);
 
   // Topology States
@@ -250,7 +260,7 @@ export default function App() {
       default: return 'focus:ring-cyan-500';
     }
   };
-  const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services'>('pods');
+  const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services' | 'nodes' | 'configmaps' | 'secrets' | 'statefulsets' | 'daemonsets' | 'events'>('pods');
   const [namespaceFilter, setNamespaceFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showSystemResources, setShowSystemResources] = useState<boolean>(false);
@@ -266,9 +276,13 @@ export default function App() {
   const [autoScrollLogs, setAutoScrollLogs] = useState<boolean>(true);
 
   // Drawer Resizing & Layout States
-  const [detailsWidth, setDetailsWidth] = useState<number>(520);
-  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [detailsWidth] = useState<number>(520);
   const [isDrawerMaximized, setIsDrawerMaximized] = useState<boolean>(false);
+
+  const handleSetIsDrawerMaximized = useCallback((max: boolean) => {
+    setIsDrawerMaximized(max);
+    if (max) setSidebarCollapsed(true);
+  }, []);
 
   // Sidebar collapse state
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
@@ -280,11 +294,17 @@ export default function App() {
   const [pods, setPods] = useState<PodResource[]>([]);
   const [deployments, setDeployments] = useState<DeploymentResource[]>([]);
   const [services, setServices] = useState<ServiceResource[]>([]);
+  const [nodes, setNodesRes] = useState<any[]>([]);
+  const [configmaps, setConfigmaps] = useState<any[]>([]);
+  const [secrets, setSecrets] = useState<any[]>([]);
+  const [statefulsets, setStatefulsets] = useState<any[]>([]);
+  const [daemonsets, setDaemonsets] = useState<any[]>([]);
+  const [eventsAll, setEventsAll] = useState<any[]>([]);
   const [resourcesLoading, setResourcesLoading] = useState(false);
 
   // Detail panel states
   const [selectedResource, setSelectedResource] = useState<{
-    type: 'pod' | 'deployment' | 'service';
+    type: 'pod' | 'deployment' | 'service' | 'node' | 'configmap' | 'secret' | 'statefulset' | 'daemonset';
     name: string;
     namespace: string;
   } | null>(null);
@@ -321,6 +341,15 @@ export default function App() {
   // Toast notifications state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  // Persist Arena canvas state across tab refreshes
+  useEffect(() => {
+    try { sessionStorage.setItem('arenaNodes', JSON.stringify(arenaNodes)); } catch {}
+  }, [arenaNodes]);
+
+  useEffect(() => {
+    try { sessionStorage.setItem('arenaConnections', JSON.stringify(arenaConnections)); } catch {}
+  }, [arenaConnections]);
+
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 3500);
@@ -340,31 +369,6 @@ export default function App() {
     }
     localStorage.setItem('theme', theme);
   }, [theme]);
-
-  // Handle details panel mouse resize drag
-  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isResizing) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = window.innerWidth - e.clientX;
-      if (newWidth >= 340 && newWidth <= window.innerWidth * 0.85) {
-        setDetailsWidth(newWidth);
-      }
-    };
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
 
   // Auto-scroll logs logic
   useEffect(() => {
@@ -444,6 +448,12 @@ export default function App() {
         setPods(data.pods || []);
         setDeployments(data.deployments || []);
         setServices(data.services || []);
+        setNodesRes(data.nodes || []);
+        setConfigmaps(data.configmaps || []);
+        setSecrets(data.secrets || []);
+        setStatefulsets(data.statefulsets || []);
+        setDaemonsets(data.daemonsets || []);
+        setEventsAll(data.events || []);
       }
     } catch (e) {
       console.error("Failed fetching resources", e);
@@ -499,6 +509,12 @@ export default function App() {
             setPods(data.resources.pods);
             setDeployments(data.resources.deployments);
             setServices(data.resources.services);
+            if (data.resources.nodes) setNodesRes(data.resources.nodes);
+            if (data.resources.configmaps) setConfigmaps(data.resources.configmaps);
+            if (data.resources.secrets) setSecrets(data.resources.secrets);
+            if (data.resources.statefulsets) setStatefulsets(data.resources.statefulsets);
+            if (data.resources.daemonsets) setDaemonsets(data.resources.daemonsets);
+            if (data.resources.events) setEventsAll(data.resources.events);
           }
           if (data.topology) setTopologyData(data.topology);
         } catch (err) {
@@ -840,6 +856,33 @@ export default function App() {
     return matchesSearch && matchesSystem;
   });
 
+  const filteredNodes = nodes.filter(n => n.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredConfigmaps = configmaps.filter(cm => {
+    const matchesSearch = cm.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(cm.namespace);
+    return matchesSearch && matchesSystem;
+  });
+  const filteredSecrets = secrets.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(s.namespace);
+    return matchesSearch && matchesSystem;
+  });
+  const filteredStatefulsets = statefulsets.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(s.namespace);
+    return matchesSearch && matchesSystem;
+  });
+  const filteredDaemonsets = daemonsets.filter(ds => {
+    const matchesSearch = ds.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(ds.namespace);
+    return matchesSearch && matchesSystem;
+  });
+  const filteredEventsAll = eventsAll.filter(e => {
+    const matchesSearch = e.message?.toLowerCase().includes(searchTerm.toLowerCase()) || e.reason?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSystem = showSystemResources || !isSystemNamespace(e.namespace);
+    return matchesSearch && matchesSystem;
+  });
+
   // Client-side resource relations mapper (traced dynamically in explorer)
   const getRelatedResources = () => {
     if (!selectedResource || !resourceDetails) return [];
@@ -895,159 +938,197 @@ export default function App() {
 
 
   return (
-    <div className="flex h-screen overflow-hidden transition-colors duration-150"
-      style={{ background: 'var(--color-bg-base)', color: 'var(--color-text-primary)' }}>
+    <div className="flex h-screen bg-slate-50 dark:bg-[#0b0e14] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-150">
 
       {/* Sidebar NAVIGATION */}
-      <aside className={`${sidebarCollapsed ? 'w-16' : 'w-60'} flex flex-col select-none transition-all duration-200 shrink-0`}
-        style={{ background: 'var(--color-bg-sidebar)', borderRight: '1px solid var(--color-border)' }}>
+      <aside className={`${sidebarCollapsed ? 'w-20' : 'w-64'} bg-slate-100 dark:bg-[#0d1018] border-r border-slate-200 dark:border-[#1e2235] flex flex-col justify-between select-none transition-all duration-200`}>
         {sidebarCollapsed ? (
-          <div className="flex flex-col items-center h-full py-4 gap-4">
-            {/* Logo */}
-            <div
-              onClick={() => { setActiveTab('dashboard'); setSelectedResource(null); }}
-              className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm text-white cursor-pointer hover:bg-blue-500 transition"
-              title="Podex"
-            >
-              P
+          /* SLIM SIDEBAR (Discord style icon strip) */
+          <div className="flex flex-col justify-between h-full py-6 items-center">
+            <div className="flex flex-col items-center space-y-6 w-full">
+              {/* Logo Brand Icon */}
+              <div
+                onClick={() => {
+                  setActiveTab('dashboard');
+                  setSelectedResource(null);
+                }}
+                className="w-12 h-12 rounded-xl bg-cyan-600 flex items-center justify-center font-black text-xl text-white cursor-pointer hover:bg-cyan-500 transition"
+                title="Podex - Go to Dashboard"
+              >
+                P
+              </div>
+
+              {/* Nav List Icons */}
+              <nav className="flex flex-col items-center space-y-4 w-full px-2">
+                {[
+                  { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
+                  { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+                  { id: 'diagram', label: 'Cluster Topology', icon: Network },
+                  { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
+                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+                ].map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        setSelectedResource(null);
+                      }}
+                      title={tab.label}
+                      className={`w-12 h-12 flex items-center justify-center rounded-xl transition cursor-pointer relative group ${isActive
+                          ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
+                          : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                    >
+                      <Icon className={`w-5 h-5 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      
+                      {/* Tooltip */}
+                      <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
+                        {tab.label}
+                      </div>
+                    </button>
+                  );
+                })}
+              </nav>
             </div>
-            <div className="w-6 h-px" style={{ background: 'var(--color-border)' }} />
-            {/* Nav */}
-            <nav className="flex flex-col items-center gap-2 w-full px-2">
-              {[
-                { id: 'dashboard', label: 'Overview', icon: Cpu },
-                { id: 'explorer', label: 'Explorer', icon: Layers },
-                { id: 'diagram', label: 'Topology', icon: Network },
-                { id: 'arena', label: 'Arena', icon: Gamepad2 },
-                { id: 'learn', label: 'Learn', icon: BookOpen },
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => { setActiveTab(tab.id as any); setSelectedResource(null); }}
-                    title={tab.label}
-                    className={`w-10 h-10 flex items-center justify-center rounded-lg transition cursor-pointer relative group ${
-                      isActive
-                        ? 'bg-blue-500/10 text-blue-500'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1b2332]'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <div className="absolute left-12 bg-slate-900 dark:bg-[#1e293b] text-white text-[10px] font-semibold px-2 py-1 rounded-md opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-lg z-30">
-                      {tab.label}
-                    </div>
-                  </button>
-                );
-              })}
-            </nav>
-            <div className="flex-1" />
-            {/* Footer */}
-            <div className="flex flex-col items-center gap-2">
+
+            {/* Footer Utilities */}
+            <div className="flex flex-col items-center space-y-4 w-full">
+              {/* Settings button */}
               <button
-                onClick={() => { setActiveTab('settings'); setSelectedResource(null); }}
-                className={`w-10 h-10 flex items-center justify-center rounded-lg transition cursor-pointer ${
-                  activeTab === 'settings' ? 'bg-blue-500/10 text-blue-500' : 'text-slate-500 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1b2332]'
-                }`}
+                onClick={() => {
+                  setActiveTab('settings');
+                  setSelectedResource(null);
+                }}
+                className={`w-12 h-12 flex items-center justify-center rounded-xl transition cursor-pointer relative group ${activeTab === 'settings'
+                    ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
                 title="Settings"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className={`w-5 h-5 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-400'}`} />
+                <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
+                  Settings
+                </div>
               </button>
+
+              {/* Theme Toggle */}
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-[#1b2332] transition cursor-pointer"
-                title="Toggle theme"
+                className="p-2 rounded-lg bg-slate-200 dark:bg-[#2a294a] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                title="Toggle Light/Dark Theme"
               >
-                {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
+
+              {/* Expand Button */}
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1b2332] transition cursor-pointer"
-                title="Expand"
+                className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-[#2a294a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                title="Expand Sidebar"
               >
                 <Menu className="w-4 h-4" />
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col h-full">
-            {/* Logo */}
-            <div className="p-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
-              <div
-                onClick={() => { setActiveTab('dashboard'); setSelectedResource(null); }}
-                className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition"
-              >
-                <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-xs text-white">P</div>
-                <div>
-                  <div className="text-xs font-bold tracking-wide" style={{ color: 'var(--color-text-primary)' }}>PODEX</div>
-                  <div className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>K8s Playground</div>
-                </div>
-              </div>
-              <button
-                onClick={() => setSidebarCollapsed(true)}
-                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#1b2332] text-slate-400 transition cursor-pointer"
-              >
-                <PanelLeftClose className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Nav */}
-            <nav className="flex-1 p-3 space-y-0.5">
-              {[
-                { id: 'dashboard', label: 'Overview', icon: Cpu },
-                { id: 'explorer', label: 'Explorer', icon: Layers },
-                { id: 'diagram', label: 'Topology', icon: Network },
-                { id: 'arena', label: 'Arena', icon: Gamepad2 },
-                { id: 'learn', label: 'Learn', icon: BookOpen },
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => { setActiveTab(tab.id as any); setSelectedResource(null); }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[11px] font-semibold transition cursor-pointer ${
-                      isActive
-                        ? 'bg-blue-500/10 text-blue-500'
-                        : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-[#1b2332] hover:text-slate-700 dark:hover:text-slate-300'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* Footer */}
-            <div className="p-3 space-y-1" style={{ borderTop: '1px solid var(--color-border)' }}>
-              <button
-                onClick={() => { setActiveTab('settings'); setSelectedResource(null); }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[11px] font-semibold transition cursor-pointer ${
-                  activeTab === 'settings'
-                    ? 'bg-blue-500/10 text-blue-500'
-                    : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-[#1b2332] hover:text-slate-700 dark:hover:text-slate-300'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                <span>Settings</span>
-              </button>
-              <div className="flex items-center justify-between px-3 py-1.5">
-                <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>Theme</span>
-                <button
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-[#1b2332] text-slate-400 transition cursor-pointer"
+          /* FULL SIDEBAR */
+          <div className="flex flex-col justify-between h-full">
+            <div>
+              {/* Logo Brand */}
+              <div className="p-5 flex items-center justify-between border-b border-slate-200 dark:border-[#1b2332]">
+                <div
+                  onClick={() => {
+                    setActiveTab('dashboard');
+                    setSelectedResource(null);
+                  }}
+                  className="flex items-center gap-3 cursor-pointer hover:opacity-90 active:scale-95 transition"
+                  title="Go to Dashboard"
                 >
-                  {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
+                   <div className="w-10 h-10 rounded-lg bg-cyan-600 flex items-center justify-center font-black text-xl text-white shrink-0">
+                    P
+                  </div>
+                  <div>
+                    <h1 className="text-base font-extrabold text-slate-800 dark:text-cyan-400 m-0 tracking-wide leading-none">PODEX</h1>
+                    <span className="text-[9px] text-slate-500 dark:text-slate-500 font-semibold tracking-wider block mt-0.5">K8S FOR BEGINNERS</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#2a294a] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                  title="Hide Sidebar"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
                 </button>
               </div>
-              <div className="p-2.5 rounded-lg" style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
-                <div className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--color-text-muted)' }}>Connected</div>
-                <div className="text-[10px] font-bold truncate" style={{ color: 'var(--color-text-secondary)' }}>
+
+              {/* Nav List */}
+              <nav className="p-4 space-y-1.5">
+                {[
+                  { id: 'dashboard', label: 'Overview Dashboard', icon: Cpu },
+                  { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
+                  { id: 'diagram', label: 'Cluster Topology', icon: Network },
+                  { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
+                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+                ].map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        setSelectedResource(null);
+                      }}
+                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-xs font-bold transition cursor-pointer ${isActive
+                        ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                    >
+                      <Icon className={`w-4 h-4 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Sidebar Footer */}
+            <div className="p-6 border-t border-slate-200 dark:border-[#1b2332] space-y-3">
+              {/* Settings button */}
+              <button
+                onClick={() => {
+                  setActiveTab('settings');
+                  setSelectedResource(null);
+                }}
+                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-left text-xs font-bold transition cursor-pointer ${activeTab === 'settings'
+                    ? `${getAccentColor('bgMuted')} ${getAccentColor('text')} border-l-4 ${getAccentColor('border')}`
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+              >
+                <Settings className={`w-4 h-4 ${activeTab === 'settings' ? getAccentColor('text') : 'text-slate-400'}`} />
+                <span>Settings</span>
+              </button>
+
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/50 dark:border-[#1b2332]/50">
+                <span className="text-slate-500 font-bold">Theme Mode</span>
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="p-1.5 rounded-lg bg-slate-200 dark:bg-[#2a294a] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                  title="Toggle Light/Dark Theme"
+                >
+                  {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <div className="bg-slate-200/50 dark:bg-[#151824] p-3.5 rounded-lg border border-slate-300/40 dark:border-[#1e2235]">
+                <span className="text-[10px] text-slate-500 dark:text-slate-500 uppercase tracking-widest block font-bold mb-1">
+                  Active Connection
+                </span>
+                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
                   {stats?.status === 'healthy' ? 'kind-podex' : 'Connecting...'}
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full ml-1.5 ${stats?.status === 'healthy' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
-                </div>
+                </span>
               </div>
             </div>
           </div>
@@ -1055,64 +1136,65 @@ export default function App() {
       </aside>
 
       {/* Main Workspace Frame */}
-      <main className="flex-1 flex flex-col min-w-0" style={{ background: 'var(--color-bg-base)' }}>
+      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0b0e14]">
 
-        {/* Top Header */}
-        <header className="h-12 flex items-center justify-between px-6 shrink-0"
-          style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-header)' }}>
-          <div className="flex items-center gap-3">
+        {/* Top Header Workspace */}
+        <header className="h-16 border-b border-slate-200 dark:border-[#1e2235] flex items-center justify-between px-8 bg-white dark:bg-[#10131c]">
+          <div className="flex items-center space-x-4">
+            {/* Sidebar toggle button (only shown when collapsed to expand it) */}
             {sidebarCollapsed && (
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 transition cursor-pointer"
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#24233f] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+                title="Show Sidebar"
               >
-                <Menu className="w-4 h-4" />
+                <Menu className="w-5 h-5" />
               </button>
             )}
-            <h2 className="text-xs font-bold capitalize tracking-wide" style={{ color: 'var(--color-text-primary)' }}>
-              {activeTab === 'arena' ? 'Arena' : activeTab}
+            <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 capitalize m-0 tracking-wide">
+              {activeTab} Space
             </h2>
 
+            {/* Namespace Filter for Explorer */}
             {activeTab === 'explorer' && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
-                <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>NS:</span>
+              <div className="flex items-center bg-slate-100 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl px-3 py-1">
+                <Sliders className="w-3.5 h-3.5 text-slate-400 mr-2" />
+                <span className="text-[11px] text-slate-500 dark:text-slate-500 mr-2 font-bold">Namespace:</span>
                 <input
                   type="text"
-                  placeholder="all"
+                  placeholder="all / default / etc."
                   value={namespaceFilter}
                   onChange={(e) => setNamespaceFilter(e.target.value)}
-                  className="bg-transparent text-[11px] font-semibold border-none outline-none p-0 w-16"
-                  style={{ color: 'var(--color-text-primary)' }}
+                  className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-24 font-bold"
                 />
               </div>
             )}
 
+            {/* Show System Resources Toggle */}
             {(activeTab === 'explorer' || activeTab === 'dashboard') && (
-              <label className="flex items-center gap-1.5 px-2.5 py-1 rounded-md cursor-pointer select-none"
-                style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+              <label className="flex items-center space-x-2 bg-slate-100 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl px-3 py-1 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={showSystemResources}
                   onChange={(e) => setShowSystemResources(e.target.checked)}
-                  className="w-3 h-3 rounded text-blue-500 focus:ring-0 cursor-pointer"
+                  className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-[#2d2c50] focus:ring-0 cursor-pointer"
                 />
-                <span className="text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>System</span>
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Show System</span>
               </label>
             )}
           </div>
 
-          <div className="flex items-center gap-2 text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>
-            <span>{activeContext || 'default'}</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${stats?.status === 'healthy' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+          <div className="flex items-center space-x-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
+            <span>Kind Cluster Dev</span>
+              <span className={`w-2 h-2 rounded-full ${stats?.status === 'healthy' ? 'bg-cyan-500' : 'bg-amber-400'}`} />
           </div>
         </header>
 
         {/* Dynamic Views Content */}
-        <div className="flex-1 overflow-y-auto" style={{ background: 'var(--color-bg-base)' }}>
+        <div className="flex-1 overflow-auto p-8 min-w-0">
 
           {/* TAB 1: DASHBOARD */}
           {activeTab === 'dashboard' && (
-            <div className="p-6 max-w-6xl mx-auto w-full animate-fade-in">
             <DashboardTab
               stats={stats}
               statsLoading={statsLoading}
@@ -1126,18 +1208,22 @@ export default function App() {
               setSelectedResource={setSelectedResource}
               setDetailTab={setDetailTab}
             />
-            </div>
           )}
 
           {/* TAB 2: EXPLORER */}
           {activeTab === 'explorer' && (
-            <div className="p-6 max-w-6xl mx-auto w-full animate-fade-in">
             <ExplorerTab
               explorerSubTab={explorerSubTab}
               setExplorerSubTab={setExplorerSubTab}
               filteredPods={filteredPods}
               filteredDeployments={filteredDeployments}
               filteredServices={filteredServices}
+              filteredNodes={filteredNodes}
+              filteredConfigmaps={filteredConfigmaps}
+              filteredSecrets={filteredSecrets}
+              filteredStatefulsets={filteredStatefulsets}
+              filteredDaemonsets={filteredDaemonsets}
+              filteredEventsAll={filteredEventsAll}
               searchTerm={searchTerm}
               setSearchTerm={setSearchTerm}
               resourcesLoading={resourcesLoading}
@@ -1149,12 +1235,10 @@ export default function App() {
               onRefresh={fetchResources}
               setToast={setToast}
             />
-            </div>
           )}
 
           {/* TAB 3: LEARN TEACHER */}
           {activeTab === 'learn' && (
-            <div className="p-6 max-w-4xl mx-auto w-full animate-fade-in">
             <LearnTab
               learnQuery={learnQuery}
               setLearnQuery={setLearnQuery}
@@ -1164,12 +1248,10 @@ export default function App() {
               learnSubTab={learnSubTab}
               setLearnSubTab={setLearnSubTab}
             />
-            </div>
           )}
 
           {/* TAB: TOPOLOGY DIAGRAM */}
           {activeTab === 'diagram' && (
-            <div className="p-6 w-full animate-fade-in">
             <TopologyDiagramTab
               filteredTopology={getFilteredTopology()}
               topologyLoading={topologyLoading}
@@ -1184,7 +1266,6 @@ export default function App() {
               handleMouseUp={handleMouseUp}
               handleNodeMouseDown={handleNodeMouseDown}
               customNodePositions={customNodePositions}
-              setCustomNodePositions={setCustomNodePositions}
               isNodeConnected={isNodeConnected}
               setHoveredNodeId={setHoveredNodeId}
               hoveredNodeId={hoveredNodeId}
@@ -1193,7 +1274,6 @@ export default function App() {
               setDetailTab={setDetailTab}
               getAccentColor={getAccentColor}
             />
-            </div>
           )}
 
           {/* TAB: ARENA PLAYGROUND */}
@@ -1211,7 +1291,6 @@ export default function App() {
           )}
           {/* TAB 4: SETTINGS */}
           {activeTab === 'settings' && (
-            <div className="p-6 max-w-4xl mx-auto w-full animate-fade-in">
             <SettingsTab
               contexts={contexts}
               activeContext={activeContext}
@@ -1239,7 +1318,6 @@ export default function App() {
               refreshInterval={refreshInterval}
               setRefreshInterval={setRefreshInterval}
             />
-            </div>
           )}
         </div>
       </main>
@@ -1249,9 +1327,8 @@ export default function App() {
         selectedResource={selectedResource}
         setSelectedResource={setSelectedResource}
         isDrawerMaximized={isDrawerMaximized}
-        setIsDrawerMaximized={setIsDrawerMaximized}
+        setIsDrawerMaximized={handleSetIsDrawerMaximized}
         detailsWidth={detailsWidth}
-        handleResizeMouseDown={handleResizeMouseDown}
         setConfirmationModal={setConfirmationModal}
         detailTab={detailTab}
         setDetailTab={setDetailTab}
@@ -1282,7 +1359,7 @@ export default function App() {
       {/* CONFIRMATION / EDUCATION MODAL FRAME */}
       {confirmationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 select-none p-4">
-          <div className="w-full max-w-md bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 space-y-6 shadow-lg">
+          <div className="w-full max-w-md bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-2xl p-6 space-y-6 shadow-lg">
 
             {/* Modal Header */}
             <div className="flex items-center space-x-3">
@@ -1309,7 +1386,7 @@ export default function App() {
             </div>
 
             {/* Educational content - What Kubernetes does behind the scenes */}
-            <div className="bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-slate-800 p-4.5 rounded-lg text-xs leading-relaxed space-y-2">
+            <div className="bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-slate-800 p-4.5 rounded-2xl text-xs leading-relaxed space-y-2">
               <span className="font-bold text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-widest block">
                 Behind The Scenes (Kubernetes Lifecycle)
               </span>
@@ -1334,7 +1411,7 @@ export default function App() {
             {confirmationModal.type === 'scale' && (
               <div className="space-y-2 text-xs">
                 <label className="font-bold text-slate-500 dark:text-slate-400 block">Target Replica Count:</label>
-                <div className="flex items-center space-x-3 bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-lg p-2 max-w-[140px] select-none">
+                <div className="flex items-center space-x-3 bg-slate-50 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl p-2 max-w-[140px] select-none">
                   <button
                     onClick={() => setConfirmationModal({
                       ...confirmationModal,
@@ -1366,11 +1443,11 @@ export default function App() {
             </p>
 
             {/* Modal Actions */}
-            <div className="flex justify-end items-center space-x-3 border-t border-slate-200 dark:border-[#1b2332] pt-4">
+            <div className="flex justify-end items-center space-x-3 border-t border-slate-200 dark:border-[#2d2c50] pt-4">
               <button
                 onClick={() => setConfirmationModal(null)}
                 disabled={operationInProgress}
-                className="px-4.5 py-2.5 rounded-lg border border-slate-200 dark:border-[#1b2332] hover:bg-slate-100 dark:hover:bg-[#111820] text-slate-600 dark:text-slate-300 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                className="px-4.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#2d2c50] hover:bg-slate-100 dark:hover:bg-[#24233f] text-slate-600 dark:text-slate-300 text-xs font-bold transition disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -1395,7 +1472,7 @@ export default function App() {
 
       {/* Toast Notification Banner */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4.5 py-3 rounded-lg border shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 backdrop-blur-md bg-white/90 dark:bg-[#0d1117]/90 border-slate-200 dark:border-[#1b2332]">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4.5 py-3 rounded-2xl border shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-300 backdrop-blur-md bg-white/90 dark:bg-[#1a1932]/90 border-slate-200 dark:border-[#2d2c50]">
           {toast.type === 'success' ? (
             <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
           ) : toast.type === 'error' ? (
