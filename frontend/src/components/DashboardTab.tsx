@@ -1,5 +1,9 @@
 import React from 'react';
-import { Cpu, Layers, Activity, Terminal, Loader2, ArrowRight } from 'lucide-react';
+import {
+  Layers, Activity, Loader2, ArrowRight,
+  Server, AlertTriangle, CheckCircle2, Wifi,
+  Zap, BarChart3, Network, Shield, Box, BookOpen
+} from 'lucide-react';
 
 interface DashboardTabProps {
   stats: any;
@@ -12,7 +16,7 @@ interface DashboardTabProps {
   setActiveTab: (tab: 'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram') => void;
   handleLearnQuery: (query: string) => void;
   setSelectedResource: (resource: { type: 'pod' | 'deployment' | 'service', name: string, namespace: string } | null) => void;
-  setDetailTab: (tab: 'overview' | 'yaml' | 'logs' | 'investigate' | 'terminal') => void;
+  setDetailTab: (tab: 'overview' | 'logs' | 'investigate' | 'terminal') => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
@@ -28,7 +32,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   setSelectedResource,
   setDetailTab,
 }) => {
-  // Metrics for Circular Health Donut
   const runningPodsCount = filteredPods.filter(p => {
     const s = p.status.toLowerCase();
     return s.includes('run') || s === 'completed' || s === 'ready';
@@ -36,50 +39,142 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const totalPodsCount = filteredPods.length;
   const healthPercentage = totalPodsCount > 0 ? Math.round((runningPodsCount / totalPodsCount) * 100) : 100;
 
-  // SVG properties for Donut Chart
   const radius = 34;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (healthPercentage / 100) * circumference;
 
+  const unhealthyPods = filteredPods.filter(p => {
+    const s = p.status.toLowerCase();
+    return !s.includes('run') && s !== 'completed' && s !== 'ready';
+  }).slice(0, 5);
+
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
 
-      {/* CNCF Style Top Hero Split Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Top Row: Hero + Health Donut */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* Left Welcome Content (2/3 width) */}
-        <div className="lg:col-span-2 rounded-lg bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] p-8 flex flex-col justify-between min-h-[220px]">
-          <div className="space-y-3">
-            <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 tracking-widest uppercase">Kubernetes Interactive Workspace</span>
-            <h3 className="text-xl font-black text-slate-800 dark:text-white leading-tight">Inspect container states & diagnose errors reactively.</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed font-semibold max-w-lg">
-              Podex fetches live logs, details, and events from your Kind cluster, highlighting degraded pods. Click on the live status grid below to troubleshoot.
-            </p>
-          </div>
-
-          {/* Interactive Status Grid (CNCF K9s Cell Graphic) */}
-          <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80 mt-6">
-            <div className="flex justify-between items-center mb-2.5">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                Cluster Pod Map ({filteredPods.length} total)
-              </span>
-              <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">Click cell to inspect</span>
+        {/* Welcome Hero */}
+        <div className="lg:col-span-2 bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl overflow-hidden shadow-sm">
+          <div className="h-1 bg-gradient-to-r from-cyan-500 to-indigo-500" />
+          <div className="p-7 flex flex-col justify-between min-h-[230px]">
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-7 h-7 rounded-lg bg-cyan-500/10 dark:bg-cyan-500/5 flex items-center justify-center">
+                  <Zap className="w-3.5 h-3.5 text-cyan-500" />
+                </div>
+                <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 tracking-widest uppercase">Cluster Overview</span>
+              </div>
+              <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 leading-tight">
+                {stats?.status === 'healthy'
+                  ? 'All systems operational'
+                  : 'Cluster needs attention'}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold max-w-lg">
+                {stats?.status === 'healthy'
+                  ? `${filteredPods.length} pods across ${stats?.node_count || 0} nodes — all workloads running as expected.`
+                  : `${unhealthyPods.length} pod${unhealthyPods.length !== 1 ? 's' : ''} in degraded state. Click cells below to inspect.`
+                }
+              </p>
             </div>
-            {filteredPods.length === 0 ? (
-              <span className="text-xs text-slate-400 block italic font-medium">No user pods running in cluster.</span>
-            ) : (
-              <div className="flex flex-wrap gap-2">
+
+            <div className="flex items-center space-x-4 mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center space-x-2 text-[11px] font-bold text-slate-500">
+                <Wifi className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Cluster Connected</span>
+              </div>
+              <div className="flex items-center space-x-2 text-[11px] font-bold text-slate-500">
+                <Shield className="w-3.5 h-3.5 text-cyan-500" />
+                <span>CNCF Compatible</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Health Donut */}
+        <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl p-6 flex flex-col items-center justify-center space-y-3 min-h-[230px] shadow-sm">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Pod Health</span>
+          <div className="relative flex items-center justify-center">
+            <svg className="w-28 h-28 transform -rotate-90 drop-shadow-sm">
+              <circle cx="56" cy="56" r={radius} className="stroke-slate-100 dark:stroke-slate-800/60" strokeWidth="8" fill="transparent" />
+              <circle
+                cx="56" cy="56" r={radius}
+                className="stroke-cyan-500 transition-all duration-700 ease-out"
+                strokeWidth="8" fill="transparent"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                style={{ filter: 'drop-shadow(0 0 6px rgba(6, 182, 212, 0.3))' }}
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center justify-center">
+              <span className="text-2xl font-black text-slate-800 dark:text-slate-100 leading-none">{healthPercentage}%</span>
+              <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Healthy</span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-1.5 text-[11px] font-bold text-slate-500">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            <span>{runningPodsCount}/{totalPodsCount} ready</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Stat Cards Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {([
+          { label: 'Nodes', value: stats?.node_count ?? 0, icon: Server, sub: 'active', color: 'text-cyan-500 bg-cyan-500/10' },
+          { label: 'Pods', value: showSystemResources ? (stats?.pod_count ?? 0) : filteredPods.length, icon: Box, sub: 'running', color: 'text-emerald-500 bg-emerald-500/10' },
+          { label: 'Deployments', value: showSystemResources ? (stats?.deployment_count ?? 0) : filteredDeployments.length, icon: Layers, sub: 'specs', color: 'text-indigo-500 bg-indigo-500/10' },
+          { label: 'Services', value: showSystemResources ? (stats?.service_count ?? 0) : filteredServices.length, icon: Network, sub: 'endpoints', color: 'text-amber-500 bg-amber-500/10' },
+        ] as const).map((item, idx) => (
+          <div
+            key={idx}
+            className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl p-5 hover:border-cyan-500/30 hover:shadow-sm transition-all duration-200 group"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{item.label}</span>
+              <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
+                <item.icon className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              {statsLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+              ) : (
+                <span className="text-2xl font-black text-slate-800 dark:text-slate-100">{item.value}</span>
+              )}
+              <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{item.sub}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Middle Row: Pod Map + Recent Issues */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+        {/* Pod Health Matrix */}
+        <div className="lg:col-span-3 bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <BarChart3 className="w-4 h-4 text-cyan-500" />
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pod Status Matrix</span>
+            </div>
+            <span className="text-[9px] font-bold text-slate-400">{filteredPods.length} total</span>
+          </div>
+          {filteredPods.length === 0 ? (
+            <div className="text-xs text-slate-400 font-semibold py-6 text-center">No user pods running in cluster.</div>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-1.5 mb-3">
                 {filteredPods.map(p => {
                   const s = p.status.toLowerCase();
                   const isHealthy = s.includes('run') || s === 'completed' || s === 'ready';
                   const isPending = s.includes('pend') || s.includes('progress');
-
                   const color = isHealthy
                     ? 'bg-emerald-500 shadow-emerald-500/20'
                     : isPending
                       ? 'bg-amber-500 shadow-amber-500/20 animate-pulse'
                       : 'bg-red-500 shadow-red-500/20 animate-pulse';
-
                   return (
                     <div
                       key={p.name}
@@ -89,127 +184,75 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         setActiveTab('explorer');
                       }}
                       title={`${p.name} (${p.status})`}
-                      className={`w-4 h-4 rounded cursor-pointer hover:scale-110 transition duration-150 shadow-sm ${color}`}
+                      className={`w-3.5 h-3.5 rounded-sm cursor-pointer hover:scale-125 transition-all duration-150 ${color}`}
                     />
                   );
                 })}
               </div>
-            )}
-          </div>
+              <div className="flex items-center space-x-4 text-[9px] font-bold text-slate-400">
+                <span className="flex items-center space-x-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /><span>Running</span></span>
+                <span className="flex items-center space-x-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-500" /><span>Pending</span></span>
+                <span className="flex items-center space-x-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-500" /><span>Failed</span></span>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Right Circular Health Donut (1/3 width) */}
-        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-8 flex flex-col items-center justify-center space-y-4 min-h-[220px]">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Cluster Health</span>
-
-          {/* SVG Donut Track */}
-          <div className="relative flex items-center justify-center">
-            <svg className="w-28 h-28 transform -rotate-90">
-              <circle
-                cx="56"
-                cy="56"
-                r={radius}
-                className="stroke-slate-100 dark:stroke-slate-800/60"
-                strokeWidth="8"
-                fill="transparent"
-              />
-              <circle
-                cx="56"
-                cy="56"
-                r={radius}
-                className="stroke-cyan-500 transition-all duration-500"
-                strokeWidth="8"
-                fill="transparent"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-2xl font-black text-slate-800 dark:text-white leading-none">
-                {healthPercentage}%
-              </span>
-              <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
-                Healthy
-              </span>
+        {/* Issues / Attention Card */}
+        <div className="lg:col-span-2 bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Needs Attention</span>
             </div>
           </div>
-
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold text-center">
-            {runningPodsCount} / {totalPodsCount} Pods Ready
-          </span>
+          {unhealthyPods.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 space-y-2 text-center">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">All pods healthy</span>
+              <span className="text-[10px] text-slate-400 font-semibold">No issues detected in your cluster.</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {unhealthyPods.map(p => {
+                const s = p.status.toLowerCase();
+                const isPending = s.includes('pend') || s.includes('progress');
+                return (
+                  <div
+                    key={p.name}
+                    onClick={() => {
+                      setSelectedResource({ type: 'pod', name: p.name, namespace: p.namespace });
+                      setDetailTab('investigate');
+                      setActiveTab('explorer');
+                    }}
+                    className="flex items-center space-x-2.5 p-2.5 rounded-lg bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/30 hover:bg-amber-50 dark:hover:bg-amber-950/20 cursor-pointer transition group"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${isPending ? 'bg-amber-500 animate-pulse' : 'bg-red-500 animate-pulse'}`} />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate group-hover:text-cyan-500 transition">{p.name}</span>
+                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase block truncate">{p.status} · {p.namespace}</span>
+                    </div>
+                    <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-cyan-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Stats Counters Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-
-        {/* Nodes Stat */}
-        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 hover:border-cyan-500/30 transition duration-200">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nodes</span>
-            <Cpu className="w-5 h-5 text-cyan-500" />
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-3xl font-black text-slate-800 dark:text-white">
-              {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : stats?.node_count ?? 0}
-            </span>
-            <span className="text-xs text-slate-500">active</span>
-          </div>
-        </div>
-
-        {/* Pods Stat */}
-        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 hover:border-cyan-500/30 transition duration-200">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pods</span>
-            <Layers className="w-5 h-5 text-cyan-500" />
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-3xl font-black text-slate-800 dark:text-white">
-              {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : (showSystemResources ? (stats?.pod_count ?? 0) : filteredPods.length)}
-            </span>
-            <span className="text-xs text-slate-500">instances</span>
-          </div>
-        </div>
-
-        {/* Deployments Stat */}
-        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 hover:border-cyan-500/30 transition duration-200">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deployments</span>
-            <Activity className="w-5 h-5 text-cyan-500" />
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-3xl font-black text-slate-800 dark:text-white">
-              {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : (showSystemResources ? (stats?.deployment_count ?? 0) : filteredDeployments.length)}
-            </span>
-            <span className="text-xs text-slate-500">specs</span>
-          </div>
-        </div>
-
-        {/* Services Stat */}
-        <div className="bg-white dark:bg-[#151824] border border-slate-200 dark:border-[#1e2235] rounded-lg p-6 hover:border-cyan-500/30 transition duration-200">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Services</span>
-            <Terminal className="w-5 h-5 text-cyan-500" />
-          </div>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-3xl font-black text-slate-800 dark:text-white">
-              {statsLoading ? <Loader2 className="w-6 h-6 animate-spin text-slate-400" /> : (showSystemResources ? (stats?.service_count ?? 0) : filteredServices.length)}
-            </span>
-            <span className="text-xs text-slate-500">endpoints</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Freshers Quick Help Cards */}
+      {/* Quick Learning Cards */}
       <div className="space-y-4">
-        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kubernetes Concept Shortcuts</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { title: 'Pod Lifecycle', desc: 'Pods are ephemeral running containers. Learn about Pending, Running, and CrashLoopBackOff.', query: 'What is a Pod?' },
-            { title: 'Routing & Services', desc: 'Kubernetes Services proxy traffic to matching Pod labels. Learn ClusterIP vs NodePort.', query: 'What is a Service?' },
-            { title: 'Health Checking Probes', desc: 'How Kubernetes monitors container health using Liveness and Readiness probes.', query: 'What is Liveness Probe?' }
-          ].map((card, idx) => (
+        <div className="flex items-center space-x-2">
+          <BookOpen className="w-4 h-4 text-cyan-500" />
+          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Kubernetes Concept Shortcuts</h4>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {([
+            { title: 'Pod Lifecycle', desc: 'Pods are ephemeral running containers. Learn about Pending, Running, and CrashLoopBackOff states.', query: 'What is a Pod?', icon: Box },
+            { title: 'Routing & Services', desc: 'Kubernetes Services proxy traffic to matching Pod labels. Understand ClusterIP vs NodePort vs LoadBalancer.', query: 'What is a Service?', icon: Network },
+            { title: 'Health Probes', desc: 'Kubernetes monitors container health using Liveness, Readiness, and Startup probes for self-healing.', query: 'What is Liveness Probe?', icon: Activity }
+          ] as const).map((card, idx) => (
             <div
               key={idx}
               onClick={() => {
@@ -217,13 +260,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 setActiveTab('learn');
                 handleLearnQuery(card.query);
               }}
-              className="bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-xl p-5 hover:border-blue-500 cursor-pointer transition group shadow-sm"
+              className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl p-5 hover:border-cyan-500/40 hover:shadow-sm cursor-pointer transition-all duration-200 group"
             >
-              <h5 className="font-bold text-slate-800 dark:text-slate-200 m-0 group-hover:text-cyan-500 transition">{card.title}</h5>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed font-semibold">{card.desc}</p>
-              <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold flex items-center mt-3">
-                <span>Explain concept</span>
-                <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition duration-150" />
+              <div className="flex items-center space-x-2.5 mb-3">
+                <div className="w-7 h-7 rounded-lg bg-cyan-500/10 dark:bg-cyan-500/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <card.icon className="w-3.5 h-3.5 text-cyan-500" />
+                </div>
+                <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-cyan-500 transition">{card.title}</h5>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">{card.desc}</p>
+              <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold flex items-center mt-3 group-hover:translate-x-0.5 transition-transform">
+                Learn more
+                <ArrowRight className="w-3 h-3 ml-1" />
               </span>
             </div>
           ))}
