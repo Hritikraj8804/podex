@@ -177,6 +177,11 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
     return filteredTopology.nodes.filter(n => n.name?.toLowerCase().includes(q) || n.type?.toLowerCase().includes(q));
   }, [filteredTopology, searchQuery]);
 
+  const visibleEdges = useMemo(() => {
+    const visibleIds = new Set(filteredNodes.map(n => n.id));
+    return cleanEdges.filter(e => visibleIds.has(e.source) && visibleIds.has(e.target));
+  }, [cleanEdges, filteredNodes]);
+
   const handleResetView = () => {
     setZoomScale(1);
     setPanOffset({ x: 0, y: 0 });
@@ -309,7 +314,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
             {/* ---- SVG connector lines ---- */}
             <svg className="absolute inset-0 pointer-events-none w-full h-full overflow-visible z-0">
               <SvgDefs />
-              {cleanEdges.map(edge => {
+              {visibleEdges.map(edge => {
                 const srcPos = nodePositions[edge.source];
                 const tgtPos = nodePositions[edge.target];
                 if (!srcPos || !tgtPos) return null;
