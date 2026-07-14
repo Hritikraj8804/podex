@@ -947,16 +947,16 @@ export default function App() {
           <div className="flex flex-col justify-between h-full py-6 items-center">
             <div className="flex flex-col items-center space-y-6 w-full">
               {/* Logo Brand Icon */}
-              <div
+              <img
+                src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'}
+                alt="Podex"
                 onClick={() => {
                   setActiveTab('dashboard');
                   setSelectedResource(null);
                 }}
-                className="w-12 h-12 rounded-xl bg-cyan-600 flex items-center justify-center font-black text-xl text-white cursor-pointer hover:bg-cyan-500 transition"
+                className="w-10 h-10 cursor-pointer hover:opacity-80 transition active:scale-95"
                 title="Podex - Go to Dashboard"
-              >
-                P
-              </div>
+              />
 
               {/* Nav List Icons */}
               <nav className="flex flex-col items-center space-y-4 w-full px-2">
@@ -1047,9 +1047,11 @@ export default function App() {
                   className="flex items-center gap-3 cursor-pointer hover:opacity-90 active:scale-95 transition"
                   title="Go to Dashboard"
                 >
-                   <div className="w-10 h-10 rounded-lg bg-cyan-600 flex items-center justify-center font-black text-xl text-white shrink-0">
-                    P
-                  </div>
+                  <img
+                    src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'}
+                    alt="Podex"
+                    className="w-9 h-9 shrink-0"
+                  />
                   <div>
                     <h1 className="text-base font-extrabold text-slate-800 dark:text-cyan-400 m-0 tracking-wide leading-none">PODEX</h1>
                     <span className="text-[9px] text-slate-500 dark:text-slate-500 font-semibold tracking-wider block mt-0.5">K8S FOR BEGINNERS</span>
