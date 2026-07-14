@@ -965,7 +965,7 @@ export default function App() {
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
-                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+                  { id: 'learn', label: 'Poddy', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -982,7 +982,11 @@ export default function App() {
                           : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                     >
-                      <Icon className={`w-5 h-5 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      {tab.id === 'learn' ? (
+                        <img src="/mascot.png" alt="Poddy" className={`w-10 h-10 object-contain ${isActive ? '' : 'opacity-60 grayscale'}`} />
+                      ) : (
+                        <Icon className={`w-5 h-5 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      )}
                       
                       {/* Tooltip */}
                       <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
@@ -1073,7 +1077,7 @@ export default function App() {
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
-                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+                  { id: 'learn', label: 'Poddy', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -1089,7 +1093,11 @@ export default function App() {
                         : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                     >
-                      <Icon className={`w-4 h-4 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      {tab.id === 'learn' ? (
+                        <img src="/mascot.png" alt="Poddy" className={`w-8 h-8 object-contain ${isActive ? '' : 'opacity-60 grayscale'}`} />
+                      ) : (
+                        <Icon className={`w-4 h-4 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      )}
                       <span>{tab.label}</span>
                     </button>
                   );
@@ -1154,7 +1162,7 @@ export default function App() {
               </button>
             )}
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 capitalize m-0 tracking-wide">
-              {activeTab} Space
+              {activeTab === 'learn' ? 'Poddy' : `${activeTab} Space`}
             </h2>
 
             {/* Namespace Filter for Explorer */}

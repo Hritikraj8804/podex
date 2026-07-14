@@ -77,22 +77,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     }
   }, [apiUrl]);
 
-  const openChat = useCallback((name: string, namespace: string, status: string) => {
-    setChatPod({ name, namespace, status });
-    setChatResult(null);
-    setChatError(null);
-  }, []);
-
   const runningPodsCount = filteredPods.filter(p => {
     const s = p.status.toLowerCase();
     return s.includes('run') || s === 'completed' || s === 'ready';
   }).length;
   const totalPodsCount = filteredPods.length;
   const healthPercentage = totalPodsCount > 0 ? Math.round((runningPodsCount / totalPodsCount) * 100) : 100;
-
-  const radius = 34;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (healthPercentage / 100) * circumference;
 
   const unhealthyPods = filteredPods.filter(p => {
     const s = p.status.toLowerCase();
@@ -102,7 +92,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
 
-      {/* Top Row: Hero + Health Donut */}
+      {/* Top Row: Hero + Mascot */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* Welcome Hero */}
@@ -142,31 +132,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           </div>
         </div>
 
-        {/* Health Donut */}
+        {/* Mascot / Poddy Branding */}
         <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl p-6 flex flex-col items-center justify-center space-y-3 min-h-[230px] shadow-sm">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Pod Health</span>
-          <div className="relative flex items-center justify-center">
-            <svg className="w-28 h-28 transform -rotate-90 drop-shadow-sm">
-              <circle cx="56" cy="56" r={radius} className="stroke-slate-100 dark:stroke-slate-800/60" strokeWidth="8" fill="transparent" />
-              <circle
-                cx="56" cy="56" r={radius}
-                className="stroke-cyan-500 transition-all duration-700 ease-out"
-                strokeWidth="8" fill="transparent"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                style={{ filter: 'drop-shadow(0 0 6px rgba(6, 182, 212, 0.3))' }}
-              />
-            </svg>
-            <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-2xl font-black text-slate-800 dark:text-slate-100 leading-none">{healthPercentage}%</span>
-              <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Healthy</span>
-            </div>
+          <div className="w-44 h-44 rounded-2xl bg-slate-100 dark:bg-[#1b2332] border border-slate-200 dark:border-[#2d3142] flex items-center justify-center shadow-sm">
+            <img src="/mascot.png" alt="Poddy" className="w-36 h-36 object-contain" />
           </div>
-          <div className="flex items-center space-x-1.5 text-[11px] font-bold text-slate-500">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span>{runningPodsCount}/{totalPodsCount} ready</span>
-          </div>
+          <span className="text-sm font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest text-center">Poddy</span>
         </div>
       </div>
 
@@ -203,14 +174,17 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       {/* Middle Row: Pod Map + Recent Issues */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
-        {/* Pod Health Matrix */}
+        {/* Pod Status */}
         <div className="lg:col-span-3 bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-2">
               <BarChart3 className="w-4 h-4 text-cyan-500" />
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pod Status Matrix</span>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pod Status</span>
             </div>
-            <span className="text-[9px] font-bold text-slate-400">{filteredPods.length} total</span>
+            <div className="flex items-center space-x-3">
+              <span className="text-[9px] font-bold text-emerald-500">{runningPodsCount}/{totalPodsCount} ready</span>
+              <span className="text-[9px] font-bold text-slate-400">{healthPercentage}% healthy</span>
+            </div>
           </div>
           {filteredPods.length === 0 ? (
             <div className="text-xs text-slate-400 font-semibold py-6 text-center">No user pods running in cluster.</div>
@@ -229,7 +203,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   return (
                     <div
                       key={p.name}
-                      onClick={() => openChat(p.name, p.namespace, p.status)}
+                      onClick={() => {
+                        setSelectedResource({ type: 'pod', name: p.name, namespace: p.namespace });
+                        setDetailTab('overview');
+                        setActiveTab('explorer');
+                      }}
                       title={`${p.name} (${p.status})`}
                       className={`w-3.5 h-3.5 rounded-sm cursor-pointer hover:scale-125 transition-all duration-150 ${color} relative group`}
                     >
@@ -446,7 +424,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   className="flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Ask AI to Diagnose</span>
+                  <span>Ask Poddy</span>
                 </button>
               )}
               {chatResult && (

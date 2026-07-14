@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   X, Trash2, RefreshCw, Sliders, Search, Loader2, Info, 
-  AlertCircle, CheckCircle2, AlertTriangle, HelpCircle, 
+  AlertCircle, CheckCircle2, AlertTriangle, 
   AlertOctagon, Link2, Minimize2, Maximize2 
 } from 'lucide-react';
 import { PodTerminal } from './PodTerminal';
@@ -537,8 +537,10 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                 {/* Explain workflow trigger */}
                 {!aiInvestigating && !aiInvestigation && (
                   <div className="bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] p-6 rounded-lg text-center space-y-4 shadow-sm">
-                    <HelpCircle className="w-8 h-8 text-cyan-500 dark:text-cyan-400 mx-auto" />
-                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">Run Diagnosis</h4>
+                    <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-[#1b2332] border border-slate-200 dark:border-[#2d3142] flex items-center justify-center mx-auto shadow-sm">
+                      <img src="/mascot.png" alt="Poddy" className="w-14 h-14 object-contain" />
+                    </div>
+                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">Ask Poddy</h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                       Analyze logs, events, and configuration of this resource.
                     </p>
@@ -614,7 +616,7 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                         {/* Confidence Score Gauge */}
                         <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-2.5 shadow-sm">
                           <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
-                            <span>AI Confidence</span>
+                            <span>Poddy Confidence</span>
                             <span className="text-cyan-600 dark:text-cyan-400 font-extrabold text-xs">{aiInvestigation.confidence}%</span>
                           </div>
                           <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">

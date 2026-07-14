@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import 'xterm/css/xterm.css';
 
 interface PodTerminalProps {
@@ -224,13 +224,13 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
       {/* AI Assistant Input */}
       <div className="bg-white dark:bg-[#111820] p-3 rounded-lg border border-slate-200/60 dark:border-[#1b2332] flex flex-col space-y-2">
         <div className="flex items-center space-x-2 text-xs font-bold text-slate-500">
-          <Sparkles className="w-4 h-4 text-cyan-500 animate-pulse" />
-          <span>AI Command Generator</span>
+          <img src="/mascot.png" alt="Poddy" className="w-5 h-5 object-contain" />
+          <span>Poddy Command Generator</span>
         </div>
         <form onSubmit={handleAiSubmit} className="flex space-x-2">
           <input
             type="text"
-            placeholder="Ask AI to generate a command (e.g., 'find python files', 'check disk space', 'show env')"
+            placeholder="Ask Poddy to generate a command (e.g., 'find python files', 'check disk space', 'show env')"
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
             disabled={aiLoading}
