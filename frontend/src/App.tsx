@@ -1209,6 +1209,7 @@ export default function App() {
               handleLearnQuery={handleLearnQuery}
               setSelectedResource={setSelectedResource}
               setDetailTab={setDetailTab}
+              apiUrl={API_URL}
             />
           )}
 
