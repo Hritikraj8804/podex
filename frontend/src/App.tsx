@@ -948,13 +948,13 @@ export default function App() {
             <div className="flex flex-col items-center space-y-6 w-full">
               {/* Logo Brand Icon */}
               <img
-                src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'}
+                src="/favicon.png"
                 alt="Podex"
                 onClick={() => {
                   setActiveTab('dashboard');
                   setSelectedResource(null);
                 }}
-                className="w-10 h-10 cursor-pointer hover:opacity-80 transition active:scale-95"
+                className="w-10 h-10 cursor-pointer hover:opacity-80 transition active:scale-95 rounded-lg"
                 title="Podex - Go to Dashboard"
               />
 
@@ -1048,9 +1048,9 @@ export default function App() {
                   title="Go to Dashboard"
                 >
                   <img
-                    src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'}
+                    src="/favicon.png"
                     alt="Podex"
-                    className="w-9 h-9 shrink-0"
+                    className="w-9 h-9 shrink-0 rounded-lg"
                   />
                   <div>
                     <h1 className="text-base font-extrabold text-slate-800 dark:text-cyan-400 m-0 tracking-wide leading-none">PODEX</h1>
