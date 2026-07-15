@@ -13,6 +13,10 @@ WORKDIR /app
 
 RUN addgroup -S podex && adduser -S podex -G podex
 
+# Install kubectl from Alpine community repo
+RUN apk add --no-cache kubectl --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community/ 2>/dev/null \
+    || apk add --no-cache kubectl --repository=https://dl-cdn.alpinelinux.org/alpine/v3.21/community/ 2>/dev/null
+
 COPY --from=builder /app/wheels /app/wheels
 RUN pip install --no-cache-dir --no-index --find-links=/app/wheels /app/wheels/* \
     && rm -rf /app/wheels \
