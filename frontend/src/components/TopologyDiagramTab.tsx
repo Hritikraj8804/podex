@@ -351,7 +351,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
 
               const health = resolveHealth(node.status);
               const connected = isNodeConnected(node.id);
-              const resourceId = node.id.replace(/[\/\s]/g, '-');
+              const resourceId = node.id.replace(/[/\s]/g, '-');
               const hasReplicas = node.type === 'deployment' && node.details?.replicas;
 
               return (

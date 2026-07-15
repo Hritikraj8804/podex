@@ -86,7 +86,7 @@ const base64Encode = (str: string): string => {
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) =>
       String.fromCharCode(parseInt(p1, 16))
     ));
-  } catch (e) {
+  } catch {
     return btoa(str);
   }
 };
@@ -146,16 +146,16 @@ const generateYaml = (node: ArenaNode, connections: ArenaConnection[], allNodes:
 
 const parseYamlToConfig = (yaml: string, node: ArenaNode): Partial<ArenaNode> | null => {
   try {
-    const nameMatch = yaml.match(/name:\s+([\w\-]+)/);
-    const imageMatch = yaml.match(/image:\s+([\w\.\-\:\/]+)/);
+    const nameMatch = yaml.match(/name:\s+([\w-]+)/);
+    const imageMatch = yaml.match(/image:\s+([\w.\-:/]+)/);
     const replicasMatch = yaml.match(/replicas:\s+(\d+)/);
     const portMatch = yaml.match(/containerPort:\s+(\d+)/) || yaml.match(/-\s+port:\s+(\d+)/);
     const targetPortMatch = yaml.match(/targetPort:\s+(\d+)/);
     const typeMatch = yaml.match(/type:\s+(ClusterIP|NodePort|LoadBalancer)/);
-    const selectorMatch = yaml.match(/selector:\s*\n\s+app:\s+([\w\-]+)/) || yaml.match(/app:\s+([\w\-]+)/);
-    const ingressHostMatch = yaml.match(/host:\s+([\w\.\-]+)/);
-    const ingressPathMatch = yaml.match(/path:\s+([\w\.\-\/]+)/);
-    const ingressServiceMatch = yaml.match(/name:\s+([\w\-]+)/);
+    const selectorMatch = yaml.match(/selector:\s*\n\s+app:\s+([\w-]+)/) || yaml.match(/app:\s+([\w-]+)/);
+    const ingressHostMatch = yaml.match(/host:\s+([\w.-]+)/);
+    const ingressPathMatch = yaml.match(/path:\s+([\w.\-/]+)/);
+    const ingressServiceMatch = yaml.match(/name:\s+([\w-]+)/);
 
     const parsedConfig = { ...node.config };
     let parsedName = node.name;

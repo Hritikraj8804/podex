@@ -155,7 +155,7 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
     const handleResize = () => {
       try {
         fitAddon.fit();
-      } catch (e) {
+      } catch {
         // Suppress initial fit errors if container not rendered
       }
     };
