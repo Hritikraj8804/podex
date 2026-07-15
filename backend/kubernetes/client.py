@@ -30,12 +30,17 @@ def apply_client_configurations():
         
     print(f"Kubernetes client configurations applied. Server API host: {c.host}")
 
-def _patch_kubeconfig(config_path: str) -> str:
-    """Patch kubeconfig to add current-context if missing, and return path to patched file."""
+DEFAULT_KUBECONFIG = os.path.expanduser("~/.kube/config")
+
+def _patch_kubeconfig(config_path: Optional[str]) -> str:
+    """Patch kubeconfig to add current-context if missing, return path to patched file.
+    If config_path is None, uses the default ~/.kube/config location."""
     import yaml as yamllib
-    if not config_path or not os.path.exists(config_path):
+    import tempfile
+    path = config_path or DEFAULT_KUBECONFIG
+    if not path or not os.path.exists(path):
         return config_path
-    with open(config_path, "r") as f:
+    with open(path, "r") as f:
         kc = yamllib.safe_load(f)
     if not kc:
         return config_path
@@ -43,12 +48,11 @@ def _patch_kubeconfig(config_path: str) -> str:
         names = [c["name"] for c in kc["contexts"]]
         preferred = next((n for n in ["kind-podex", "kind-kind-podex"] if n in names), names[0])
         kc["current-context"] = preferred
-        import tempfile
         tmp = os.path.join(tempfile.gettempdir(), "podex-kubeconfig-client")
         with open(tmp, "w") as f:
             yamllib.dump(kc, f, default_flow_style=False)
         return tmp
-    return config_path
+    return path
 
 def init_k8s_client() -> bool:
     """
@@ -72,7 +76,8 @@ def init_k8s_client() -> bool:
 
 def list_contexts() -> dict:
     try:
-        contexts, active_context = config.list_kube_config_contexts(config_file=settings.kubeconfig)
+        kc_path = _patch_kubeconfig(settings.kubeconfig)
+        contexts, active_context = config.list_kube_config_contexts(config_file=kc_path)
         return {
             "contexts": [c["name"] for c in contexts],
             "active_context": active_context.get("name") if active_context else None
