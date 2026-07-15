@@ -30,20 +30,39 @@ def apply_client_configurations():
         
     print(f"Kubernetes client configurations applied. Server API host: {c.host}")
 
+def _patch_kubeconfig(config_path: str) -> str:
+    """Patch kubeconfig to add current-context if missing, and return path to patched file."""
+    import yaml as yamllib
+    if not config_path or not os.path.exists(config_path):
+        return config_path
+    with open(config_path, "r") as f:
+        kc = yamllib.safe_load(f)
+    if not kc:
+        return config_path
+    if not kc.get("current-context") and kc.get("contexts"):
+        names = [c["name"] for c in kc["contexts"]]
+        preferred = next((n for n in ["kind-podex", "kind-kind-podex"] if n in names), names[0])
+        kc["current-context"] = preferred
+        import tempfile
+        tmp = os.path.join(tempfile.gettempdir(), "podex-kubeconfig-client")
+        with open(tmp, "w") as f:
+            yamllib.dump(kc, f, default_flow_style=False)
+        return tmp
+    return config_path
+
 def init_k8s_client() -> bool:
     """
     Initializes the Kubernetes Python client configuration.
-    Handles dynamic address rewriting for Docker containers accessing local Kind clusters on the host.
+    Patches kubeconfig if current-context is missing.
     """
     try:
-        # Try loading external kubeconfig (from host mount)
-        config.load_kube_config(config_file=settings.kubeconfig)
+        kc_path = _patch_kubeconfig(settings.kubeconfig)
+        config.load_kube_config(config_file=kc_path)
         apply_client_configurations()
         return True
     except Exception as e:
-        print(f"Failed to load kube config: {e}. Trying in-cluster configuration fallback...")
+        print(f"Failed to load kube config: {e}. Trying in-cluster config...")
         try:
-            # Fallback for running inside a real Kubernetes cluster
             config.load_in_cluster_config()
             print("Kubernetes client initialized with in-cluster config.")
             return True
