@@ -368,11 +368,16 @@ def _patched_kubectl_env() -> dict:
             patched = kc_data.replace("127.0.0.1", "host.docker.internal")
             try:
                 kc = yaml.safe_load(patched)
-                if kc and "clusters" in kc:
-                    for c in kc["clusters"]:
-                        if "cluster" in c:
-                            c["cluster"]["insecure-skip-tls-verify"] = True
-                            c["cluster"].pop("certificate-authority-data", None)
+                if kc:
+                    if "clusters" in kc:
+                        for c in kc["clusters"]:
+                            if "cluster" in c:
+                                c["cluster"]["insecure-skip-tls-verify"] = True
+                                c["cluster"].pop("certificate-authority-data", None)
+                    if not kc.get("current-context") and kc.get("contexts"):
+                        names = [c["name"] for c in kc["contexts"]]
+                        preferred = next((n for n in ["kind-podex", "kind-kind-podex"] if n in names), names[0])
+                        kc["current-context"] = preferred
                 patched = yaml.safe_dump(kc, default_flow_style=False)
             except Exception:
                 patched = patched.replace(
