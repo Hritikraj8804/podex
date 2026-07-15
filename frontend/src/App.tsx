@@ -16,8 +16,7 @@ import {
   Menu,
   PanelLeftClose,
   Network,
-  Gamepad2,
-  Terminal
+  Gamepad2
 } from 'lucide-react';
 import { DashboardTab } from './components/DashboardTab';
 import { ExplorerTab } from './components/ExplorerTab';
