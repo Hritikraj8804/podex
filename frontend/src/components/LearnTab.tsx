@@ -27,7 +27,7 @@ export const LearnTab: React.FC<LearnTabProps> = ({
 
       {/* Header / Empty State */}
       {!hasMessages && (
-        <div className="flex-1 flex flex-col items-center justify-center space-y-5 px-6">
+        <div className="flex-1 flex flex-col items-center justify-center px-6 space-y-5">
           <img src="/mascot.png" alt="Poddy" className="w-48 h-48 object-contain" />
           <div className="text-center space-y-1.5">
             <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 m-0">Poddy</h2>
@@ -146,20 +146,11 @@ export const LearnTab: React.FC<LearnTabProps> = ({
 
       {/* Loading State */}
       {aiLearningLoading && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex items-start space-x-3 max-w-xl w-full px-4">
-            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-[#1b2332] border border-slate-200 dark:border-[#2d3142] flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
-              <img src="/mascot.png" alt="Poddy" className="w-11 h-11 object-contain" />
-            </div>
-            <div className="flex-1 bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-2xl rounded-tl-sm p-5 space-y-3">
-              <div className="flex items-center space-x-2">
-                <Loader2 className="w-4 h-4 animate-spin text-cyan-500" />
-                <span className="text-xs text-slate-500 font-bold">Poddy is thinking...</span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div className="h-full bg-cyan-500 rounded-full animate-pulse" style={{ width: '50%' }} />
-              </div>
-            </div>
+        <div className="flex-1 flex items-start justify-center pt-8">
+          <div className="flex items-center space-x-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce" style={{ animationDelay: '300ms' }} />
           </div>
         </div>
       )}

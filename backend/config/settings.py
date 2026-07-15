@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     
     # Server configuration
     environment: str = "development"
-    port: int = 8000
+    port: int = 3457
     host: str = "0.0.0.0"
     
     model_config = SettingsConfigDict(

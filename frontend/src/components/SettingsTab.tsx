@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cpu, Sliders, Terminal, Check, Palette, RefreshCw, Globe, Trash2, RotateCcw, AlertTriangle, X } from 'lucide-react';
+import { Cpu, Sliders, Terminal, Check, Palette, RefreshCw, Globe, Trash2, RotateCcw, AlertTriangle, X, Loader2 } from 'lucide-react';
 
 const ACCENT_OPTIONS = [
   { id: 'cyan',    label: 'Cyan',     hex: '#06b6d4', light: 'bg-cyan-500', dark: 'bg-cyan-600' },
@@ -15,6 +15,7 @@ const ACCENT_OPTIONS = [
 interface SettingsTabProps {
   contexts: string[];
   activeContext: string;
+  contextSwitching: boolean;
   handleSwitchContext: (ctx: string) => void;
   aiProvider: 'gemini' | 'openai';
   setAiProvider: (provider: 'gemini' | 'openai') => void;
@@ -46,6 +47,7 @@ interface SettingsTabProps {
 export const SettingsTab: React.FC<SettingsTabProps> = ({
   contexts,
   activeContext,
+  contextSwitching,
   handleSwitchContext,
   aiProvider,
   setAiProvider,
@@ -199,8 +201,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                     style={isActive ? { backgroundColor: accentHex, borderColor: accentHex } : {}}
                   >
                     <span className="truncate mr-2 font-mono">{ctx}</span>
-                    {isActive && <Check className="w-3.5 h-3.5 shrink-0" />}
-                    {!isActive && (
+                    {isActive && contextSwitching ? (
+                      <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                    ) : isActive ? (
+                      <Check className="w-3.5 h-3.5 shrink-0" />
+                    ) : (
                       <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
                     )}
                   </button>
@@ -209,8 +214,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             </div>
           )}
           <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-medium">
-            <RefreshCw className="w-3 h-3" />
-            <span>Click a context to switch. Resources will auto-refresh.</span>
+            {contextSwitching ? (
+              <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4 31.4" strokeLinecap="round" /></svg>
+            ) : (
+              <RefreshCw className="w-3 h-3" />
+            )}
+            <span>{contextSwitching ? 'Switching context...' : 'Click a context to switch. Resources will auto-refresh.'}</span>
           </div>
         </div>
       </div>

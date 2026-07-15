@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-3457}:3457"
     volumes:
       # Mount kubeconfig directory to access local cluster credentials from container
       - ~/.kube:/root/.kube:ro
@@ -17,7 +17,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - AI_PROVIDER=${AI_PROVIDER:-gemini}  # Default provider is gemini
       - KUBECONFIG=/root/.kube/config
-      - PORT=8000
+      - PORT=3457
       - ENVIRONMENT=development
       - PYTHONUNBUFFERED=1
     extra_hosts:
@@ -29,8 +29,10 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: ""
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3456}:80"
     depends_on:
       - backend
     restart: always

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Loader2, Terminal, Trash2, AlertCircle, ExternalLink } from 'lucide-react';
+import { Search, Loader2, Terminal, Trash2, AlertCircle, ExternalLink, X } from 'lucide-react';
 
 interface ExplorerTabProps {
   explorerSubTab: string;
@@ -22,7 +22,7 @@ interface ExplorerTabProps {
   getStatusColor: (status: string) => string;
   apiUrl: string;
   onRefresh?: (isSilent?: boolean) => void;
-  setToast?: (toast: { message: string; type: 'success' | 'error' | 'info' } | null) => void;
+  setToast?: (toast: { message: string; type: 'success' | 'error' | 'info'; link?: string } | null) => void;
 }
 
 type TabDef = { id: string; label: string; icon: string };
@@ -39,7 +39,7 @@ const TABS: TabDef[] = [
   { id: 'events', label: 'Events', icon: '📋' },
 ];
 
-const portForwardRegistry: Record<string, { pid: number; port: number }> = {};
+const portForwardRegistry: Record<string, { pid: number; port: number; host: string }> = {};
 
 export const ExplorerTab: React.FC<ExplorerTabProps> = ({
   explorerSubTab,
@@ -141,9 +141,11 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
       });
       if (res.ok) {
         const data = await res.json();
-        portForwardRegistry[key] = { pid: data.pid, port: data.port };
+        const host = window.location.hostname;
+        portForwardRegistry[key] = { pid: data.pid, port: data.port, host };
         setPortForwarding(prev => ({ ...prev, [key]: false }));
-        setToast?.({ message: `Port forwarding ${name} → localhost:${data.port}`, type: 'success' });
+        const url = `${window.location.protocol}//${host}:${data.port}`;
+        setToast?.({ message: `Port forwarding ${name} → ${url}`, type: 'success', link: url });
       } else {
         setPortForwarding(prev => ({ ...prev, [key]: false }));
         setToast?.({ message: `Port forward failed.`, type: 'error' });
@@ -214,9 +216,27 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{pod.age}</td>
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handlePortForward('pod', pod.name, pod.namespace)} className={`p-1.5 rounded-md border transition cursor-pointer ${pfActive ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-[#1b2332]'}`} title={pfActive ? `Stop port (port ${pfActive.port})` : 'Port forward'}>
-                        {portForwarding[key] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                      </button>
+                      {pfActive ? (
+                        <>
+                          <a href={`${window.location.protocol}//${pfActive.host}:${pfActive.port}`} target="_blank" rel="noopener noreferrer"
+                            className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition cursor-pointer"
+                            title={`Open ${pfActive.host}:${pfActive.port}`}
+                            onClick={(e) => e.stopPropagation()}>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button onClick={(e) => { e.stopPropagation(); handlePortForward('pod', pod.name, pod.namespace); }}
+                            className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition cursor-pointer"
+                            title="Stop port forward">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={(e) => { e.stopPropagation(); handlePortForward('pod', pod.name, pod.namespace); }}
+                          className={`p-1.5 rounded-md border transition cursor-pointer ${portForwarding[key] ? 'bg-slate-100 dark:bg-[#111820] text-slate-400' : 'bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-[#1b2332]'}`}
+                          title="Port forward">
+                          {portForwarding[key] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
                       <button onClick={() => { setSelectedResource({ type: 'pod', name: pod.name, namespace: pod.namespace }); setDetailTab('terminal'); }} className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-[#1b2332] transition cursor-pointer" title="Terminal"><Terminal className="w-3.5 h-3.5" /></button>
                     </div>
                   </td>
@@ -309,9 +329,27 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{svc.age}</td>
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handlePortForward('service', svc.name, svc.namespace)} className={`p-1.5 rounded-md border transition cursor-pointer ${pfActive ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-[#1b2332]'}`} title={pfActive ? `Stop port (port ${pfActive.port})` : 'Port forward'}>
-                        {portForwarding[key] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
-                      </button>
+                      {pfActive ? (
+                        <>
+                          <a href={`${window.location.protocol}//${pfActive.host}:${pfActive.port}`} target="_blank" rel="noopener noreferrer"
+                            className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition cursor-pointer"
+                            title={`Open ${pfActive.host}:${pfActive.port}`}
+                            onClick={(e) => e.stopPropagation()}>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button onClick={(e) => { e.stopPropagation(); handlePortForward('service', svc.name, svc.namespace); }}
+                            className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition cursor-pointer"
+                            title="Stop port forward">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={(e) => { e.stopPropagation(); handlePortForward('service', svc.name, svc.namespace); }}
+                          className={`p-1.5 rounded-md border transition cursor-pointer ${portForwarding[key] ? 'bg-slate-100 dark:bg-[#111820] text-slate-400' : 'bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-[#1b2332]'}`}
+                          title="Port forward">
+                          {portForwarding[key] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

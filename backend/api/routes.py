@@ -16,10 +16,12 @@ from backend.utils import clean_kubernetes_dict
 
 from backend.api.updates import router as updates_router
 from backend.api.terminal import router as terminal_router
+from backend.api.shell import router as shell_router
 
 router = APIRouter()
 router.include_router(updates_router)
 router.include_router(terminal_router)
+router.include_router(shell_router)
 k8s_service = K8sService()
 investigation_service = InvestigationService()
 
@@ -400,7 +402,7 @@ def start_port_forward(req: PortForwardRequest):
         kind = req.kind.lower()
         port_arg = f":{req.port}" if req.port > 0 else ""
         proc = subprocess.Popen(
-            ["kubectl", "port-forward", f"{kind}/{req.name}", port_arg, "-n", req.namespace],
+            ["kubectl", "port-forward", "--address", "0.0.0.0", f"{kind}/{req.name}", port_arg, "-n", req.namespace],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True

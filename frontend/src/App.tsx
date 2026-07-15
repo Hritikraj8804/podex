@@ -16,7 +16,8 @@ import {
   Menu,
   PanelLeftClose,
   Network,
-  Gamepad2
+  Gamepad2,
+  Terminal
 } from 'lucide-react';
 import { DashboardTab } from './components/DashboardTab';
 import { ExplorerTab } from './components/ExplorerTab';
@@ -25,8 +26,9 @@ import { LearnTab } from './components/LearnTab';
 import { SettingsTab } from './components/SettingsTab';
 import { ResourceDrawer } from './components/ResourceDrawer';
 import { ArenaTab } from './components/ArenaTab';
+import { CloudShell } from './components/CloudShell';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL !== undefined ? import.meta.env.VITE_API_URL : 'http://localhost:3457';
 
 // Type definitions
 interface ClusterStats {
@@ -127,7 +129,7 @@ export interface ArenaConnection {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram' | 'arena'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram' | 'arena' | 'docs'>('dashboard');
 
   // Arena States
   const [arenaNodes, setArenaNodes] = useState<ArenaNode[]>(() => {
@@ -201,6 +203,8 @@ export default function App() {
   // Context states
   const [contexts, setContexts] = useState<string[]>([]);
   const [activeContext, setActiveContextState] = useState<string>('');
+  const [contextSwitching, setContextSwitching] = useState(false);
+  const [cloudShellOpen, setCloudShellOpen] = useState(false);
 
   // AI advanced parameter states
   const [aiModel, setAiModelState] = useState<string>(() => {
@@ -349,7 +353,7 @@ export default function App() {
   const [operationInProgress, setOperationInProgress] = useState(false);
 
   // Toast notifications state
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; link?: string } | null>(null);
 
   // Persist Arena canvas state across tab refreshes
   useEffect(() => {
@@ -394,7 +398,16 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setContexts(data.contexts || []);
-        setActiveContextState(data.active_context || '');
+        const active = data.active_context || '';
+        setActiveContextState(active);
+        // Auto-switch backend to current kubeconfig context on initial load
+        if (active) {
+          await fetch(`${API_URL}/api/kube/switch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ context: active })
+          });
+        }
       }
     } catch (e) {
       console.error("Failed to load kube contexts:", e);
@@ -402,6 +415,7 @@ export default function App() {
   }, []);
 
   const handleSwitchContext = async (contextName: string) => {
+    setContextSwitching(true);
     try {
       const res = await fetch(`${API_URL}/api/kube/switch`, {
         method: 'POST',
@@ -412,9 +426,11 @@ export default function App() {
         setActiveContextState(contextName);
         setToast({ message: `Successfully switched to Kubernetes context: ${contextName}`, type: 'success' });
         // Trigger refresh
-        fetchStats(true);
-        fetchResources(true);
-        fetchTopology(true);
+        await Promise.all([
+          fetchStats(true),
+          fetchResources(true),
+          fetchTopology(true)
+        ]);
       } else {
         const err = await res.json();
         setToast({ message: `Context switch failed: ${err.detail || 'Unknown error'}`, type: 'error' });
@@ -422,6 +438,8 @@ export default function App() {
     } catch (e) {
       console.error(e);
       setToast({ message: "Network error switching cluster context.", type: 'error' });
+    } finally {
+      setContextSwitching(false);
     }
   };
 
@@ -975,6 +993,7 @@ export default function App() {
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
+                  { id: 'docs', label: 'Docs', icon: BookOpen },
                   { id: 'learn', label: 'Poddy', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -983,6 +1002,10 @@ export default function App() {
                     <button
                       key={tab.id}
                       onClick={() => {
+                        if (tab.id === 'docs') {
+                          window.open('https://podex.chcha.in/docs', '_blank');
+                          return;
+                        }
                         setActiveTab(tab.id as any);
                         setSelectedResource(null);
                       }}
@@ -1087,6 +1110,7 @@ export default function App() {
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
+                  { id: 'docs', label: 'Docs', icon: BookOpen },
                   { id: 'learn', label: 'Poddy', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
@@ -1095,6 +1119,10 @@ export default function App() {
                     <button
                       key={tab.id}
                       onClick={() => {
+                        if (tab.id === 'docs') {
+                          window.open('https://podex.chcha.in/docs', '_blank');
+                          return;
+                        }
                         setActiveTab(tab.id as any);
                         setSelectedResource(null);
                       }}
@@ -1147,7 +1175,7 @@ export default function App() {
                   Active Connection
                 </span>
                 <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
-                  {stats?.status === 'healthy' ? 'kind-podex' : 'Connecting...'}
+                  {stats?.status === 'healthy' ? activeContext || 'Connected' : 'Connecting...'}
                 </span>
               </div>
             </div>
@@ -1205,8 +1233,23 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
-            <span>Kind Cluster Dev</span>
+            <button onClick={() => setCloudShellOpen(o => !o)}
+              className={`flex items-center space-x-1.5 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer p-1.5 rounded-lg ${cloudShellOpen ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' : ''}`}
+              title={cloudShellOpen ? 'Close Cloud Shell' : 'Open Cloud Shell'}>
+              <Terminal className="w-4 h-4" />
+            </button>
+            <a href="https://github.com/Hritikraj8804/podex" target="_blank" rel="noopener noreferrer"
+              className="flex items-center space-x-1.5 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+              <span>GitHub</span>
+            </a>
+            <span className="w-px h-3 bg-slate-300 dark:bg-slate-700" />
+            {contextSwitching ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-500" />
+            ) : (
               <span className={`w-2 h-2 rounded-full ${stats?.status === 'healthy' ? 'bg-cyan-500' : 'bg-amber-400'}`} />
+            )}
+            <span>{window.location.hostname}</span>
           </div>
         </header>
 
@@ -1315,6 +1358,7 @@ export default function App() {
             <SettingsTab
               contexts={contexts}
               activeContext={activeContext}
+              contextSwitching={contextSwitching}
               handleSwitchContext={handleSwitchContext}
               aiProvider={aiProvider}
               setAiProvider={setAiProvider}
@@ -1505,8 +1549,16 @@ export default function App() {
             <Info className="w-5 h-5 text-cyan-500 shrink-0" />
           )}
           <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{toast.message}</span>
+          {toast.link && (
+            <a href={toast.link} target="_blank" rel="noopener noreferrer"
+              className="text-xs font-bold text-cyan-600 dark:text-cyan-400 hover:underline shrink-0">
+              Open
+            </a>
+          )}
         </div>
       )}
+
+      <CloudShell apiUrl={API_URL} isOpen={cloudShellOpen} onClose={() => setCloudShellOpen(false)} sidebarCollapsed={sidebarCollapsed} />
 
     </div>
   );

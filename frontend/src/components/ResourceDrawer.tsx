@@ -96,7 +96,7 @@ interface ResourceDrawerProps {
   runInvestigation: () => void;
   investigationSubTab: 'diagnosis' | 'fix' | 'lesson';
   setInvestigationSubTab: (tab: 'diagnosis' | 'fix' | 'lesson') => void;
-  setToast: (toast: { message: string, type: 'success' | 'error' | 'info' } | null) => void;
+  setToast: (toast: { message: string; type: 'success' | 'error' | 'info'; link?: string } | null) => void;
   apiUrl: string;
   
   // Custom children/addons container for the real Terminal tab
