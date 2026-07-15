@@ -249,17 +249,27 @@ export default function App() {
     setLogsTailLimitState(val);
     localStorage.setItem('logsTailLimit', String(val));
   };
-  const getAccentColor = (type: 'text' | 'bg' | 'bgMuted' | 'border' | 'hoverText' | 'focusRing' | 'glow') => {
-    switch (type) {
-      case 'text': return 'text-cyan-600 dark:text-cyan-400';
-      case 'bg': return 'bg-cyan-500';
-      case 'bgMuted': return 'bg-cyan-500/10 dark:bg-cyan-500/5';
-      case 'border': return 'border-cyan-500';
-      case 'hoverText': return 'hover:text-cyan-600 dark:hover:text-cyan-400';
-      case 'glow': return 'shadow-cyan-500/10';
-      default: return 'focus:ring-cyan-500';
-    }
+  const ACCENT_COLORS: Record<string, Record<string, string>> = {
+    cyan:    { text: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-500', bgMuted: 'bg-cyan-500/10 dark:bg-cyan-500/5', border: 'border-cyan-500', hoverText: 'hover:text-cyan-600 dark:hover:text-cyan-400', glow: 'shadow-cyan-500/10', ring: 'focus:ring-cyan-500', hex: '#06b6d4' },
+    blue:    { text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500', bgMuted: 'bg-blue-500/10 dark:bg-blue-500/5', border: 'border-blue-500', hoverText: 'hover:text-blue-600 dark:hover:text-blue-400', glow: 'shadow-blue-500/10', ring: 'focus:ring-blue-500', hex: '#3b82f6' },
+    indigo:  { text: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500', bgMuted: 'bg-indigo-500/10 dark:bg-indigo-500/5', border: 'border-indigo-500', hoverText: 'hover:text-indigo-600 dark:hover:text-indigo-400', glow: 'shadow-indigo-500/10', ring: 'focus:ring-indigo-500', hex: '#6366f1' },
+    violet:  { text: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500', bgMuted: 'bg-violet-500/10 dark:bg-violet-500/5', border: 'border-violet-500', hoverText: 'hover:text-violet-600 dark:hover:text-violet-400', glow: 'shadow-violet-500/10', ring: 'focus:ring-violet-500', hex: '#8b5cf6' },
+    emerald: { text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500', bgMuted: 'bg-emerald-500/10 dark:bg-emerald-500/5', border: 'border-emerald-500', hoverText: 'hover:text-emerald-600 dark:hover:text-emerald-400', glow: 'shadow-emerald-500/10', ring: 'focus:ring-emerald-500', hex: '#10b981' },
+    amber:   { text: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500', bgMuted: 'bg-amber-500/10 dark:bg-amber-500/5', border: 'border-amber-500', hoverText: 'hover:text-amber-600 dark:hover:text-amber-400', glow: 'shadow-amber-500/10', ring: 'focus:ring-amber-500', hex: '#f59e0b' },
+    rose:    { text: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500', bgMuted: 'bg-rose-500/10 dark:bg-rose-500/5', border: 'border-rose-500', hoverText: 'hover:text-rose-600 dark:hover:text-rose-400', glow: 'shadow-rose-500/10', ring: 'focus:ring-rose-500', hex: '#f43f5e' },
+    peach:   { text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500', bgMuted: 'bg-orange-500/10 dark:bg-orange-500/5', border: 'border-orange-500', hoverText: 'hover:text-orange-600 dark:hover:text-orange-400', glow: 'shadow-orange-500/10', ring: 'focus:ring-orange-500', hex: '#f2856d' },
   };
+  const [accentColor, setAccentColorState] = useState<string>(() => localStorage.getItem('accentColor') || 'cyan');
+  const setAccentColor = (val: string) => {
+    setAccentColorState(val);
+    localStorage.setItem('accentColor', val);
+  };
+  const getAccentColor = (type: 'text' | 'bg' | 'bgMuted' | 'border' | 'hoverText' | 'focusRing' | 'glow') => {
+    const c = ACCENT_COLORS[accentColor] || ACCENT_COLORS.cyan;
+    if (type === 'focusRing') return c.ring;
+    return c[type];
+  };
+  const getAccentHex = () => ACCENT_COLORS[accentColor]?.hex || '#06b6d4';
   const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services' | 'nodes' | 'configmaps' | 'secrets' | 'statefulsets' | 'daemonsets' | 'events'>('pods');
   const [namespaceFilter, setNamespaceFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -1328,6 +1338,9 @@ export default function App() {
               setCustomNamespaces={setCustomNamespaces}
               refreshInterval={refreshInterval}
               setRefreshInterval={setRefreshInterval}
+              accentColor={accentColor}
+              setAccentColor={setAccentColor}
+              getAccentHex={getAccentHex}
             />
           )}
         </div>
