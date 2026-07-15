@@ -6,12 +6,12 @@ services:
     ports:
       - "${BACKEND_PORT:-3457}:3457"
     volumes:
-      - ~/.kube:/root/.kube:ro
+      - ~/.kube:/app/.kube:ro
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - AI_PROVIDER=${AI_PROVIDER:-gemini}
-      - KUBECONFIG=/root/.kube/config
+      - KUBECONFIG=/app/.kube/config
       - PORT=3457
       - ENVIRONMENT=production
       - PYTHONUNBUFFERED=1
