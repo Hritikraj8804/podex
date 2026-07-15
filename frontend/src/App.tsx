@@ -26,7 +26,7 @@ import { SettingsTab } from './components/SettingsTab';
 import { ResourceDrawer } from './components/ResourceDrawer';
 import { ArenaTab } from './components/ArenaTab';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL !== undefined ? import.meta.env.VITE_API_URL : 'http://localhost:3457';
 
 // Type definitions
 interface ClusterStats {
@@ -127,7 +127,7 @@ export interface ArenaConnection {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram' | 'arena'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'explorer' | 'learn' | 'settings' | 'diagram' | 'arena' | 'docs'>('dashboard');
 
   // Arena States
   const [arenaNodes, setArenaNodes] = useState<ArenaNode[]>(() => {
@@ -201,6 +201,7 @@ export default function App() {
   // Context states
   const [contexts, setContexts] = useState<string[]>([]);
   const [activeContext, setActiveContextState] = useState<string>('');
+  const [contextSwitching, setContextSwitching] = useState(false);
 
   // AI advanced parameter states
   const [aiModel, setAiModelState] = useState<string>(() => {
@@ -249,17 +250,27 @@ export default function App() {
     setLogsTailLimitState(val);
     localStorage.setItem('logsTailLimit', String(val));
   };
-  const getAccentColor = (type: 'text' | 'bg' | 'bgMuted' | 'border' | 'hoverText' | 'focusRing' | 'glow') => {
-    switch (type) {
-      case 'text': return 'text-cyan-600 dark:text-cyan-400';
-      case 'bg': return 'bg-cyan-500';
-      case 'bgMuted': return 'bg-cyan-500/10 dark:bg-cyan-500/5';
-      case 'border': return 'border-cyan-500';
-      case 'hoverText': return 'hover:text-cyan-600 dark:hover:text-cyan-400';
-      case 'glow': return 'shadow-cyan-500/10';
-      default: return 'focus:ring-cyan-500';
-    }
+  const ACCENT_COLORS: Record<string, Record<string, string>> = {
+    cyan:    { text: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-500', bgMuted: 'bg-cyan-500/10 dark:bg-cyan-500/5', border: 'border-cyan-500', hoverText: 'hover:text-cyan-600 dark:hover:text-cyan-400', glow: 'shadow-cyan-500/10', ring: 'focus:ring-cyan-500', hex: '#06b6d4' },
+    blue:    { text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500', bgMuted: 'bg-blue-500/10 dark:bg-blue-500/5', border: 'border-blue-500', hoverText: 'hover:text-blue-600 dark:hover:text-blue-400', glow: 'shadow-blue-500/10', ring: 'focus:ring-blue-500', hex: '#3b82f6' },
+    indigo:  { text: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-500', bgMuted: 'bg-indigo-500/10 dark:bg-indigo-500/5', border: 'border-indigo-500', hoverText: 'hover:text-indigo-600 dark:hover:text-indigo-400', glow: 'shadow-indigo-500/10', ring: 'focus:ring-indigo-500', hex: '#6366f1' },
+    violet:  { text: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500', bgMuted: 'bg-violet-500/10 dark:bg-violet-500/5', border: 'border-violet-500', hoverText: 'hover:text-violet-600 dark:hover:text-violet-400', glow: 'shadow-violet-500/10', ring: 'focus:ring-violet-500', hex: '#8b5cf6' },
+    emerald: { text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500', bgMuted: 'bg-emerald-500/10 dark:bg-emerald-500/5', border: 'border-emerald-500', hoverText: 'hover:text-emerald-600 dark:hover:text-emerald-400', glow: 'shadow-emerald-500/10', ring: 'focus:ring-emerald-500', hex: '#10b981' },
+    amber:   { text: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500', bgMuted: 'bg-amber-500/10 dark:bg-amber-500/5', border: 'border-amber-500', hoverText: 'hover:text-amber-600 dark:hover:text-amber-400', glow: 'shadow-amber-500/10', ring: 'focus:ring-amber-500', hex: '#f59e0b' },
+    rose:    { text: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500', bgMuted: 'bg-rose-500/10 dark:bg-rose-500/5', border: 'border-rose-500', hoverText: 'hover:text-rose-600 dark:hover:text-rose-400', glow: 'shadow-rose-500/10', ring: 'focus:ring-rose-500', hex: '#f43f5e' },
+    peach:   { text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500', bgMuted: 'bg-orange-500/10 dark:bg-orange-500/5', border: 'border-orange-500', hoverText: 'hover:text-orange-600 dark:hover:text-orange-400', glow: 'shadow-orange-500/10', ring: 'focus:ring-orange-500', hex: '#f2856d' },
   };
+  const [accentColor, setAccentColorState] = useState<string>(() => localStorage.getItem('accentColor') || 'cyan');
+  const setAccentColor = (val: string) => {
+    setAccentColorState(val);
+    localStorage.setItem('accentColor', val);
+  };
+  const getAccentColor = (type: 'text' | 'bg' | 'bgMuted' | 'border' | 'hoverText' | 'focusRing' | 'glow') => {
+    const c = ACCENT_COLORS[accentColor] || ACCENT_COLORS.cyan;
+    if (type === 'focusRing') return c.ring;
+    return c[type];
+  };
+  const getAccentHex = () => ACCENT_COLORS[accentColor]?.hex || '#06b6d4';
   const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services' | 'nodes' | 'configmaps' | 'secrets' | 'statefulsets' | 'daemonsets' | 'events'>('pods');
   const [namespaceFilter, setNamespaceFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -339,7 +350,7 @@ export default function App() {
   const [operationInProgress, setOperationInProgress] = useState(false);
 
   // Toast notifications state
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; link?: string } | null>(null);
 
   // Persist Arena canvas state across tab refreshes
   useEffect(() => {
@@ -384,7 +395,16 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setContexts(data.contexts || []);
-        setActiveContextState(data.active_context || '');
+        const active = data.active_context || '';
+        setActiveContextState(active);
+        // Auto-switch backend to current kubeconfig context on initial load
+        if (active) {
+          await fetch(`${API_URL}/api/kube/switch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ context: active })
+          });
+        }
       }
     } catch (e) {
       console.error("Failed to load kube contexts:", e);
@@ -392,6 +412,7 @@ export default function App() {
   }, []);
 
   const handleSwitchContext = async (contextName: string) => {
+    setContextSwitching(true);
     try {
       const res = await fetch(`${API_URL}/api/kube/switch`, {
         method: 'POST',
@@ -402,9 +423,11 @@ export default function App() {
         setActiveContextState(contextName);
         setToast({ message: `Successfully switched to Kubernetes context: ${contextName}`, type: 'success' });
         // Trigger refresh
-        fetchStats(true);
-        fetchResources(true);
-        fetchTopology(true);
+        await Promise.all([
+          fetchStats(true),
+          fetchResources(true),
+          fetchTopology(true)
+        ]);
       } else {
         const err = await res.json();
         setToast({ message: `Context switch failed: ${err.detail || 'Unknown error'}`, type: 'error' });
@@ -412,6 +435,8 @@ export default function App() {
     } catch (e) {
       console.error(e);
       setToast({ message: "Network error switching cluster context.", type: 'error' });
+    } finally {
+      setContextSwitching(false);
     }
   };
 
@@ -947,16 +972,16 @@ export default function App() {
           <div className="flex flex-col justify-between h-full py-6 items-center">
             <div className="flex flex-col items-center space-y-6 w-full">
               {/* Logo Brand Icon */}
-              <div
+              <img
+                src="/favicon.png"
+                alt="Podex"
                 onClick={() => {
                   setActiveTab('dashboard');
                   setSelectedResource(null);
                 }}
-                className="w-12 h-12 rounded-xl bg-cyan-600 flex items-center justify-center font-black text-xl text-white cursor-pointer hover:bg-cyan-500 transition"
+                className="w-10 h-10 cursor-pointer hover:opacity-80 transition active:scale-95 rounded-lg"
                 title="Podex - Go to Dashboard"
-              >
-                P
-              </div>
+              />
 
               {/* Nav List Icons */}
               <nav className="flex flex-col items-center space-y-4 w-full px-2">
@@ -965,7 +990,8 @@ export default function App() {
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
-                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+                  { id: 'docs', label: 'Docs', icon: BookOpen },
+                  { id: 'learn', label: 'Poddy', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -973,6 +999,10 @@ export default function App() {
                     <button
                       key={tab.id}
                       onClick={() => {
+                        if (tab.id === 'docs') {
+                          window.open('https://podex.chcha.in/docs', '_blank');
+                          return;
+                        }
                         setActiveTab(tab.id as any);
                         setSelectedResource(null);
                       }}
@@ -982,7 +1012,11 @@ export default function App() {
                           : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                     >
-                      <Icon className={`w-5 h-5 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      {tab.id === 'learn' ? (
+                        <img src="/mascot.png" alt="Poddy" className={`w-10 h-10 object-contain ${isActive ? '' : 'opacity-60 grayscale'}`} />
+                      ) : (
+                        <Icon className={`w-5 h-5 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      )}
                       
                       {/* Tooltip */}
                       <div className="absolute left-16 bg-slate-900 text-white text-[10px] font-bold px-2 py-1.5 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition whitespace-nowrap shadow-md z-30">
@@ -1047,9 +1081,11 @@ export default function App() {
                   className="flex items-center gap-3 cursor-pointer hover:opacity-90 active:scale-95 transition"
                   title="Go to Dashboard"
                 >
-                   <div className="w-10 h-10 rounded-lg bg-cyan-600 flex items-center justify-center font-black text-xl text-white shrink-0">
-                    P
-                  </div>
+                  <img
+                    src="/favicon.png"
+                    alt="Podex"
+                    className="w-9 h-9 shrink-0 rounded-lg"
+                  />
                   <div>
                     <h1 className="text-base font-extrabold text-slate-800 dark:text-cyan-400 m-0 tracking-wide leading-none">PODEX</h1>
                     <span className="text-[9px] text-slate-500 dark:text-slate-500 font-semibold tracking-wider block mt-0.5">K8S FOR BEGINNERS</span>
@@ -1071,7 +1107,8 @@ export default function App() {
                   { id: 'explorer', label: 'Cluster Explorer', icon: Layers },
                   { id: 'diagram', label: 'Cluster Topology', icon: Network },
                   { id: 'arena', label: 'Arena Playground', icon: Gamepad2 },
-                  { id: 'learn', label: 'AI Concepts Tutor', icon: BookOpen }
+                  { id: 'docs', label: 'Docs', icon: BookOpen },
+                  { id: 'learn', label: 'Poddy', icon: BookOpen }
                 ].map(tab => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -1079,6 +1116,10 @@ export default function App() {
                     <button
                       key={tab.id}
                       onClick={() => {
+                        if (tab.id === 'docs') {
+                          window.open('https://podex.chcha.in/docs', '_blank');
+                          return;
+                        }
                         setActiveTab(tab.id as any);
                         setSelectedResource(null);
                       }}
@@ -1087,7 +1128,11 @@ export default function App() {
                         : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-[#24233f] hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                     >
-                      <Icon className={`w-4 h-4 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      {tab.id === 'learn' ? (
+                        <img src="/mascot.png" alt="Poddy" className={`w-8 h-8 object-contain ${isActive ? '' : 'opacity-60 grayscale'}`} />
+                      ) : (
+                        <Icon className={`w-4 h-4 ${isActive ? getAccentColor('text') : 'text-slate-400'}`} />
+                      )}
                       <span>{tab.label}</span>
                     </button>
                   );
@@ -1127,7 +1172,7 @@ export default function App() {
                   Active Connection
                 </span>
                 <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
-                  {stats?.status === 'healthy' ? 'kind-podex' : 'Connecting...'}
+                  {stats?.status === 'healthy' ? activeContext || 'Connected' : 'Connecting...'}
                 </span>
               </div>
             </div>
@@ -1152,7 +1197,7 @@ export default function App() {
               </button>
             )}
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 capitalize m-0 tracking-wide">
-              {activeTab} Space
+              {activeTab === 'learn' ? 'Poddy' : `${activeTab} Space`}
             </h2>
 
             {/* Namespace Filter for Explorer */}
@@ -1185,8 +1230,19 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
-            <span>Kind Cluster Dev</span>
+
+            <a href="https://github.com/Hritikraj8804/podex" target="_blank" rel="noopener noreferrer"
+              className="flex items-center space-x-1.5 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+              <span>GitHub</span>
+            </a>
+            <span className="w-px h-3 bg-slate-300 dark:bg-slate-700" />
+            {contextSwitching ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-500" />
+            ) : (
               <span className={`w-2 h-2 rounded-full ${stats?.status === 'healthy' ? 'bg-cyan-500' : 'bg-amber-400'}`} />
+            )}
+            <span>{window.location.hostname}</span>
           </div>
         </header>
 
@@ -1207,6 +1263,7 @@ export default function App() {
               handleLearnQuery={handleLearnQuery}
               setSelectedResource={setSelectedResource}
               setDetailTab={setDetailTab}
+              apiUrl={API_URL}
             />
           )}
 
@@ -1294,6 +1351,7 @@ export default function App() {
             <SettingsTab
               contexts={contexts}
               activeContext={activeContext}
+              contextSwitching={contextSwitching}
               handleSwitchContext={handleSwitchContext}
               aiProvider={aiProvider}
               setAiProvider={setAiProvider}
@@ -1317,6 +1375,9 @@ export default function App() {
               setCustomNamespaces={setCustomNamespaces}
               refreshInterval={refreshInterval}
               setRefreshInterval={setRefreshInterval}
+              accentColor={accentColor}
+              setAccentColor={setAccentColor}
+              getAccentHex={getAccentHex}
             />
           )}
         </div>
@@ -1481,8 +1542,16 @@ export default function App() {
             <Info className="w-5 h-5 text-cyan-500 shrink-0" />
           )}
           <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{toast.message}</span>
+          {toast.link && (
+            <a href={toast.link} target="_blank" rel="noopener noreferrer"
+              className="text-xs font-bold text-cyan-600 dark:text-cyan-400 hover:underline shrink-0">
+              Open
+            </a>
+          )}
         </div>
       )}
+
+
 
     </div>
   );

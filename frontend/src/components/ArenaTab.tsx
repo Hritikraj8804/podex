@@ -60,7 +60,7 @@ interface ArenaTabProps {
   setConnections: React.Dispatch<React.SetStateAction<ArenaConnection[]>>;
   selectedNodeId: string | null;
   setSelectedNodeId: React.Dispatch<React.SetStateAction<string | null>>;
-  setToast?: (toast: { message: string; type: 'success' | 'error' | 'info' } | null) => void;
+  setToast?: (toast: { message: string; type: 'success' | 'error' | 'info'; link?: string } | null) => void;
 }
 
 const nodeTypes = { k8sNode: K8sNode };
@@ -86,7 +86,7 @@ const base64Encode = (str: string): string => {
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) =>
       String.fromCharCode(parseInt(p1, 16))
     ));
-  } catch (e) {
+  } catch {
     return btoa(str);
   }
 };
@@ -146,16 +146,16 @@ const generateYaml = (node: ArenaNode, connections: ArenaConnection[], allNodes:
 
 const parseYamlToConfig = (yaml: string, node: ArenaNode): Partial<ArenaNode> | null => {
   try {
-    const nameMatch = yaml.match(/name:\s+([\w\-]+)/);
-    const imageMatch = yaml.match(/image:\s+([\w\.\-\:\/]+)/);
+    const nameMatch = yaml.match(/name:\s+([\w-]+)/);
+    const imageMatch = yaml.match(/image:\s+([\w.\-:/]+)/);
     const replicasMatch = yaml.match(/replicas:\s+(\d+)/);
     const portMatch = yaml.match(/containerPort:\s+(\d+)/) || yaml.match(/-\s+port:\s+(\d+)/);
     const targetPortMatch = yaml.match(/targetPort:\s+(\d+)/);
     const typeMatch = yaml.match(/type:\s+(ClusterIP|NodePort|LoadBalancer)/);
-    const selectorMatch = yaml.match(/selector:\s*\n\s+app:\s+([\w\-]+)/) || yaml.match(/app:\s+([\w\-]+)/);
-    const ingressHostMatch = yaml.match(/host:\s+([\w\.\-]+)/);
-    const ingressPathMatch = yaml.match(/path:\s+([\w\.\-\/]+)/);
-    const ingressServiceMatch = yaml.match(/name:\s+([\w\-]+)/);
+    const selectorMatch = yaml.match(/selector:\s*\n\s+app:\s+([\w-]+)/) || yaml.match(/app:\s+([\w-]+)/);
+    const ingressHostMatch = yaml.match(/host:\s+([\w.-]+)/);
+    const ingressPathMatch = yaml.match(/path:\s+([\w.\-/]+)/);
+    const ingressServiceMatch = yaml.match(/name:\s+([\w-]+)/);
 
     const parsedConfig = { ...node.config };
     let parsedName = node.name;
@@ -824,7 +824,7 @@ const InnerArena: React.FC<ArenaTabProps> = ({
                           placeholder="nginx:alpine"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className={`grid ${['deployment', 'statefulset'].includes(selectedNode.type) ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
                         <div>
                           <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Port</label>
                           <input
@@ -834,15 +834,17 @@ const InnerArena: React.FC<ArenaTabProps> = ({
                             className="mt-1 w-full bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                         </div>
-                        <div>
-                          <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Replicas</label>
-                          <input
-                            type="number"
-                            value={selectedNode.config.replicas}
-                            onChange={(e) => handleUpdateForm('replicas', parseInt(e.target.value) || 1)}
-                            className="mt-1 w-full bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        </div>
+                        {['deployment', 'statefulset'].includes(selectedNode.type) && (
+                          <div>
+                            <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Replicas</label>
+                            <input
+                              type="number"
+                              value={selectedNode.config.replicas}
+                              onChange={(e) => handleUpdateForm('replicas', parseInt(e.target.value) || 1)}
+                              className="mt-1 w-full bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        )}
                       </div>
                     </>
                   )}

@@ -400,7 +400,7 @@ def start_port_forward(req: PortForwardRequest):
         kind = req.kind.lower()
         port_arg = f":{req.port}" if req.port > 0 else ""
         proc = subprocess.Popen(
-            ["kubectl", "port-forward", f"{kind}/{req.name}", port_arg, "-n", req.namespace],
+            ["kubectl", "port-forward", "--address", "0.0.0.0", f"{kind}/{req.name}", port_arg, "-n", req.namespace],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True

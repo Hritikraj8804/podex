@@ -1,72 +1,181 @@
-# Podex
+<p align="center">
+  <img alt="Podex" src="frontend/public/logo.png">
+  <h1 align="center">Podex</h1>
+</p>
 
-> Learn Kubernetes by understanding your own cluster.
+<p align="center">
+  <b>Learn Kubernetes by understanding your own cluster.</b>
+</p>
 
-Podex is an open-source, AI-powered Kubernetes workspace designed specifically for beginners, students, and developers learning Kubernetes for the first time. The goal is not to replace administrator dashboards like Lens or Rancher, but to act as a **local mentor** that explains concepts, aggregates context, and troubleshoots failures in plain English.
+<p align="center">
+  <a href="https://podex.chcha.in">Website</a>
+  ·
+  <a href="https://podex.chcha.in/docs">Documentation</a>
+  ·
+  <a href="https://github.com/Hritikraj8804/podex/issues">Report Bug</a>
+</p>
 
-## 🌟 Key Features
+<p align="center">
+  <img src="https://img.shields.io/badge/status-active-brightgreen" alt="Status" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
+  <img src="https://img.shields.io/badge/Kubernetes-Student%20Tool-326CE5?logo=kubernetes" alt="K8s" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi" alt="FastAPI" />
+</p>
 
-* **Visual Dashboard**: Live statistics showing cluster health and resource counts (nodes, pods, deployments, services).
-* **Resource Explorer**: Filter and inspect active resources. System-managed namespaces (`kube-system`, etc.) are hidden by default to remove noise, but can be toggled on.
-* **Explain Before Execute**: Destructive operations (restart deployment, scale deployment, delete pod) require explicit confirmation and provide a detailed explanation of what Kubernetes will do.
-* **Clean YAML Inspector**: Stems out bloated system keys (like `managedFields`, `uid`, `resourceVersion`) to show clean, readable configurations.
-* **AI investigation**: One-click AI troubleshooting. The backend automatically aggregates pod specs, container logs, and namespace events to diagnose issues, explain why they occurred, suggest fixes, and provide educational lessons.
-* **Sandbox Mock Fallback**: Runs in "Sandbox Mode" out-of-the-box if no API keys are provided.
+---
 
-## 🛠️ Architecture
+Podex is an **open-source, AI-powered Kubernetes workspace** for beginners, students, and developers. It acts as a local mentor that explains concepts, aggregates context, and troubleshoots failures in plain English  all through a visual, desktop-like interface.
 
-Podex is designed to run entirely on your local machine with zero cloud infrastructure dependencies.
+### ✨ Features
+
+| Capability | Description |
+|------------|-------------|
+| **Visual Dashboard** | Live cluster health, pod status matrix, stat cards, needs-attention panel |
+| **Cluster Explorer** | Browse 9 resource types  Pods, Deployments, Services, Nodes, ConfigMaps, Secrets, StatefulSets, DaemonSets, Events  with search, filter, bulk delete, real-time WebSocket updates |
+| **Topology Diagram** | Pan/zoom column map (Ingress → Service → Deployment → Pod) with drag-repositioning |
+| **Arena Playground** | Drag-and-drop canvas to model K8s architectures; auto-generates clean YAML |
+| **Poddy AI Tutor** | ChatGPT-style chat for K8s questions with analogies, gotchas, and deep explanations |
+| **AI Investigation** | One-click pod diagnosis  specs + logs + events → root cause + fix |
+| **Live Terminal & Logs** | WebSocket shell, SSE log streaming, natural-language kubectl command generator |
+| **Port Forwarding** | One-click forward to Pods and Services from the Explorer table |
+| **Explain Before Execute** | Educational modals for destructive ops (rolling updates, SIGTERM, scaling) |
+| **Sandbox Mode** | Runs fully mock-mode out of the box  no API keys needed |
+
+---
+
+### 🏗️ Architecture
 
 ```
-Browser (React + TS + TailwindCSS v4)
-   │
-   ▼
-REST API (FastAPI)
-   │
-   ├─► Kubernetes Client (Official Python SDK) ──► Kind / Minikube Cluster
-   │
-   └─► AI Services (Gemini / OpenAI) 
+┌──────────────┐      REST / SSE / WebSocket      ┌──────────────────┐
+│  React 19    │  ◄────────────────────────────►  │  FastAPI Backend │
+│  Vite        │                                  │  Python          │
+│  Tailwind v4 │                                  └──────┬───────────┘
+│  React Flow  │                                         │
+└──────────────┘                         ┌───────────────┼───────────────┐
+                                         │               │               │
+                                    ┌────▼────┐     ┌─────▼─────┐  ┌─────▼──────┐
+                                    │  K8s    │     │ kubectl   │  │  AI        │
+                                    │  Client │     │ port-fwd  │  │  Gemini/   │
+                                    │  (SDK)  │     │ subproc   │  │  OpenAI    │
+                                    └─────────┘     └───────────┘  │  /Mock     │
+                                                                   └────────────┘
 ```
 
-* **Local Kind Connector**: The backend automatically detects if it is running inside Docker Compose and patches in-memory cluster API endpoints pointing to `localhost` to map to the host's `host.docker.internal` gateway, bypassing self-signed SSL certificate blocks.
+---
 
-## 🚀 Quick Start
+### 🚀 Quick Start (Users)
 
-### 1. Prerequisites
-Ensure you have the following installed on your host:
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-* [Kind](https://kind.sigs.k8s.k8s.io/) (or Minikube)
-* [kubectl](https://kubernetes.io/docs/tasks/tools/)
+Run the entire stack with a single command:
 
-### 2. Launch Podex
-Clone this repository and run:
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Kind](https://kind.sigs.k8s.io/) (or Minikube), [kubectl](https://kubernetes.io/docs/tasks/tools/)
+
 ```bash
+git clone https://github.com/Hritikraj8804/podex.git
+cd podex
 docker compose up --build
 ```
-Once the containers start up, open your browser and navigate to:
-👉 **[http://localhost:3000](http://localhost:3000)**
 
-## 🧪 Testing Failures with the Demo Manifest
+Open **http://localhost:3456**
 
-To test the AI investigator, we have included a demo manifest containing both healthy and failing workloads:
+| Service | Port |
+|---------|------|
+| Frontend (Vite) | `3456` |
+| Backend (FastAPI) | `3457` |
 
-1. Deploy the examples to your local cluster:
-   ```bash
-   kubectl apply -f examples/demo-pod-failure.yaml
-   ```
-2. Open the Podex Explorer.
-3. You will see:
-   * `healthy-demo-pod`: Running successfully (Green).
-   * `failing-demo-pod`: Degraded with `ImagePullBackOff` (Red).
-   * `crashing-deployment`: Crashing with `CrashLoopBackOff` (Red).
-4. Click on `failing-demo-pod`, go to the **Investigate** tab, and click **Investigate with AI Mentor** to see the structured analysis!
+---
 
-## 🔑 AI Provider Configuration
+### 🛠️ Development Setup (Contributors)
 
-By default, Podex runs in a mock sandbox mode. To enable real AI diagnostics, pass your API keys inside `docker-compose.yml` or set them in your shell environment:
+Run frontend and backend independently for faster iteration.
 
-* **Gemini** (Default): Set `GEMINI_API_KEY` and ensure `AI_PROVIDER=gemini`.
-* **OpenAI**: Set `OPENAI_API_KEY` and set `AI_PROVIDER=openai`.
+**Prerequisites:** [Node.js 20+](https://nodejs.org/), [Python 3.11+](https://www.python.org/), [Kind](https://kind.sigs.k8s.io/) (or Minikube), [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
-## 📄 License
-This project is licensed under the [MIT License](LICENSE).
+```bash
+git clone https://github.com/Hritikraj8804/podex.git
+cd podex
+```
+
+#### Backend
+
+```bash
+cd backend
+python -m venv venv
+# Windows: .\venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
+pip install -r requirements.txt
+python main.py
+```
+
+Backend runs on **http://localhost:3457**
+
+#### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend runs on **http://localhost:3456** (Vite dev server, proxies API to `:3457`)
+
+---
+
+### 🧪 Try the Demo
+
+```bash
+kubectl apply -f examples/demo-pod-failure.yaml
+```
+
+Then in the Explorer:
+- `healthy-demo-pod`  Running (green)
+- `failing-demo-pod`  ImagePullBackOff (red)
+- `crashing-deployment`  CrashLoopBackOff (red)
+
+Click any pod → **Investigate** tab → **Ask Poddy** for AI diagnosis.
+
+---
+
+### 🤖 Poddy AI
+
+Podex's AI companion appears across the app:
+
+| Location | What it does |
+|----------|-------------|
+| **Poddy tab** | ChatGPT-style K8s concept Q&A |
+| **Investigate tab** | One-click diagnosis with root cause + fix |
+| **Terminal** | Natural language → kubectl commands |
+| **Dashboard** | Quick diagnosis popup on pod cells |
+
+**Providers** (set in `docker-compose.yml`):
+- **Gemini** (default): `GEMINI_API_KEY`
+- **OpenAI**: `OPENAI_API_KEY` + `AI_PROVIDER=openai`
+
+No keys? Poddy runs in sandbox mock mode.
+
+---
+
+### 📁 Project Structure
+
+```
+podex/
+├── backend/          # FastAPI Python backend
+│   ├── ai/           # LLM providers & prompts
+│   ├── api/          # REST routes, WebSocket, SSE
+│   ├── kubernetes/   # K8s client config
+│   ├── services/     # K8s operations, investigation
+│   └── main.py
+├── frontend/         # React + Vite + TypeScript
+│   ├── src/          # Components, App.tsx, main.tsx
+│   └── public/       # Logo, mascot, favicon
+├── docker/           # Dockerfile.backend, Dockerfile.frontend
+├── docs/             # Architecture documentation
+├── examples/         # Demo pod failure manifest
+└── docker-compose.yml
+```
+
+---
+
+### 📄 License
+
+[MIT](LICENSE)

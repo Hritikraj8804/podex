@@ -1,36 +1,45 @@
-version: '3.8'
-
 services:
   backend:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-3457}:3457"
     volumes:
-      # Mount kubeconfig directory to access local cluster credentials from container
       - ~/.kube:/root/.kube:ro
-      # Optional: mount backend directory for live code reloading during development
-      - ./backend:/app/backend
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - AI_PROVIDER=${AI_PROVIDER:-gemini}  # Default provider is gemini
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
       - KUBECONFIG=/root/.kube/config
-      - PORT=8000
-      - ENVIRONMENT=development
+      - PORT=3457
+      - ENVIRONMENT=production
       - PYTHONUNBUFFERED=1
     extra_hosts:
-      # Allows backend to reach the Kind control plane API on the host
       - "host.docker.internal:host-gateway"
-    restart: always
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3457/api/stats')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: ""
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3456}:80"
     depends_on:
-      - backend
-    restart: always
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
