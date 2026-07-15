@@ -11,31 +11,114 @@ interface FormattedTextProps {
   onShowToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
+const renderInline = (text: string) => {
+  const boldParts = text.split(/(\*\*[^*]+\*\*)/);
+  return boldParts.map((bp, bi) => {
+    if (bp.startsWith('**') && bp.endsWith('**')) {
+      return <strong key={bi} className="font-black text-slate-800 dark:text-slate-100">{bp.slice(2, -2)}</strong>;
+    }
+    const codeParts = bp.split(/(`[^`]+`)/);
+    return codeParts.map((cp, ci) => {
+      if (cp.startsWith('`') && cp.endsWith('`')) {
+        return (
+          <code key={ci} className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-cyan-600 dark:text-cyan-400 font-mono text-[10px] font-bold">
+            {cp.slice(1, -1)}
+          </code>
+        );
+      }
+      return cp;
+    });
+  });
+};
+
 export const FormattedText: React.FC<FormattedTextProps> = ({ text, onShowToast }) => {
   if (!text) return null;
 
-  // Split on double newlines to find paragraphs/blocks
-  const parts = text.split('\n\n');
+  const lines = text.split('\n');
+  const blocks: { type: string; content: string; items?: string[] }[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Code block
+    if (line.trimStart().startsWith('```')) {
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++;
+      blocks.push({ type: 'code', content: codeLines.join('\n') });
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^---+\s*$/.test(line.trim())) {
+      blocks.push({ type: 'hr', content: '' });
+      i++;
+      continue;
+    }
+
+    // Bullet list
+    if (/^[\s]*[-*]\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[\s]*[-*]\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^[\s]*[-*]\s/, ''));
+        i++;
+      }
+      blocks.push({ type: 'bullet', content: '', items });
+      continue;
+    }
+
+    // Numbered list
+    if (/^\s*\d+[.)]\s/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*\d+[.)]\s/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*\d+[.)]\s/, ''));
+        i++;
+      }
+      blocks.push({ type: 'ordered', content: '', items });
+      continue;
+    }
+
+    // Blank line
+    if (line.trim() === '') {
+      i++;
+      continue;
+    }
+
+    // Paragraph (may contain embedded numbered steps like "text 2. text")
+    const paraLines: string[] = [];
+    while (i < lines.length && lines[i].trim() !== '' && !/^[\s]*[-*]\s/.test(lines[i]) && !/^\s*\d+[.)]\s/.test(lines[i]) && !lines[i].trimStart().startsWith('```') && !/^---+\s*$/.test(lines[i].trim())) {
+      paraLines.push(lines[i]);
+      i++;
+    }
+    const joined = paraLines.join(' ');
+    // Check for embedded numbered steps: "text 2. " or "text 2) "
+    const stepMatch = joined.match(/\s+\d+[.)]\s/);
+    if (stepMatch && joined.indexOf(stepMatch[0]) > 0) {
+      const items = joined.split(/\s+(?=\d+[.)]\s)/).filter(Boolean).map(item => item.replace(/^\d+[.)]\s*/, ''));
+      blocks.push({ type: 'ordered', content: '', items });
+    } else {
+      blocks.push({ type: 'para', content: joined });
+    }
+  }
 
   return (
     <div className="space-y-3">
-      {parts.map((p, idx) => {
-        const trimmed = p.trim();
-        if (!trimmed) return null;
-
-        // Code block wrapper check
-        if (trimmed.startsWith('```')) {
-          const lines = trimmed.split('\n');
-          const content = lines.slice(1, -1).join('\n');
+      {blocks.map((b, idx) => {
+        if (b.type === 'code') {
           return (
             <div key={idx} className="relative group">
               <pre className="w-full bg-slate-950 text-slate-100 p-4 rounded-xl font-mono text-[10px] overflow-auto whitespace-pre leading-relaxed border border-slate-900">
-                {content}
+                {b.content}
               </pre>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(content);
-                  if (onShowToast) onShowToast("Code copied to clipboard!", "success");
+                  navigator.clipboard.writeText(b.content);
+                  if (onShowToast) onShowToast("Copied!", "success");
                 }}
                 className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition text-[9px] bg-slate-800/80 hover:bg-slate-700 text-cyan-400 font-bold px-2 py-1 rounded border border-slate-700/50 cursor-pointer"
               >
@@ -45,23 +128,43 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, onShowToast 
           );
         }
 
-        // Inline highlights renderer
-        const textParts = trimmed.split(/(`[^`]+`)/);
-        return (
-          <p key={idx} className="m-0 leading-relaxed font-semibold">
-            {textParts.map((tPart, tIdx) => {
-              if (tPart.startsWith('`') && tPart.endsWith('`')) {
-                const inner = tPart.slice(1, -1);
-                return (
-                  <code key={tIdx} className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-cyan-600 dark:text-cyan-400 font-mono text-[10px] font-bold">
-                    {inner}
-                  </code>
-                );
-              }
-              return tPart;
-            })}
-          </p>
-        );
+        if (b.type === 'hr') {
+          return <hr key={idx} className="border-slate-200 dark:border-slate-700" />;
+        }
+
+        if (b.type === 'bullet') {
+          return (
+            <ul key={idx} className="space-y-1.5 list-none m-0 p-0">
+              {b.items!.map((item, ii) => (
+                <li key={ii} className="flex items-start space-x-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0 mt-1.5" />
+                  <span className="text-slate-600 dark:text-slate-300 font-semibold leading-relaxed">{renderInline(item)}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (b.type === 'ordered') {
+          return (
+            <ol key={idx} className="space-y-2 list-none m-0 p-0">
+              {b.items!.map((item, ii) => (
+                <li key={ii} className="flex items-start space-x-2">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                    {ii + 1}
+                  </span>
+                  <span className="text-slate-600 dark:text-slate-300 font-semibold leading-relaxed">{renderInline(item)}</span>
+                </li>
+              ))}
+            </ol>
+          );
+        }
+
+        if (b.type === 'para') {
+          return <p key={idx} className="m-0 leading-relaxed font-semibold text-slate-600 dark:text-slate-300">{renderInline(b.content)}</p>;
+        }
+
+        return null;
       })}
     </div>
   );
@@ -536,31 +639,43 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
 
                 {/* Explain workflow trigger */}
                 {!aiInvestigating && !aiInvestigation && (
-                  <div className="bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] p-6 rounded-lg text-center space-y-4 shadow-sm">
-                    <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-[#1b2332] border border-slate-200 dark:border-[#2d3142] flex items-center justify-center mx-auto shadow-sm">
-                      <img src="/mascot.png" alt="Poddy" className="w-14 h-14 object-contain" />
+                  <div className="bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-xl overflow-hidden shadow-sm">
+                    <div className="h-1 bg-gradient-to-r from-cyan-500 to-indigo-500" />
+                    <div className="p-6 text-center space-y-4">
+                      <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-[#1b2332] border border-slate-200 dark:border-[#2d3142] flex items-center justify-center mx-auto shadow-sm">
+                        <img src="/mascot.png" alt="Poddy" className="w-14 h-14 object-contain" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-black text-sm text-slate-800 dark:text-slate-200 m-0">Ask Poddy</h4>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                          Analyze logs, events, and configuration
+                        </p>
+                      </div>
+                      <button
+                        onClick={runInvestigation}
+                        className="w-full py-2.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 font-black text-xs text-white transition cursor-pointer shadow-sm"
+                      >
+                        Investigate Resource
+                      </button>
                     </div>
-                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">Ask Poddy</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Analyze logs, events, and configuration of this resource.
-                    </p>
-                    <button
-                      onClick={runInvestigation}
-                      className="w-full py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 font-bold text-xs text-white transition cursor-pointer"
-                    >
-                      Investigate
-                    </button>
                   </div>
                 )}
 
                 {/* Investigation Loading states */}
                 {aiInvestigating && (
-                  <div className="bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] p-8 rounded-lg text-center space-y-4 flex flex-col items-center shadow-sm">
-                    <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
-                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">Analyzing Cluster State</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-bold animate-pulse">
-                      {investigationStep}
-                    </p>
+                  <div className="bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] p-8 rounded-lg text-center space-y-5 flex flex-col items-center shadow-sm">
+                    <div className="relative w-12 h-12">
+                      <div className="absolute inset-0 rounded-full border-2 border-slate-200 dark:border-slate-700" />
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-500 animate-spin" />
+                      <img src="/mascot.png" alt="Poddy" className="w-6 h-6 object-contain absolute inset-0 m-auto" />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 m-0">Poddy is investigating</h4>
+                      <div className="flex items-center justify-center space-x-2 text-[10px] text-slate-400 font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                        <span className="animate-pulse">{investigationStep}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -569,79 +684,86 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                   <div className="space-y-5 text-xs animate-in fade-in slide-in-from-bottom-2 duration-300">
 
                     {/* Status Callout Card */}
-                    <div className={`p-4 rounded-lg border flex items-start space-x-3 shadow-md transition duration-300 hover:scale-[1.01] ${aiInvestigation.status === 'healthy'
-                      ? 'bg-emerald-500/10 dark:bg-emerald-950/20 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
-                      : aiInvestigation.status === 'degraded'
-                        ? 'bg-amber-500/10 dark:bg-amber-950/20 border-amber-500/30 text-amber-800 dark:text-amber-300'
-                        : 'bg-red-500/10 dark:bg-red-950/20 border-red-500/30 text-red-800 dark:text-red-300'
-                      }`}>
-                      {aiInvestigation.status === 'healthy' ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                      ) : aiInvestigation.status === 'degraded' ? (
-                        <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                      ) : (
-                        <AlertOctagon className="w-5 h-5 text-red-500 shrink-0 mt-0.5 animate-pulse" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="font-extrabold text-sm uppercase tracking-wide">Diagnosis: {aiInvestigation.status}</span>
+                    <div className="relative overflow-hidden rounded-xl border shadow-md">
+                      <div className={`absolute inset-0 ${aiInvestigation.status === 'healthy' ? 'bg-emerald-500/5 dark:bg-emerald-950/20' : aiInvestigation.status === 'degraded' ? 'bg-amber-500/5 dark:bg-amber-950/20' : 'bg-red-500/5 dark:bg-red-950/20'}`} />
+                      <div className={`relative p-4 border-l-4 flex items-start space-x-3 ${aiInvestigation.status === 'healthy' ? 'border-emerald-500' : aiInvestigation.status === 'degraded' ? 'border-amber-500' : 'border-red-500'}`}>
+                        {aiInvestigation.status === 'healthy' ? (
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/5 flex items-center justify-center shrink-0">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                          </div>
+                        ) : aiInvestigation.status === 'degraded' ? (
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/10 dark:bg-amber-500/5 flex items-center justify-center shrink-0">
+                            <AlertCircle className="w-5 h-5 text-amber-500" />
+                          </div>
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-red-500/10 dark:bg-red-500/5 flex items-center justify-center shrink-0">
+                            <AlertOctagon className="w-5 h-5 text-red-500 animate-pulse" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${aiInvestigation.status === 'healthy' ? 'text-emerald-600 dark:text-emerald-400' : aiInvestigation.status === 'degraded' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {aiInvestigation.status}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{aiInvestigation.confidence}% confidence</span>
+                          </div>
+                          <p className="text-xs mt-1 font-bold text-slate-700 dark:text-slate-200 leading-relaxed">{aiInvestigation.root_cause}</p>
                         </div>
-                        <p className="text-xs mt-1.5 font-bold leading-normal">{aiInvestigation.root_cause}</p>
                       </div>
                     </div>
 
                     {/* Sub-tabs Navigation inside Investigate Panel */}
-                    <div className="flex bg-slate-200/50 dark:bg-[#111820] rounded-xl p-0.5 border border-slate-200/60 dark:border-[#1b2332] select-none">
+                    <div className="flex bg-slate-100 dark:bg-[#111820] rounded-xl p-0.5 border border-slate-200/60 dark:border-[#1b2332] select-none">
                       {([
-                        { id: 'diagnosis', label: 'Diagnosis' },
-                        { id: 'fix', label: 'Action Plan' },
-                        { id: 'lesson', label: 'Concept Lesson' }
-                      ] as const).map(tab => (
-                        <button
-                          key={tab.id}
-                          onClick={() => setInvestigationSubTab(tab.id)}
-                          className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${investigationSubTab === tab.id
-                            ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                            }`}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
+                        { id: 'diagnosis', label: 'Diagnosis', icon: Info },
+                        { id: 'fix', label: 'Action Plan', icon: Sliders },
+                        { id: 'lesson', label: 'Concept Lesson', icon: RefreshCw }
+                      ] as const).map(tab => {
+                        const TabIcon = tab.icon;
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => setInvestigationSubTab(tab.id)}
+                            className={`flex-1 flex items-center justify-center space-x-1.5 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider transition duration-150 cursor-pointer ${investigationSubTab === tab.id
+                              ? 'bg-white dark:bg-[#1f2330] text-cyan-600 dark:text-cyan-400 shadow-sm border border-slate-200 dark:border-[#2d3142]/45'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                              }`}
+                          >
+                            <TabIcon className="w-3 h-3" />
+                            <span>{tab.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
 
                     {/* TAB CONTENT: DIAGNOSIS */}
                     {investigationSubTab === 'diagnosis' && (
                       <div className="space-y-4 animate-in fade-in duration-200">
-                        {/* Confidence Score Gauge */}
-                        <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-2.5 shadow-sm">
-                          <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
-                            <span>Poddy Confidence</span>
-                            <span className="text-cyan-600 dark:text-cyan-400 font-extrabold text-xs">{aiInvestigation.confidence}%</span>
+                        {/* Confidence bar */}
+                        <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Analysis Summary</span>
+                            <div className="flex items-center space-x-1.5">
+                              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-[9px] font-bold text-slate-400">Poddy AI</span>
+                            </div>
                           </div>
-                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                            <div
-                              style={{ width: `${aiInvestigation.confidence}%` }}
-                              className="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-full transition-all duration-500"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Analysis Summary */}
-                        <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-2 shadow-sm">
-                          <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Analysis Summary</h5>
                           <FormattedText text={aiInvestigation.explanation} onShowToast={(msg, type) => setToast({ message: msg, type })} />
                         </div>
 
                         {/* Evidence list */}
                         {aiInvestigation.evidence && aiInvestigation.evidence.length > 0 && (
-                          <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-3 shadow-sm">
-                            <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Evidence Gathered</h5>
+                          <div className="bg-white dark:bg-[#111820] p-4 rounded-lg border border-slate-200 dark:border-[#1b2332] shadow-sm">
+                            <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
+                              Evidence Gathered <span className="text-slate-300 dark:text-slate-600">({aiInvestigation.evidence.length})</span>
+                            </h5>
                             <div className="space-y-2">
                               {aiInvestigation.evidence.map((ev: string, idx: number) => (
-                                <div key={idx} className="flex items-start space-x-2 pl-1 bg-slate-50 dark:bg-slate-900/40 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
-                                  <span className="text-cyan-500 mt-0.5 shrink-0">•</span>
-                                  <span className="text-slate-600 dark:text-slate-300 font-semibold">{ev}</span>
+                                <div key={idx} className="flex items-start space-x-2.5 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60">
+                                  <span className="w-5 h-5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/5 text-cyan-600 dark:text-cyan-400 text-[9px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-slate-600 dark:text-slate-300 font-semibold text-[11px]">{ev}</span>
                                 </div>
                               ))}
                             </div>
@@ -653,33 +775,40 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                     {/* TAB CONTENT: ACTION PLAN */}
                     {investigationSubTab === 'fix' && (
                       <div className="space-y-4 animate-in fade-in duration-200">
-                        <div className="bg-cyan-50/40 dark:bg-[#0c161e] p-5 rounded-lg border border-cyan-200 dark:border-cyan-900/35 space-y-3.5 shadow-sm">
-                          <h5 className="font-bold text-[10px] text-cyan-600 dark:text-cyan-400 uppercase tracking-wider flex items-center space-x-1.5">
-                            <Sliders className="w-3.5 h-3.5" />
-                            <span>Suggested Fix Action</span>
-                          </h5>
+                        <div className="p-5 rounded-lg border border-cyan-200 dark:border-cyan-900/35 shadow-sm" style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.04) 0%, rgba(59,130,246,0.04) 100%)' }}>
+                          <div className="flex items-center space-x-2 mb-4">
+                            <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                              <Sliders className="w-3.5 h-3.5 text-cyan-500" />
+                            </div>
+                            <span className="text-[10px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">Action Plan</span>
+                          </div>
                           <FormattedText text={aiInvestigation.suggested_fix} onShowToast={(msg, type) => setToast({ message: msg, type })} />
                         </div>
                       </div>
                     )}
 
                     {/* TAB CONTENT: CONCEPT LESSON */}
-                    {investigationSubTab === 'lesson' && (
+                    {investigationSubTab === 'lesson' && aiInvestigation.k8s_lesson && (
                       <div className="space-y-4 animate-in fade-in duration-200">
-                        <div className="bg-white dark:bg-[#111820] p-5 rounded-lg border border-slate-200 dark:border-[#1b2332] space-y-4 shadow-sm">
-                          <div className="space-y-1">
-                            <h5 className="font-bold text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Core Concept</h5>
-                            <span className="font-extrabold text-slate-800 dark:text-slate-100 block text-xs">{aiInvestigation.k8s_lesson.concept}</span>
+                        <div className="bg-white dark:bg-[#111820] rounded-lg border border-slate-200 dark:border-[#1b2332] overflow-hidden shadow-sm">
+                          <div className="border-b border-slate-100 dark:border-slate-800 px-5 py-3 flex items-center space-x-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                              <Info className="w-3.5 h-3.5 text-indigo-500" />
+                            </div>
+                            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Core Concept</span>
                           </div>
-
-                          <div className="border-t border-slate-100 dark:border-slate-800/80 pt-3.5 space-y-2">
-                            <h5 className="font-bold text-[10px] text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center space-x-1">
-                              <Info className="w-3.5 h-3.5" />
-                              <span>Analogy for Beginners</span>
-                            </h5>
-                            <p className="text-slate-600 dark:text-slate-400 leading-relaxed italic font-bold">
-                              "{aiInvestigation.k8s_lesson.analogy}"
+                          <div className="p-5 space-y-4">
+                            <p className="text-sm font-black text-slate-800 dark:text-slate-100 m-0 leading-relaxed">
+                              {aiInvestigation.k8s_lesson.concept}
                             </p>
+                            <div className="bg-gradient-to-r from-indigo-500/5 to-purple-500/5 dark:from-indigo-500/10 dark:to-purple-500/10 rounded-lg border border-indigo-200/50 dark:border-indigo-800/30 p-4">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <span className="text-[9px] font-black text-indigo-500 uppercase tracking-wider">Analogy</span>
+                              </div>
+                              <p className="text-slate-600 dark:text-slate-400 leading-relaxed italic font-bold text-[11px] m-0">
+                                "{aiInvestigation.k8s_lesson.analogy}"
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -688,9 +817,10 @@ export const ResourceDrawer: React.FC<ResourceDrawerProps> = ({
                     {/* Re-run button */}
                     <button
                       onClick={runInvestigation}
-                      className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-[#1b2332] hover:bg-slate-100 dark:hover:bg-[#13151f] text-slate-700 dark:text-slate-300 font-bold text-xs transition duration-150 cursor-pointer shadow-sm"
+                      className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold text-xs transition duration-150 cursor-pointer shadow-sm flex items-center justify-center space-x-2"
                     >
-                      Refresh Diagnosis
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Refresh Analysis</span>
                     </button>
                   </div>
                 )}

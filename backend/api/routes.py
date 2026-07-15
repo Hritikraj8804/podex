@@ -16,12 +16,10 @@ from backend.utils import clean_kubernetes_dict
 
 from backend.api.updates import router as updates_router
 from backend.api.terminal import router as terminal_router
-from backend.api.shell import router as shell_router
 
 router = APIRouter()
 router.include_router(updates_router)
 router.include_router(terminal_router)
-router.include_router(shell_router)
 k8s_service = K8sService()
 investigation_service = InvestigationService()
 

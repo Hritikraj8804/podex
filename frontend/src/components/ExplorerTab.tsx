@@ -418,7 +418,7 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 className={`hover:bg-slate-50/80 dark:hover:bg-[#10121c]/60 cursor-pointer transition duration-150 ${selectedResource?.name === cm.name ? 'bg-slate-100/70 dark:bg-[#10121c]' : ''}`}>
                 <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{cm.name}</td>
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{cm.namespace}</td>
-                <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono text-[10px]">{cm.keys?.join(', ') || '—'}</td>
+                <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono text-[10px]">{cm.keys?.join(', ') || ''}</td>
                 <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{cm.data_count ?? 0}</td>
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{cm.age}</td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>

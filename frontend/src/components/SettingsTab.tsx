@@ -98,7 +98,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       <div className="space-y-2">
         <h3 className="text-xl font-black text-slate-800 dark:text-slate-200 m-0">Settings</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">
-          Customize your workspace — theme, AI providers, cluster context, and log preferences.
+          Customize your workspace  theme, AI providers, cluster context, and log preferences.
         </p>
       </div>
 
@@ -167,7 +167,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
               </div>
             </div>
             <p className="text-[10px] text-slate-400 font-medium">
-              Changes apply instantly across the app — sidebar icons, buttons, toggles, borders, and active states.
+              Changes apply instantly across the app  sidebar icons, buttons, toggles, borders, and active states.
             </p>
           </div>
         </div>
@@ -258,7 +258,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-[#111820] rounded-lg border border-slate-200 dark:border-[#1b2332]">
             <div className="space-y-0.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Offline Sandbox Mode</label>
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Uses local mock answers — no API key needed.</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Uses local mock answers  no API key needed.</span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input

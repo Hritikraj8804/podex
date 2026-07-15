@@ -34,7 +34,7 @@ export const LearnTab: React.FC<LearnTabProps> = ({
             <p className="text-xs font-bold text-cyan-600 dark:text-cyan-400">Your Kubernetes Learning Companion</p>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 text-center max-w-md font-semibold leading-relaxed">
-            Ask me anything about Kubernetes — pods, services, networking, debugging, and more.
+            Ask me anything about Kubernetes  pods, services, networking, debugging, and more.
           </p>
 
           {/* Quick suggestion chips */}

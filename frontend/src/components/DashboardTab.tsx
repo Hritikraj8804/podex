@@ -87,7 +87,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const unhealthyPods = filteredPods.filter(p => {
     const s = p.status.toLowerCase();
     return !s.includes('run') && s !== 'completed' && s !== 'ready';
-  }).slice(0, 5);
+  }).slice(0, 2);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
@@ -113,7 +113,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-semibold max-w-lg">
                 {stats?.status === 'healthy'
-                  ? `${filteredPods.length} pods across ${stats?.node_count || 0} nodes — all workloads running as expected.`
+                  ? `${filteredPods.length} pods across ${stats?.node_count || 0} nodes  all workloads running as expected.`
                   : `${unhealthyPods.length} pod${unhealthyPods.length !== 1 ? 's' : ''} in degraded state. Click cells below to inspect.`
                 }
               </p>

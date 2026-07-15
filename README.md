@@ -25,22 +25,22 @@
 
 ---
 
-Podex is an **open-source, AI-powered Kubernetes workspace** for beginners, students, and developers. It acts as a local mentor that explains concepts, aggregates context, and troubleshoots failures in plain English — all through a visual, desktop-like interface.
+Podex is an **open-source, AI-powered Kubernetes workspace** for beginners, students, and developers. It acts as a local mentor that explains concepts, aggregates context, and troubleshoots failures in plain English  all through a visual, desktop-like interface.
 
 ### ✨ Features
 
 | Capability | Description |
 |------------|-------------|
 | **Visual Dashboard** | Live cluster health, pod status matrix, stat cards, needs-attention panel |
-| **Cluster Explorer** | Browse 9 resource types — Pods, Deployments, Services, Nodes, ConfigMaps, Secrets, StatefulSets, DaemonSets, Events — with search, filter, bulk delete, real-time WebSocket updates |
+| **Cluster Explorer** | Browse 9 resource types  Pods, Deployments, Services, Nodes, ConfigMaps, Secrets, StatefulSets, DaemonSets, Events  with search, filter, bulk delete, real-time WebSocket updates |
 | **Topology Diagram** | Pan/zoom column map (Ingress → Service → Deployment → Pod) with drag-repositioning |
 | **Arena Playground** | Drag-and-drop canvas to model K8s architectures; auto-generates clean YAML |
 | **Poddy AI Tutor** | ChatGPT-style chat for K8s questions with analogies, gotchas, and deep explanations |
-| **AI Investigation** | One-click pod diagnosis — specs + logs + events → root cause + fix |
+| **AI Investigation** | One-click pod diagnosis  specs + logs + events → root cause + fix |
 | **Live Terminal & Logs** | WebSocket shell, SSE log streaming, natural-language kubectl command generator |
 | **Port Forwarding** | One-click forward to Pods and Services from the Explorer table |
 | **Explain Before Execute** | Educational modals for destructive ops (rolling updates, SIGTERM, scaling) |
-| **Sandbox Mode** | Runs fully mock-mode out of the box — no API keys needed |
+| **Sandbox Mode** | Runs fully mock-mode out of the box  no API keys needed |
 
 ---
 
@@ -128,9 +128,9 @@ kubectl apply -f examples/demo-pod-failure.yaml
 ```
 
 Then in the Explorer:
-- `healthy-demo-pod` — Running (green)
-- `failing-demo-pod` — ImagePullBackOff (red)
-- `crashing-deployment` — CrashLoopBackOff (red)
+- `healthy-demo-pod`  Running (green)
+- `failing-demo-pod`  ImagePullBackOff (red)
+- `crashing-deployment`  CrashLoopBackOff (red)
 
 Click any pod → **Investigate** tab → **Ask Poddy** for AI diagnosis.
 
