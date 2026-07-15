@@ -4,6 +4,7 @@ import re
 import time
 import os
 import signal
+import tempfile
 from fastapi import APIRouter, HTTPException, Query, Header
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
@@ -356,16 +357,46 @@ def get_kube_topology(namespace: str = Query("default")):
         raise HTTPException(status_code=500, detail=result["error"])
     return result
 
+def _patched_kubectl_env() -> dict:
+    """Return env with patched kubeconfig for Docker (fix host + skip TLS verify)."""
+    env = os.environ.copy()
+    kc_path = env.get("KUBECONFIG", "")
+    if kc_path and os.path.exists(kc_path):
+        with open(kc_path, "r") as f:
+            kc_data = f.read()
+        if "127.0.0.1" in kc_data or "host.docker.internal" not in kc_data:
+            patched = kc_data.replace("127.0.0.1", "host.docker.internal")
+            try:
+                kc = yaml.safe_load(patched)
+                if kc and "clusters" in kc:
+                    for c in kc["clusters"]:
+                        if "cluster" in c:
+                            c["cluster"]["insecure-skip-tls-verify"] = True
+                            c["cluster"].pop("certificate-authority-data", None)
+                patched = yaml.safe_dump(kc, default_flow_style=False)
+            except Exception:
+                patched = patched.replace(
+                    "certificate-authority-data",
+                    "insecure-skip-tls-verify: true\n    # certificate-authority-data"
+                )
+            tmp = os.path.join(tempfile.gettempdir(), "podex-kubeconfig")
+            with open(tmp, "w") as f:
+                f.write(patched)
+            env["KUBECONFIG"] = tmp
+    return env
+
 # 10. Visual Arena Deployments
 @router.post("/kube/apply")
 def apply_yaml(req: ApplyYamlRequest):
     try:
+        env = _patched_kubectl_env()
         proc = subprocess.Popen(
             ["kubectl", "apply", "-f", "-"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            env=env
         )
         stdout, stderr = proc.communicate(input=req.yaml)
         if proc.returncode != 0:
@@ -377,13 +408,14 @@ def apply_yaml(req: ApplyYamlRequest):
 @router.post("/kube/delete")
 def delete_resource(req: DeleteResourceRequest):
     try:
-        # Use lowercase kind for kubernetes safety
+        env = _patched_kubectl_env()
         kind_lower = req.kind.lower()
         proc = subprocess.Popen(
             ["kubectl", "delete", kind_lower, req.name, "-n", req.namespace],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            env=env
         )
         stdout, stderr = proc.communicate()
         if proc.returncode != 0:
