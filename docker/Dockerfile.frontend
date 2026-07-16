@@ -8,20 +8,15 @@ RUN npm install && npm cache clean --force
 COPY frontend/ ./
 RUN VITE_API_URL=$VITE_API_URL npm run build
 
-# Stage 2: Serve with nginx (non-root)
+# Stage 2: Serve with nginx
 FROM nginx:alpine-slim
 
-RUN rm /etc/nginx/conf.d/default.conf \
-    && addgroup -S podex && adduser -S podex -G podex \
-    && touch /var/run/nginx.pid \
-    && chown -R podex:podex /var/run/nginx.pid /var/cache/nginx
+RUN rm /etc/nginx/conf.d/default.conf
 
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder --chown=podex:podex /app/dist /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80
-
-USER podex
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD wget -qO- http://localhost:80/ > /dev/null || exit 1
