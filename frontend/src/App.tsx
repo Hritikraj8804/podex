@@ -1172,7 +1172,7 @@ export default function App() {
                   Active Connection
                 </span>
                 <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block truncate">
-                  {stats?.status === 'healthy' ? activeContext || 'Connected' : 'Connecting...'}
+                  {!stats ? 'Connecting...' : activeContext || 'Connected'}
                 </span>
               </div>
             </div>
