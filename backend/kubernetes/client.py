@@ -54,21 +54,37 @@ def _patch_kubeconfig(config_path: Optional[str]) -> str:
         return tmp
     return path
 
+active_context_name: Optional[str] = None
+
+def get_active_context_name() -> Optional[str]:
+    global active_context_name
+    return active_context_name
+
 def init_k8s_client() -> bool:
     """
     Initializes the Kubernetes Python client configuration.
     Patches kubeconfig if current-context is missing.
     """
+    global active_context_name
     try:
         kc_path = _patch_kubeconfig(settings.kubeconfig)
         config.load_kube_config(config_file=kc_path)
         apply_client_configurations()
+        
+        # Track the loaded active context
+        import yaml as yamllib
+        if kc_path and os.path.exists(kc_path):
+            with open(kc_path, "r") as f:
+                kc = yamllib.safe_load(f)
+            if kc:
+                active_context_name = kc.get("current-context")
         return True
     except Exception as e:
         print(f"Failed to load kube config: {e}. Trying in-cluster config...")
         try:
             config.load_in_cluster_config()
             print("Kubernetes client initialized with in-cluster config.")
+            active_context_name = "in-cluster"
             return True
         except Exception as incluster_err:
             print(f"Failed to load in-cluster configuration: {incluster_err}")
@@ -87,9 +103,11 @@ def list_contexts() -> dict:
         return {"contexts": [], "active_context": None}
 
 def switch_context(context_name: str) -> bool:
+    global active_context_name
     try:
         config.load_kube_config(config_file=settings.kubeconfig, context=context_name)
         apply_client_configurations()
+        active_context_name = context_name
         return True
     except Exception as e:
         print(f"Error switching kube context to {context_name}: {e}")

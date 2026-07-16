@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from backend.services.k8s_service import K8sService
 from backend.services.investigation_service import InvestigationService
 from backend.ai import get_ai_provider, build_concept_prompt, InvestigationResult, ConceptExplanation
-from backend.kubernetes.client import list_contexts, switch_context
+from backend.kubernetes.client import list_contexts, switch_context, get_active_context_name
 from backend.utils import clean_kubernetes_dict
 
 from backend.api.updates import router as updates_router
@@ -67,6 +67,7 @@ class PortForwardRequest(BaseModel):
     name: str
     namespace: str
     port: int = 0
+    target_port: int = 0
 
 # In-memory port-forward registry
 port_forward_processes: Dict[int, subprocess.Popen] = {}
@@ -358,36 +359,48 @@ def get_kube_topology(namespace: str = Query("default")):
     return result
 
 def _patched_kubectl_env() -> dict:
-    """Return env with patched kubeconfig for Docker (fix host + skip TLS verify)."""
+    """Return env with patched kubeconfig for Docker/Local context consistency."""
     env = os.environ.copy()
-    kc_path = env.get("KUBECONFIG", "")
+    
+    # Resolve kubeconfig path: settings first, then env, then default path
+    from backend.config.settings import settings
+    kc_path = settings.kubeconfig or env.get("KUBECONFIG", "")
+    if not kc_path:
+        kc_path = os.path.expanduser("~/.kube/config")
+        
     if kc_path and os.path.exists(kc_path):
-        with open(kc_path, "r") as f:
-            kc_data = f.read()
-        if "127.0.0.1" in kc_data or "host.docker.internal" not in kc_data:
-            patched = kc_data.replace("127.0.0.1", "host.docker.internal")
-            try:
-                kc = yaml.safe_load(patched)
-                if kc:
-                    if "clusters" in kc:
-                        for c in kc["clusters"]:
-                            if "cluster" in c:
-                                c["cluster"]["insecure-skip-tls-verify"] = True
-                                c["cluster"].pop("certificate-authority-data", None)
-                    if not kc.get("current-context") and kc.get("contexts"):
-                        names = [c["name"] for c in kc["contexts"]]
-                        preferred = next((n for n in ["kind-podex", "kind-kind-podex"] if n in names), names[0])
-                        kc["current-context"] = preferred
-                patched = yaml.safe_dump(kc, default_flow_style=False)
-            except Exception:
-                patched = patched.replace(
-                    "certificate-authority-data",
-                    "insecure-skip-tls-verify: true\n    # certificate-authority-data"
-                )
-            tmp = os.path.join(tempfile.gettempdir(), "podex-kubeconfig")
-            with open(tmp, "w") as f:
-                f.write(patched)
-            env["KUBECONFIG"] = tmp
+        try:
+            with open(kc_path, "r") as f:
+                kc = yaml.safe_load(f)
+            if kc:
+                # Synchronize context selected in UI
+                active_ctx = get_active_context_name()
+                if active_ctx:
+                    kc["current-context"] = active_ctx
+                elif not kc.get("current-context") and kc.get("contexts"):
+                    names = [c["name"] for c in kc["contexts"]]
+                    preferred = next((n for n in ["kind-podex", "kind-kind-podex"] if n in names), names[0])
+                    kc["current-context"] = preferred
+
+                # If running inside Docker, patch loopback hosts to host.docker.internal
+                is_docker = os.path.exists("/.dockerenv")
+                if is_docker and "clusters" in kc:
+                    for c in kc["clusters"]:
+                        if "cluster" in c and "server" in c["cluster"]:
+                            s = c["cluster"]["server"]
+                            s = s.replace("127.0.0.1", "host.docker.internal").replace("localhost", "host.docker.internal")
+                            c["cluster"]["server"] = s
+                            c["cluster"]["insecure-skip-tls-verify"] = True
+                            c["cluster"].pop("certificate-authority-data", None)
+
+                # Write to temp file and set env var
+                tmp = os.path.join(tempfile.gettempdir(), "podex-patched-kubectl-kubeconfig")
+                with open(tmp, "w") as f:
+                    yaml.safe_dump(kc, f, default_flow_style=False)
+                env["KUBECONFIG"] = tmp
+        except Exception as e:
+            print(f"Error patching kubectl env: {e}")
+            
     return env
 
 # 10. Visual Arena Deployments
@@ -435,20 +448,41 @@ def delete_resource(req: DeleteResourceRequest):
 def start_port_forward(req: PortForwardRequest):
     try:
         kind = req.kind.lower()
-        port_arg = f":{req.port}" if req.port > 0 else ""
+        local_port = req.port
+        target_port = req.target_port
+        if local_port > 0 and target_port > 0:
+            port_arg = f"{local_port}:{target_port}"
+        elif local_port > 0:
+            port_arg = str(local_port)
+        else:
+            port_arg = ""
+            
+        env = _patched_kubectl_env()
         proc = subprocess.Popen(
             ["kubectl", "port-forward", "--address", "0.0.0.0", f"{kind}/{req.name}", port_arg, "-n", req.namespace],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            env=env
         )
         time.sleep(1.5)
-        stderr_line = proc.stderr.readline() if proc.stderr else ""
-        match = re.search(r'(?:127\.0\.0\.1|0\.0\.0\.0):(\d+)', stderr_line)
-        local_port = int(match.group(1)) if match else (req.port if req.port > 0 else 0)
+        
+        # Verify the process is still running and did not crash
+        exit_code = proc.poll()
+        if exit_code is not None:
+            stderr_data = proc.stderr.read() if proc.stderr else "Unknown error"
+            raise Exception(f"Failed to start port-forward (exit code {exit_code}): {stderr_data.strip()}")
+            
+        if local_port > 0:
+            allocated_port = local_port
+        else:
+            stderr_line = proc.stderr.readline() if proc.stderr else ""
+            match = re.search(r'(?:127\.0\.0\.1|0\.0\.0\.0):(\d+)', stderr_line)
+            allocated_port = int(match.group(1)) if match else 0
+            
         pid = proc.pid
         port_forward_processes[pid] = proc
-        return {"pid": pid, "port": local_port, "message": f"Forwarding to {req.name} on port {local_port}"}
+        return {"pid": pid, "port": allocated_port, "target_port": target_port or allocated_port, "is_docker": os.path.exists("/.dockerenv"), "message": f"Forwarding to {req.name} on port {allocated_port}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
