@@ -8,9 +8,9 @@
 </p>
 
 <p align="center">
-  <a href="https://podex.chcha.in">Website</a>
+  <a href="https://podex.in">Website</a>
   ·
-  <a href="https://podex.chcha.in/docs">Documentation</a>
+  <a href="https://podex.in/docs">Documentation</a>
   ·
   <a href="https://github.com/Hritikraj8804/podex/issues">Report Bug</a>
 </p>

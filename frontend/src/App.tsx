@@ -1000,7 +1000,7 @@ export default function App() {
                       key={tab.id}
                       onClick={() => {
                         if (tab.id === 'docs') {
-                          window.open('https://podex.chcha.in/docs', '_blank');
+                          window.open('https://podex.in/docs', '_blank');
                           return;
                         }
                         setActiveTab(tab.id as any);
@@ -1117,7 +1117,7 @@ export default function App() {
                       key={tab.id}
                       onClick={() => {
                         if (tab.id === 'docs') {
-                          window.open('https://podex.chcha.in/docs', '_blank');
+                          window.open('https://podex.in/docs', '_blank');
                           return;
                         }
                         setActiveTab(tab.id as any);

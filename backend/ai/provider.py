@@ -214,7 +214,7 @@ class MockProvider(AIProvider):
             confidence=85,
             k8s_lesson=K8sLesson(
                 concept="Kubernetes Observability",
-                analogy="Think of observability like a car dashboard — Conditions are warning lights, Events are the trip log, and Logs are the engine diagnostics printout. Podex reads all three to diagnose issues."
+                analogy="Think of observability like a car dashboard  Conditions are warning lights, Events are the trip log, and Logs are the engine diagnostics printout. Podex reads all three to diagnose issues."
             )
         )
 
