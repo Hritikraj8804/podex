@@ -6,12 +6,10 @@ RUN apk add --no-cache gcc musl-dev libffi-dev openssl-dev
 COPY backend/requirements.txt .
 RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
-# Stage 2: Runtime (non-root)
+# Stage 2: Runtime
 FROM python:3.11-alpine
 
 WORKDIR /app
-
-RUN addgroup -S podex && adduser -S podex -G podex
 
 # Install kubectl from Alpine community repo
 RUN apk add --no-cache kubectl --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community/ 2>/dev/null \
@@ -22,11 +20,9 @@ RUN pip install --no-cache-dir --no-index --find-links=/app/wheels /app/wheels/*
     && rm -rf /app/wheels \
     && rm -rf /root/.cache
 
-COPY --chown=podex:podex backend/ /app/backend/
+COPY backend/ /app/backend/
 
 EXPOSE 3457
-
-USER podex
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3457/api/stats')" || exit 1
