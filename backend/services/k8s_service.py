@@ -89,6 +89,16 @@ class K8sService:
                         elif cs.state.terminated:
                             status = cs.state.terminated.reason
 
+                # Collect ports from containers
+                port_strs = []
+                if pod.spec.containers:
+                    for c in pod.spec.containers:
+                        if c.ports:
+                            for p in c.ports:
+                                proto = p.protocol or "TCP"
+                                port_strs.append(f"{p.container_port}/{proto}")
+                ports_str = ", ".join(port_strs) if port_strs else ""
+
                 result.append({
                     "name": pod.metadata.name,
                     "namespace": pod.metadata.namespace,
@@ -97,6 +107,7 @@ class K8sService:
                     "pod_ip": pod.status.pod_ip or "None",
                     "node": pod.spec.node_name or "None",
                     "age": age,
+                    "ports": ports_str,
                 })
             return result
         except Exception as e:

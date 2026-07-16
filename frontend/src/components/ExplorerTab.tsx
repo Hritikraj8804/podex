@@ -39,7 +39,7 @@ const TABS: TabDef[] = [
   { id: 'events', label: 'Events', icon: '📋' },
 ];
 
-const portForwardRegistry: Record<string, { pid: number; port: number; host: string }> = {};
+const portForwardRegistry: Record<string, { pid: number; port: number; host: string; is_docker?: boolean }> = {};
 
 export const ExplorerTab: React.FC<ExplorerTabProps> = ({
   explorerSubTab,
@@ -68,6 +68,8 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [portForwarding, setPortForwarding] = useState<Record<string, boolean>>({});
+  const [portDialog, setPortDialog] = useState<{ kind: string; name: string; namespace: string } | null>(null);
+  const [portLocal, setPortLocal] = useState('');
 
   useEffect(() => {
     setSelectedKeys([]);
@@ -119,7 +121,7 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
     }
   }, [selectedResource, setSelectedResource, setDetailTab]);
 
-  const handlePortForward = useCallback(async (kind: string, name: string, namespace: string) => {
+  const handlePortForward = useCallback(async (kind: string, name: string, namespace: string, port?: number, targetPort?: number) => {
     const key = `${namespace}/${name}`;
     if (portForwardRegistry[key]) {
       const { pid } = portForwardRegistry[key];
@@ -133,20 +135,25 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
     }
     setPortForwarding(prev => ({ ...prev, [key]: true }));
     try {
-      const kindParam = kind === 'pod' ? 'pod' : 'service';
       const res = await fetch(`${apiUrl}/api/kube/port-forward`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: kindParam, name, namespace, port: 0 }),
+        body: JSON.stringify({ kind, name, namespace, port: port || 0, target_port: targetPort || 0 }),
       });
       if (res.ok) {
         const data = await res.json();
         const host = window.location.hostname;
-        portForwardRegistry[key] = { pid: data.pid, port: data.port, host };
+        portForwardRegistry[key] = { pid: data.pid, port: data.port, host, is_docker: data.is_docker };
         setPortForwarding(prev => ({ ...prev, [key]: false }));
-        if (host === 'localhost') {
-          const url = `http://localhost:${data.port}`;
-          setToast?.({ message: `Port ${data.port} → ${url}`, type: 'success', link: url });
+        if (data.is_docker) {
+          setToast?.({ message: `Port ${data.port} forwarded in container`, type: 'success' });
+        } else if (host === 'localhost') {
+          const url = `http://127.0.0.1:${data.port}`;
+          if (data.target_port && data.target_port !== data.port) {
+            setToast?.({ message: `${data.port}:${data.target_port} → ${url}`, type: 'success', link: url });
+          } else {
+            setToast?.({ message: `Port ${data.port} → ${url}`, type: 'success', link: url });
+          }
         } else {
           setToast?.({ message: `Port ${data.port} forwarded`, type: 'success' });
         }
@@ -198,13 +205,14 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
               <th className="px-6 py-4">Namespace</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4 text-center">Restarts</th>
+              <th className="px-6 py-4">Ports</th>
               <th className="px-6 py-4">Age</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-[#1b2332] text-xs">
             {data.length === 0 ? (
-              <tr><td colSpan={7} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-bold">No Pods found.</td></tr>
+              <tr><td colSpan={8} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500 font-bold">No Pods found.</td></tr>
             ) : data.map((pod: any) => {
               const key = `${pod.namespace}/${pod.name}`;
               const isSelected = selectedKeys.includes(key);
@@ -217,12 +225,13 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{pod.namespace}</td>
                   <td className="px-6 py-4"><span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(pod.status)}`}>{pod.status}</span></td>
                   <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-mono font-bold">{pod.restarts}</td>
+                  <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold text-[10px]">{pod.ports || '-'}</td>
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{pod.age}</td>
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {pfActive ? (
                         <>
-                          {pfActive.host === 'localhost' ? (
+                          {!pfActive.is_docker && pfActive.host === 'localhost' ? (
                             <a href={`http://localhost:${pfActive.port}`} target="_blank" rel="noopener noreferrer"
                               className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition cursor-pointer"
                               title={`Open localhost:${pfActive.port}`}
@@ -241,7 +250,7 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                           </button>
                         </>
                       ) : (
-                        <button onClick={(e) => { e.stopPropagation(); handlePortForward('pod', pod.name, pod.namespace); }}
+                        <button onClick={(e) => { e.stopPropagation(); setPortDialog({ kind: 'pod', name: pod.name, namespace: pod.namespace }); }}
                           className={`p-1.5 rounded-md border transition cursor-pointer ${portForwarding[key] ? 'bg-slate-100 dark:bg-[#111820] text-slate-400' : 'bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-[#1b2332]'}`}
                           title="Port forward">
                           {portForwarding[key] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
@@ -293,6 +302,13 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                   <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{dep.replicas_available}</td>
                   <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{dep.age}</td>
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={(e) => { e.stopPropagation(); setPortDialog({ kind: 'deployment', name: dep.name, namespace: dep.namespace }); }}
+                        className="p-1.5 rounded-md border border-slate-200 dark:border-[#1b2332] bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 transition cursor-pointer"
+                        title="Port forward">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -341,7 +357,7 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                     <div className="flex items-center justify-end gap-1">
                       {pfActive ? (
                         <>
-                          {pfActive.host === 'localhost' ? (
+                          {!pfActive.is_docker && pfActive.host === 'localhost' ? (
                             <a href={`http://localhost:${pfActive.port}`} target="_blank" rel="noopener noreferrer"
                               className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition cursor-pointer"
                               title={`Open localhost:${pfActive.port}`}
@@ -360,7 +376,7 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                           </button>
                         </>
                       ) : (
-                        <button onClick={(e) => { e.stopPropagation(); handlePortForward('service', svc.name, svc.namespace); }}
+                        <button onClick={(e) => { e.stopPropagation(); setPortDialog({ kind: 'service', name: svc.name, namespace: svc.namespace }); }}
                           className={`p-1.5 rounded-md border transition cursor-pointer ${portForwarding[key] ? 'bg-slate-100 dark:bg-[#111820] text-slate-400' : 'bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-[#1b2332]'}`}
                           title="Port forward">
                           {portForwarding[key] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
@@ -510,6 +526,13 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono">{s.service_name}</td>
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{s.age}</td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1">
+                    <button onClick={(e) => { e.stopPropagation(); setPortDialog({ kind: 'statefulset', name: s.name, namespace: s.namespace }); }}
+                      className="p-1.5 rounded-md border border-slate-200 dark:border-[#1b2332] bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 transition cursor-pointer"
+                      title="Port forward">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -548,6 +571,13 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                 <td className="px-6 py-4 text-center text-slate-600 dark:text-slate-400 font-bold">{ds.current}</td>
                 <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-bold">{ds.age}</td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1">
+                    <button onClick={(e) => { e.stopPropagation(); setPortDialog({ kind: 'daemonset', name: ds.name, namespace: ds.namespace }); }}
+                      className="p-1.5 rounded-md border border-slate-200 dark:border-[#1b2332] bg-slate-100 hover:bg-slate-200 dark:bg-[#111820] dark:hover:bg-[#1b2332] text-slate-500 dark:text-slate-400 transition cursor-pointer"
+                      title="Port forward">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -655,6 +685,79 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
               <button onClick={executeBulkDelete}
                 className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 rounded-lg text-xs transition cursor-pointer">
                 Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Port Forward Dialog */}
+      {portDialog && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm animate-fade-in"
+          onClick={() => setPortDialog(null)}>
+          <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] p-5 rounded-xl shadow-2xl max-w-xs w-full mx-4 space-y-4"
+            onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-white">Port Forward</h3>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+              {portDialog.kind}/{portDialog.name} · {portDialog.namespace}
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">Local Port</label>
+                <input
+                  type="number"
+                  value={portLocal}
+                  onChange={(e) => setPortLocal(e.target.value)}
+                  placeholder="e.g. 8080"
+                  autoFocus
+                  className="w-full bg-slate-50 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 font-bold"
+                />
+              </div>
+              {(() => {
+                const pod = filteredPods.find((p: any) => p.name === portDialog.name && p.namespace === portDialog.namespace);
+                const svc = filteredServices.find((s: any) => s.name === portDialog.name && s.namespace === portDialog.namespace);
+                let targetHint = '';
+                if (pod?.ports) {
+                  const m = pod.ports.match(/(\d+)/);
+                  if (m) targetHint = m[1];
+                } else if (svc?.ports) {
+                  const m = svc.ports.match(/(\d+)/);
+                  if (m) targetHint = m[1];
+                }
+                return targetHint ? (
+                  <div className="text-[9px] text-slate-400 font-medium bg-slate-50 dark:bg-[#111820] rounded-lg px-3 py-1.5 border border-slate-200 dark:border-[#1b2332]">
+                    Container port: <span className="text-cyan-600 dark:text-cyan-400 font-bold">{targetHint}</span>
+                    {portLocal && ` · localhost:${portLocal} → :${targetHint}`}
+                  </div>
+                ) : (
+                  portLocal && (
+                    <div className="text-[9px] text-slate-400 font-medium bg-slate-50 dark:bg-[#111820] rounded-lg px-3 py-1.5 border border-slate-200 dark:border-[#1b2332]">
+                      localhost:{portLocal} → :{portLocal}
+                    </div>
+                  )
+                );
+              })()}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setPortDialog(null)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-[#1b2332] dark:hover:bg-[#242d3d] text-slate-700 dark:text-slate-300 font-semibold py-2 rounded-lg text-xs transition cursor-pointer">
+                Cancel
+              </button>
+              <button onClick={() => {
+                const local = parseInt(portLocal);
+                if (!local || local < 1) { setToast?.({ message: "Enter a valid local port", type: 'error' }); return; }
+                const pod = filteredPods.find((p: any) => p.name === portDialog.name && p.namespace === portDialog.namespace);
+                const svc = filteredServices.find((s: any) => s.name === portDialog.name && s.namespace === portDialog.namespace);
+                let detectedTarget: number | undefined;
+                const portsStr = pod?.ports || svc?.ports || '';
+                const m = portsStr.match(/(\d+)/);
+                if (m) detectedTarget = parseInt(m[1]);
+                handlePortForward(portDialog.kind, portDialog.name, portDialog.namespace, local, detectedTarget);
+                setPortDialog(null);
+                setPortLocal('');
+              }}
+                className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 rounded-lg text-xs transition cursor-pointer">
+                Forward
               </button>
             </div>
           </div>
