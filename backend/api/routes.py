@@ -444,7 +444,7 @@ def start_port_forward(req: PortForwardRequest):
         )
         time.sleep(1.5)
         stderr_line = proc.stderr.readline() if proc.stderr else ""
-        match = re.search(r'127\.0\.0\.1:(\d+)', stderr_line)
+        match = re.search(r'(?:127\.0\.0\.1|0\.0\.0\.0):(\d+)', stderr_line)
         local_port = int(match.group(1)) if match else (req.port if req.port > 0 else 0)
         pid = proc.pid
         port_forward_processes[pid] = proc
