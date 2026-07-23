@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Network, Loader2, Minimize2, Maximize2, Sliders, Cpu,
-  Activity, GitBranch, Search, Focus,
+  Activity, GitBranch, Search, Focus, Database, FileText, Lock,
 } from 'lucide-react';
 
 interface TopologyDiagramTabProps {
@@ -125,10 +125,14 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
   const resourceIcon = (type: string, cls = 'w-3.5 h-3.5') => {
     const cn = `${cls} text-slate-400 dark:text-slate-500`;
     switch (type) {
-      case 'service':    return <Network className={cn} />;
-      case 'deployment': return <Sliders className={cn} />;
-      case 'pod':        return <Cpu className={cn} />;
-      default:           return <GitBranch className={cn} />;
+      case 'service':     return <Network className={cn} />;
+      case 'deployment':  return <Sliders className={cn} />;
+      case 'statefulset': return <Database className={cn} />;
+      case 'pod':         return <Cpu className={cn} />;
+      case 'ingress':     return <GitBranch className={cn} />;
+      case 'configmap':   return <FileText className={cn} />;
+      case 'secret':      return <Lock className={cn} />;
+      default:            return <Activity className={cn} />;
     }
   };
 
@@ -405,7 +409,7 @@ export const TopologyDiagramTab: React.FC<TopologyDiagramTabProps> = ({
                   </div>
 
                   <span className="text-[8px] font-medium text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-[#151e2c] px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
-                    {node.type === 'service' ? 'SVC' : node.type === 'deployment' ? 'DEP' : node.type === 'pod' ? 'POD' : 'NODE'}
+                    {node.type === 'service' ? 'SVC' : node.type === 'deployment' ? 'DEP' : node.type === 'statefulset' ? 'STS' : node.type === 'pod' ? 'POD' : node.type === 'ingress' ? 'ING' : node.type === 'configmap' ? 'CM' : node.type === 'secret' ? 'SEC' : 'NODE'}
                   </span>
                 </div>
               );

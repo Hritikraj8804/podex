@@ -597,7 +597,48 @@ class K8sService:
                                         "relation": "routes_to"
                                     })
 
-            # 2. Fetch Services
+            # 2. Fetch ConfigMaps
+            try:
+                configmaps = self.core_api.list_namespaced_config_map(namespace)
+                configmap_list = configmaps.items
+            except Exception:
+                configmap_list = []
+
+            for cm in configmap_list:
+                if ".crt" in cm.metadata.name.lower():
+                    continue
+                node_id = f"configmap/{namespace}/{cm.metadata.name}"
+                data_keys = list(cm.data.keys()) if cm.data else []
+                nodes.append({
+                    "id": node_id,
+                    "type": "configmap",
+                    "name": cm.metadata.name,
+                    "namespace": namespace,
+                    "status": "healthy"
+                })
+
+            # 3. Fetch Secrets
+            try:
+                secrets = self.core_api.list_namespaced_secret(namespace)
+                secret_list = secrets.items
+            except Exception:
+                secret_list = []
+
+            for sec in secret_list:
+                if sec.type == "kubernetes.io/service-account-token":
+                    continue
+                if ".crt" in sec.metadata.name.lower():
+                    continue
+                node_id = f"secret/{namespace}/{sec.metadata.name}"
+                nodes.append({
+                    "id": node_id,
+                    "type": "secret",
+                    "name": sec.metadata.name,
+                    "namespace": namespace,
+                    "status": "healthy"
+                })
+
+            # 4. Fetch Services
             try:
                 services = self.core_api.list_namespaced_service(namespace)
                 service_list = services.items
@@ -646,7 +687,32 @@ class K8sService:
                     }
                 })
 
-            # 4. Fetch Pods
+            # 5. Fetch StatefulSets
+            try:
+                statefulsets = self.apps_api.list_namespaced_stateful_set(namespace)
+                statefulset_list = statefulsets.items
+            except Exception:
+                statefulset_list = []
+
+            for sts in statefulset_list:
+                node_id = f"statefulset/{namespace}/{sts.metadata.name}"
+                replicas = sts.status.replicas or 0
+                ready_replicas = sts.status.ready_replicas or 0
+                status = "healthy"
+                if ready_replicas < replicas:
+                    status = "degraded" if ready_replicas > 0 else "critical"
+                nodes.append({
+                    "id": node_id,
+                    "type": "statefulset",
+                    "name": sts.metadata.name,
+                    "namespace": namespace,
+                    "status": status,
+                    "details": {
+                        "replicas": f"{ready_replicas}/{replicas}"
+                    }
+                })
+
+            # 6. Fetch Pods
             try:
                 pods = self.core_api.list_namespaced_pod(namespace)
                 pod_list = pods.items
@@ -722,6 +788,17 @@ class K8sService:
                                     "relation": "manages"
                                 })
                                 break
+
+                # StatefulSet ──► Pod edge connections
+                for sts in statefulset_list:
+                    if sts.spec.selector and sts.spec.selector.match_labels:
+                        if labels_match(sts.spec.selector.match_labels, pod.metadata.labels or {}):
+                            edges.append({
+                                "source": f"statefulset/{namespace}/{sts.metadata.name}",
+                                "target": pod_id,
+                                "relation": "manages"
+                            })
+                            break
 
             return {"nodes": nodes, "edges": edges}
 
