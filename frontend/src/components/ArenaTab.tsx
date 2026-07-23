@@ -116,14 +116,14 @@ const generateYaml = (node: ArenaNode, connections: ArenaConnection[], allNodes:
 
   let envYaml = '';
   if (configMapConns.length > 0 || secretConns.length > 0) {
-    envYaml = '\n      envFrom:';
+    envYaml = '\n        envFrom:';
     configMapConns.forEach(c => {
       const cm = allNodes.find(n => n.id === c.toId);
-      if (cm) envYaml += `\n      - configMapRef:\n          name: ${cm.name}`;
+      if (cm) envYaml += `\n        - configMapRef:\n            name: ${cm.name}`;
     });
     secretConns.forEach(c => {
       const sec = allNodes.find(n => n.id === c.toId);
-      if (sec) envYaml += `\n      - secretRef:\n          name: ${sec.name}`;
+      if (sec) envYaml += `\n        - secretRef:\n            name: ${sec.name}`;
     });
   }
 
@@ -257,11 +257,13 @@ const InnerArena: React.FC<ArenaTabProps> = ({
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     setSelectedNodeId(node.id);
+    setConfiguratorCollapsed(false);
     setYamlEditMode(false);
   }, [setSelectedNodeId]);
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
+    setConfiguratorCollapsed(true);
   }, [setSelectedNodeId]);
 
   const onConnect = useCallback((connection: Connection) => {
@@ -400,10 +402,12 @@ const InnerArena: React.FC<ArenaTabProps> = ({
         setNodes(nodes.map(n => n.id === node.id ? { ...n, status: 'healthy', statusMessage: 'Applied' } : n));
       } else {
         const err = await res.json();
-        setNodes(nodes.map(n => n.id === node.id ? { ...n, status: 'failed', statusMessage: err.detail || 'Deploy failed' } : n));
+        setToast?.({ message: `Deploy failed: ${err.detail || 'Unknown error'}`, type: 'error' });
+        setNodes(nodes.map(n => n.id === node.id ? { ...n, status: 'draft', statusMessage: undefined } : n));
       }
     } catch (e: any) {
-      setNodes(nodes.map(n => n.id === node.id ? { ...n, status: 'failed', statusMessage: e.message || 'Network error' } : n));
+      setToast?.({ message: `Deploy error: ${e.message}`, type: 'error' });
+      setNodes(nodes.map(n => n.id === node.id ? { ...n, status: 'draft', statusMessage: undefined } : n));
     }
   };
 
@@ -441,10 +445,12 @@ const InnerArena: React.FC<ArenaTabProps> = ({
         setNodes(nodes.map(n => ({ ...n, status: 'healthy', statusMessage: 'Applied' })));
       } else {
         const err = await res.json();
-        setNodes(nodes.map(n => ({ ...n, status: 'failed', statusMessage: err.detail || 'Failed' })));
+        setToast?.({ message: `Deploy failed: ${err.detail || 'Unknown error'}`, type: 'error' });
+        setNodes(nodes.map(n => ({ ...n, status: 'draft', statusMessage: undefined })));
       }
     } catch (e: any) {
-      setNodes(nodes.map(n => ({ ...n, status: 'failed', statusMessage: e.message })));
+      setToast?.({ message: `Deploy error: ${e.message}`, type: 'error' });
+      setNodes(nodes.map(n => ({ ...n, status: 'draft', statusMessage: undefined })));
     } finally {
       setStackDeploying(false);
     }
@@ -480,9 +486,9 @@ const InnerArena: React.FC<ArenaTabProps> = ({
       ],
       db: [
         { id: `svc-${ts}`, type: 'service', name: 'postgres-svc', x: 80, y: 220, status: 'draft',
-          config: { ...emptyCfg, port: 5432, targetPort: 5432, selector: 'postgres-db' } },
+          config: { ...emptyCfg, port: 5432, targetPort: 5432, serviceType: 'ClusterIP', selector: 'postgres-db' } },
         { id: `ss-${ts}`, type: 'statefulset', name: 'postgres-db', x: 220, y: 220, status: 'draft',
-          config: { ...emptyCfg, image: 'postgres:15-alpine', port: 5432, targetPort: 5432, serviceName: 'postgres-svc' } },
+          config: { ...emptyCfg, image: 'postgres:15-alpine', replicas: 1, port: 5432, targetPort: 5432, serviceName: 'postgres-svc' } },
         { id: `sec-${ts}`, type: 'secret', name: 'db-credentials', x: 360, y: 140, status: 'draft',
           config: { ...emptyCfg, secretKey: 'POSTGRES_PASSWORD', secretValue: 'postgres123' } },
         { id: `cm-${ts}`, type: 'configmap', name: 'db-configs', x: 360, y: 300, status: 'draft',
@@ -492,7 +498,7 @@ const InnerArena: React.FC<ArenaTabProps> = ({
         { id: `ing-${ts}`, type: 'ingress', name: 'frontend-ingress', x: 60, y: 220, status: 'draft',
           config: { ...emptyCfg, ingressHost: 'frontend.local', ingressPath: '/', ingressService: 'frontend-svc' } },
         { id: `svc-${ts}`, type: 'service', name: 'frontend-svc', x: 200, y: 220, status: 'draft',
-          config: { ...emptyCfg, port: 80, targetPort: 80, selector: 'frontend-deployment' } },
+          config: { ...emptyCfg, port: 80, targetPort: 80, serviceType: 'ClusterIP', selector: 'frontend-deployment' } },
         { id: `dep-${ts}`, type: 'deployment', name: 'frontend-deployment', x: 340, y: 220, status: 'draft',
           config: { ...emptyCfg, image: 'nginx:alpine', replicas: 2, port: 80, targetPort: 80 } },
         { id: `cm-${ts}`, type: 'configmap', name: 'frontend-configs', x: 480, y: 220, status: 'draft',

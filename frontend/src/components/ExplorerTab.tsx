@@ -628,8 +628,8 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
     <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] rounded-xl overflow-hidden shadow-sm animate-fade-in relative flex flex-col">
 
       {/* Explorer Table Header tabs */}
-      <div className="border-b border-slate-200 dark:border-[#1b2332] bg-slate-50/50 dark:bg-[#111820] p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="flex items-center space-x-3.5 w-full sm:w-auto overflow-x-auto min-w-0 select-none">
+      <div className="border-b border-slate-200 dark:border-[#1b2332] bg-slate-50/50 dark:bg-[#111820] p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="flex items-center space-x-3.5 w-full sm:w-auto min-w-0 select-none">
           <div className="flex bg-slate-200/60 dark:bg-[#111820] rounded-lg p-0.5 border border-slate-200 dark:border-[#1b2332] select-none shrink-0 overflow-x-auto">
             {TABS.map(tab => (
               <button
@@ -644,6 +644,8 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
               </button>
             ))}
           </div>
+        </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           {canDelete && selectedKeys.length > 0 && (
             <button onClick={handleBulkDelete} disabled={bulkDeleting}
               className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer disabled:opacity-50 shrink-0">
@@ -651,13 +653,12 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
               <span>Delete ({selectedKeys.length})</span>
             </button>
           )}
-        </div>
-
-        <div className="flex items-center bg-slate-100 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-lg px-3 py-2 w-full max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
-          <input type="text" placeholder={`Search ${explorerSubTab}...`} value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-full font-bold" />
+          <div className="flex items-center bg-slate-100 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-lg px-3 py-2 w-full max-w-xs">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+            <input type="text" placeholder={`Search ${explorerSubTab}...`} value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-full font-bold" />
+          </div>
         </div>
       </div>
 

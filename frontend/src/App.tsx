@@ -561,13 +561,8 @@ export default function App() {
   }, [fetchStats, fetchResources, fetchTopology, namespaceFilter]);
 
   const getFilteredTopology = useCallback(() => {
-    // Filter out ingress nodes
-    const baseNodes = topologyData.nodes.filter(n => n.type !== 'ingress');
-    const baseEdges = topologyData.edges.filter(edge => {
-      const srcNode = topologyData.nodes.find(n => n.id === edge.source);
-      const tgtNode = topologyData.nodes.find(n => n.id === edge.target);
-      return srcNode?.type !== 'ingress' && tgtNode?.type !== 'ingress';
-    });
+    const baseNodes = topologyData.nodes;
+    const baseEdges = topologyData.edges;
 
     if (!topologyFilter || topologyFilter === 'all') {
       return { nodes: baseNodes, edges: baseEdges };
