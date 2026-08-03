@@ -16,7 +16,8 @@ import {
   Menu,
   PanelLeftClose,
   Network,
-  Gamepad2
+  Gamepad2,
+  Search
 } from 'lucide-react';
 import { DashboardTab } from './components/DashboardTab';
 import { ExplorerTab } from './components/ExplorerTab';
@@ -274,7 +275,39 @@ export default function App() {
   const [explorerSubTab, setExplorerSubTab] = useState<'pods' | 'deployments' | 'services' | 'nodes' | 'configmaps' | 'secrets' | 'statefulsets' | 'daemonsets' | 'events'>('pods');
   const [namespaceFilter, setNamespaceFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showSystemResources, setShowSystemResources] = useState<boolean>(false);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Bulk delete for Explorer (lifted so the delete button can live in the header)
+  const executeBulkDelete = async () => {
+    setShowDeleteConfirm(false);
+    setBulkDeleting(true);
+    try {
+      const deletePromises = selectedKeys.map(async (key) => {
+        const [ns, name] = key.split('/');
+        const kind = explorerSubTab === 'pods' ? 'pod' : explorerSubTab === 'deployments' ? 'deployment' : 'service';
+        return fetch(`${API_URL}/api/kube/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind, name, namespace: ns })
+        });
+      });
+      const results = await Promise.all(deletePromises);
+      const allOk = results.every(res => res.ok);
+      if (allOk) {
+        setToast({ message: `Deleted ${selectedKeys.length} resources.`, type: 'success' });
+      } else {
+        setToast({ message: "Failed to delete some resources.", type: 'error' });
+      }
+      setSelectedKeys([]);
+      fetchResources(true);
+    } catch (e: any) {
+      setToast({ message: e.message || "Network error.", type: 'error' });
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   // Theme State
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -860,46 +893,46 @@ export default function App() {
   // Filter resources by search and namespace
   const filteredPods = pods.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSystem = showSystemResources || !isSystemNamespace(p.namespace);
+    const matchesSystem = !isSystemNamespace(p.namespace);
     return matchesSearch && matchesSystem;
   });
 
   const filteredDeployments = deployments.filter(d => {
     const matchesSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSystem = showSystemResources || !isSystemNamespace(d.namespace);
+    const matchesSystem = !isSystemNamespace(d.namespace);
     return matchesSearch && matchesSystem;
   });
 
   const filteredServices = services.filter(s => {
     const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSystem = showSystemResources || !isSystemNamespace(s.namespace);
+    const matchesSystem = !isSystemNamespace(s.namespace);
     return matchesSearch && matchesSystem;
   });
 
   const filteredNodes = nodes.filter(n => n.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredConfigmaps = configmaps.filter(cm => {
     const matchesSearch = cm.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSystem = showSystemResources || !isSystemNamespace(cm.namespace);
+    const matchesSystem = !isSystemNamespace(cm.namespace);
     return matchesSearch && matchesSystem;
   });
   const filteredSecrets = secrets.filter(s => {
     const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSystem = showSystemResources || !isSystemNamespace(s.namespace);
+    const matchesSystem = !isSystemNamespace(s.namespace);
     return matchesSearch && matchesSystem;
   });
   const filteredStatefulsets = statefulsets.filter(s => {
     const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSystem = showSystemResources || !isSystemNamespace(s.namespace);
+    const matchesSystem = !isSystemNamespace(s.namespace);
     return matchesSearch && matchesSystem;
   });
   const filteredDaemonsets = daemonsets.filter(ds => {
     const matchesSearch = ds.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSystem = showSystemResources || !isSystemNamespace(ds.namespace);
+    const matchesSystem = !isSystemNamespace(ds.namespace);
     return matchesSearch && matchesSystem;
   });
   const filteredEventsAll = eventsAll.filter(e => {
     const matchesSearch = e.message?.toLowerCase().includes(searchTerm.toLowerCase()) || e.reason?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSystem = showSystemResources || !isSystemNamespace(e.namespace);
+    const matchesSystem = !isSystemNamespace(e.namespace);
     return matchesSearch && matchesSystem;
   });
 
@@ -1180,7 +1213,7 @@ export default function App() {
 
         {/* Top Header Workspace */}
         <header className="h-16 border-b border-slate-200 dark:border-[#1e2235] flex items-center justify-between px-8 bg-white dark:bg-[#10131c]">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 flex-wrap min-w-0">
             {/* Sidebar toggle button (only shown when collapsed to expand it) */}
             {sidebarCollapsed && (
               <button
@@ -1208,19 +1241,6 @@ export default function App() {
                   className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-24 font-bold"
                 />
               </div>
-            )}
-
-            {/* Show System Resources Toggle */}
-            {(activeTab === 'explorer' || activeTab === 'dashboard') && (
-              <label className="flex items-center space-x-2 bg-slate-100 dark:bg-[#1e1d38] border border-slate-200 dark:border-[#2d2c50] rounded-xl px-3 py-1 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={showSystemResources}
-                  onChange={(e) => setShowSystemResources(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded text-cyan-500 bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-[#2d2c50] focus:ring-0 cursor-pointer"
-                />
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Show System</span>
-              </label>
             )}
           </div>
 
@@ -1250,7 +1270,6 @@ export default function App() {
               stats={stats}
               statsLoading={statsLoading}
               filteredPods={filteredPods}
-              showSystemResources={showSystemResources}
               filteredDeployments={filteredDeployments}
               filteredServices={filteredServices}
               setLearnQuery={setLearnQuery}
@@ -1264,29 +1283,52 @@ export default function App() {
 
           {/* TAB 2: EXPLORER */}
           {activeTab === 'explorer' && (
-            <ExplorerTab
-              explorerSubTab={explorerSubTab}
-              setExplorerSubTab={setExplorerSubTab}
-              filteredPods={filteredPods}
-              filteredDeployments={filteredDeployments}
-              filteredServices={filteredServices}
-              filteredNodes={filteredNodes}
-              filteredConfigmaps={filteredConfigmaps}
-              filteredSecrets={filteredSecrets}
-              filteredStatefulsets={filteredStatefulsets}
-              filteredDaemonsets={filteredDaemonsets}
-              filteredEventsAll={filteredEventsAll}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              resourcesLoading={resourcesLoading}
-              selectedResource={selectedResource}
-              setSelectedResource={setSelectedResource}
-              setDetailTab={setDetailTab}
-              getStatusColor={getStatusColor}
-              apiUrl={API_URL}
-              onRefresh={fetchResources}
-              setToast={setToast}
-            />
+            <>
+              {/* Explorer toolbar (above the tables so it never gets covered by the drawer) */}
+              <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center bg-white dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-xl px-3 py-2 w-72 shrink-0">
+                    <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+                    <input type="text" placeholder={`Search ${explorerSubTab}...`} value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-full font-bold" />
+                  </div>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                    {selectedKeys.length > 0 ? `${selectedKeys.length} selected` : 'Select rows to delete'}
+                  </span>
+                </div>
+                {selectedKeys.length > 0 && (
+                  <button onClick={() => setShowDeleteConfirm(true)} disabled={bulkDeleting}
+                    className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer disabled:opacity-50 shrink-0">
+                    {bulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    <span>Delete ({selectedKeys.length})</span>
+                  </button>
+                )}
+              </div>
+
+              <ExplorerTab
+                explorerSubTab={explorerSubTab}
+                setExplorerSubTab={setExplorerSubTab}
+                filteredPods={filteredPods}
+                filteredDeployments={filteredDeployments}
+                filteredServices={filteredServices}
+                filteredNodes={filteredNodes}
+                filteredConfigmaps={filteredConfigmaps}
+                filteredSecrets={filteredSecrets}
+                filteredStatefulsets={filteredStatefulsets}
+                filteredDaemonsets={filteredDaemonsets}
+                filteredEventsAll={filteredEventsAll}
+                resourcesLoading={resourcesLoading}
+                selectedResource={selectedResource}
+                setSelectedResource={setSelectedResource}
+                setDetailTab={setDetailTab}
+                getStatusColor={getStatusColor}
+                apiUrl={API_URL}
+                setToast={setToast}
+                selectedKeys={selectedKeys}
+                setSelectedKeys={setSelectedKeys}
+              />
+            </>
           )}
 
           {/* TAB 3: LEARN TEACHER */}
@@ -1546,6 +1588,30 @@ export default function App() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal (Explorer bulk delete) */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 animate-fade-in p-4">
+          <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] p-6 rounded-2xl shadow-2xl max-w-sm w-full space-y-4">
+            <div className="flex items-center gap-3 text-red-500">
+              <AlertCircle className="w-5 h-5" />
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">Delete Selected Resources?</h3>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+              Delete {selectedKeys.length} selected {explorerSubTab}? This is permanent.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-[#1b2332] dark:hover:bg-[#242d3d] text-slate-700 dark:text-slate-300 font-semibold py-2 rounded-lg text-xs transition cursor-pointer">
+                Cancel
+              </button>
+              <button onClick={executeBulkDelete}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 rounded-lg text-xs transition cursor-pointer">
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
     </div>

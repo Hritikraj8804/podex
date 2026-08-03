@@ -34,7 +34,11 @@ const renderInline = (text: string) => {
 export const FormattedText: React.FC<FormattedTextProps> = ({ text, onShowToast }) => {
   if (!text) return null;
 
-  const lines = text.split('\n');
+  // Normalize numbered lists where the AI put a bare number on its own line,
+  // e.g. "1\nGet the current YAML..." -> "1. Get the current YAML..."
+  const normalized = text.replace(/^(\s*\d+)[.)]?\s*\n(?=\s*\S)/gm, '$1. ');
+
+  const lines = normalized.split('\n');
   const blocks: { type: string; content: string; items?: string[] }[] = [];
   let i = 0;
 
@@ -76,7 +80,11 @@ export const FormattedText: React.FC<FormattedTextProps> = ({ text, onShowToast 
     if (/^\s*\d+[.)]\s/.test(line)) {
       const items: string[] = [];
       while (i < lines.length && /^\s*\d+[.)]\s/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*\d+[.)]\s/, ''));
+        // A line may contain several inline steps, e.g. "1. Do X. 2. Do Y."
+        const inlineSteps = lines[i].split(/\s+(?=\d+[.)]\s)/);
+        for (const step of inlineSteps) {
+          items.push(step.replace(/^\s*\d+[.)]\s*/, ''));
+        }
         i++;
       }
       blocks.push({ type: 'ordered', content: '', items });

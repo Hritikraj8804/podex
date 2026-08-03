@@ -5,6 +5,7 @@ from kubernetes.stream import stream
 # pyrefly: ignore [missing-import]
 from kubernetes.client.exceptions import ApiException
 from backend.kubernetes.client import get_core_api, get_apps_api
+from backend.config.settings import settings
 
 class K8sService:
     @property
@@ -19,7 +20,36 @@ class K8sService:
     def networking_api(self) -> client.NetworkingV1Api:
         return client.NetworkingV1Api()
 
-    def get_cluster_stats(self) -> Dict[str, Any]:
+    def _is_system_namespace(self, ns: Optional[str]) -> bool:
+        if not ns:
+            return False
+        return ns.lower() in [s.lower() for s in settings.system_namespaces]
+
+    def _is_default_cluster_resource(self, kind: str, name: str, namespace: Optional[str]) -> bool:
+        """Filters out default cluster boilerplate resources (kubernetes svc, kube-root-ca.crt, etc.)."""
+        name = (name or "").lower()
+        ns = (namespace or "").lower()
+        if ns == "default":
+            if kind == "service" and name == "kubernetes":
+                return True
+            if kind == "configmap" and name == "kube-root-ca.crt":
+                return True
+        return False
+
+    def _exclude_default_cluster_resources(
+        self, kind: str, items: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        return [
+            item for item in items
+            if not self._is_default_cluster_resource(kind, item.get("name", ""), item.get("namespace"))
+        ]
+
+    def _exclude_system(self, items: List[Dict[str, Any]], include_system: bool = False) -> List[Dict[str, Any]]:
+        if include_system:
+            return items
+        return [item for item in items if not self._is_system_namespace(item.get("namespace"))]
+
+    def get_cluster_stats(self, include_system: bool = False) -> Dict[str, Any]:
         """
         Gathers count stats for nodes, pods, deployments, services, and namespace status.
         """
@@ -38,18 +68,34 @@ class K8sService:
         try:
             pods = self.core_api.list_pod_for_all_namespaces()
             pod_count = len(pods.items)
+            if not include_system:
+                pod_count = sum(
+                    1 for p in pods.items
+                    if not self._is_system_namespace(p.metadata.namespace)
+                )
         except Exception:
             pod_count = 0
 
         try:
             deployments = self.apps_api.list_deployment_for_all_namespaces()
             deployment_count = len(deployments.items)
+            if not include_system:
+                deployment_count = sum(
+                    1 for d in deployments.items
+                    if not self._is_system_namespace(d.metadata.namespace)
+                )
         except Exception:
             deployment_count = 0
 
         try:
             services = self.core_api.list_service_for_all_namespaces()
             service_count = len(services.items)
+            if not include_system:
+                service_count = sum(
+                    1 for s in services.items
+                    if not self._is_system_namespace(s.metadata.namespace)
+                    and not self._is_default_cluster_resource("service", s.metadata.name, s.metadata.namespace)
+                )
         except Exception:
             service_count = 0
 
@@ -61,7 +107,7 @@ class K8sService:
             "service_count": service_count,
         }
 
-    def list_pods(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_pods(self, namespace: Optional[str] = None, include_system: bool = False) -> List[Dict[str, Any]]:
         """
         List all pods or filter by namespace, returning summarized data for the UI.
         """
@@ -73,6 +119,8 @@ class K8sService:
 
             result = []
             for pod in pods.items:
+                if not namespace and not include_system and self._is_system_namespace(pod.metadata.namespace):
+                    continue
                 # Calculate age
                 creation_timestamp = pod.metadata.creation_timestamp
                 age = self._format_age(creation_timestamp)
@@ -114,7 +162,7 @@ class K8sService:
             print(f"Error listing pods: {e}")
             return []
 
-    def list_deployments(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_deployments(self, namespace: Optional[str] = None, include_system: bool = False) -> List[Dict[str, Any]]:
         """
         List all deployments, returning summarized data for the UI.
         """
@@ -126,6 +174,8 @@ class K8sService:
 
             result = []
             for deploy in deployments.items:
+                if not namespace and not include_system and self._is_system_namespace(deploy.metadata.namespace):
+                    continue
                 age = self._format_age(deploy.metadata.creation_timestamp)
                 replicas = deploy.spec.replicas or 0
                 ready_replicas = deploy.status.ready_replicas or 0
@@ -149,7 +199,7 @@ class K8sService:
             print(f"Error listing deployments: {e}")
             return []
 
-    def list_services(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_services(self, namespace: Optional[str] = None, include_system: bool = False) -> List[Dict[str, Any]]:
         """
         List all services, returning summarized data.
         """
@@ -161,6 +211,8 @@ class K8sService:
 
             result = []
             for svc in services.items:
+                if not namespace and not include_system and self._is_system_namespace(svc.metadata.namespace):
+                    continue
                 age = self._format_age(svc.metadata.creation_timestamp)
                 
                 # Format ports
@@ -181,9 +233,58 @@ class K8sService:
                     "ports": ", ".join(ports),
                     "age": age,
                 })
-            return result
+            return self._exclude_default_cluster_resources("service", result)
         except Exception as e:
             print(f"Error listing services: {e}")
+            return []
+
+    def list_service_endpoints(self, namespace: Optional[str] = None, include_system: bool = False) -> List[Dict[str, Any]]:
+        """
+        Maps every Service to the Pods it routes traffic to (via label selectors).
+        This is what the status page uses to show "which pod gets the traffic".
+        """
+        try:
+            if namespace:
+                services = self.core_api.list_namespaced_service(namespace)
+                all_pods = self.core_api.list_namespaced_pod(namespace)
+            else:
+                services = self.core_api.list_service_for_all_namespaces()
+                all_pods = self.core_api.list_pod_for_all_namespaces()
+
+            result = []
+            for svc in services.items:
+                if not namespace and not include_system and self._is_system_namespace(svc.metadata.namespace):
+                    continue
+                selector = svc.spec.selector or {}
+                matched = []
+                if selector:
+                    for pod in all_pods.items:
+                        labels = pod.metadata.labels or {}
+                        if all(labels.get(k) == v for k, v in selector.items()):
+                            ready = False
+                            if pod.status.conditions:
+                                ready = any(
+                                    c.type == "Ready" and c.status == "True"
+                                    for c in pod.status.conditions
+                                )
+                            matched.append({
+                                "name": pod.metadata.name,
+                                "ip": pod.status.pod_ip or "None",
+                                "ready": ready,
+                                "node": pod.spec.node_name or "",
+                            })
+
+                result.append({
+                    "name": svc.metadata.name,
+                    "namespace": svc.metadata.namespace,
+                    "type": svc.spec.type,
+                    "cluster_ip": svc.spec.cluster_ip or "None",
+                    "selector": selector,
+                    "pods": matched,
+                })
+            return self._exclude_default_cluster_resources("service", result)
+        except Exception as e:
+            print(f"Error listing service endpoints: {e}")
             return []
 
     def list_nodes(self) -> List[Dict[str, Any]]:
@@ -206,7 +307,7 @@ class K8sService:
             print(f"Error listing nodes: {e}")
             return []
 
-    def list_configmaps(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_configmaps(self, namespace: Optional[str] = None, include_system: bool = False) -> List[Dict[str, Any]]:
         try:
             if namespace:
                 items = self.core_api.list_namespaced_config_map(namespace)
@@ -214,6 +315,8 @@ class K8sService:
                 items = self.core_api.list_config_map_for_all_namespaces()
             result = []
             for cm in items.items:
+                if not namespace and not include_system and self._is_system_namespace(cm.metadata.namespace):
+                    continue
                 age = self._format_age(cm.metadata.creation_timestamp)
                 data_keys = list(cm.data.keys()) if cm.data else []
                 result.append({
@@ -223,12 +326,12 @@ class K8sService:
                     "data_count": len(data_keys),
                     "age": age,
                 })
-            return result
+            return self._exclude_default_cluster_resources("configmap", result)
         except Exception as e:
             print(f"Error listing configmaps: {e}")
             return []
 
-    def list_secrets(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_secrets(self, namespace: Optional[str] = None, include_system: bool = False) -> List[Dict[str, Any]]:
         try:
             if namespace:
                 items = self.core_api.list_namespaced_secret(namespace)
@@ -236,6 +339,8 @@ class K8sService:
                 items = self.core_api.list_secret_for_all_namespaces()
             result = []
             for s in items.items:
+                if not namespace and not include_system and self._is_system_namespace(s.metadata.namespace):
+                    continue
                 if s.type == "kubernetes.io/service-account-token":
                     continue
                 age = self._format_age(s.metadata.creation_timestamp)
@@ -252,7 +357,7 @@ class K8sService:
             print(f"Error listing secrets: {e}")
             return []
 
-    def list_statefulsets(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_statefulsets(self, namespace: Optional[str] = None, include_system: bool = False) -> List[Dict[str, Any]]:
         try:
             if namespace:
                 items = self.apps_api.list_namespaced_stateful_set(namespace)
@@ -260,6 +365,8 @@ class K8sService:
                 items = self.apps_api.list_stateful_set_for_all_namespaces()
             result = []
             for s in items.items:
+                if not namespace and not include_system and self._is_system_namespace(s.metadata.namespace):
+                    continue
                 age = self._format_age(s.metadata.creation_timestamp)
                 desired = s.spec.replicas or 0
                 ready = s.status.ready_replicas or 0
@@ -277,7 +384,7 @@ class K8sService:
             print(f"Error listing statefulsets: {e}")
             return []
 
-    def list_daemonsets(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_daemonsets(self, namespace: Optional[str] = None, include_system: bool = False) -> List[Dict[str, Any]]:
         try:
             if namespace:
                 items = self.apps_api.list_namespaced_daemon_set(namespace)
@@ -285,6 +392,8 @@ class K8sService:
                 items = self.apps_api.list_daemon_set_for_all_namespaces()
             result = []
             for ds in items.items:
+                if not namespace and not include_system and self._is_system_namespace(ds.metadata.namespace):
+                    continue
                 age = self._format_age(ds.metadata.creation_timestamp)
                 desired = ds.status.desired_number_scheduled or 0
                 ready = ds.status.number_ready or 0
@@ -302,7 +411,7 @@ class K8sService:
             print(f"Error listing daemonsets: {e}")
             return []
 
-    def list_events(self, namespace: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_events(self, namespace: Optional[str] = None, include_system: bool = False) -> List[Dict[str, Any]]:
         try:
             if namespace:
                 items = self.core_api.list_namespaced_event(namespace)
@@ -310,6 +419,8 @@ class K8sService:
                 items = self.core_api.list_event_for_all_namespaces()
             result = []
             for ev in items.items:
+                if not namespace and not include_system and self._is_system_namespace(ev.metadata.namespace):
+                    continue
                 age = self._format_age(ev.last_timestamp or ev.event_time or ev.metadata.creation_timestamp)
                 result.append({
                     "type": ev.type,
@@ -558,12 +669,16 @@ class K8sService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def get_topology(self, namespace: str = "default") -> Dict[str, Any]:
+    def get_topology(self, namespace: str = "default", include_system: bool = False) -> Dict[str, Any]:
         """
         Builds a relationship topology map of the resources in the specified namespace.
         """
         nodes = []
         edges = []
+
+        # Hide system namespaces (kube-system, etc.) unless explicitly requested.
+        if not include_system and self._is_system_namespace(namespace):
+            return {"nodes": nodes, "edges": edges}
 
         try:
             # 1. Fetch Ingresses
