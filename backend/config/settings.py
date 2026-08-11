@@ -11,6 +11,14 @@ class Settings(BaseSettings):
     
     # Kubeconfig file path
     kubeconfig: Optional[str] = None
+
+    # Namespaces treated as "system" and hidden from the UI by default.
+    system_namespaces: list = [
+        "kube-system",
+        "kube-public",
+        "kube-node-lease",
+        "local-path-storage",
+    ]
     
     # Server configuration
     environment: str = "development"

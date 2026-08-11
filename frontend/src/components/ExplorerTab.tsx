@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Loader2, Terminal, Trash2, AlertCircle, ExternalLink, X } from 'lucide-react';
+import { Loader2, Terminal, ExternalLink, X } from 'lucide-react';
 
 interface ExplorerTabProps {
   explorerSubTab: string;
@@ -13,16 +13,15 @@ interface ExplorerTabProps {
   filteredStatefulsets?: any[];
   filteredDaemonsets?: any[];
   filteredEventsAll?: any[];
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
   resourcesLoading: boolean;
   selectedResource: any;
   setSelectedResource: (resource: any) => void;
   setDetailTab: (tab: 'overview' | 'yaml' | 'logs' | 'investigate' | 'terminal' | 'events') => void;
   getStatusColor: (status: string) => string;
   apiUrl: string;
-  onRefresh?: (isSilent?: boolean) => void;
   setToast?: (toast: { message: string; type: 'success' | 'error' | 'info'; link?: string } | null) => void;
+  selectedKeys: string[];
+  setSelectedKeys: (keys: string[]) => void;
 }
 
 type TabDef = { id: string; label: string; icon: string };
@@ -53,61 +52,23 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
   filteredStatefulsets = [],
   filteredDaemonsets = [],
   filteredEventsAll = [],
-  searchTerm,
-  setSearchTerm,
   resourcesLoading,
   selectedResource,
   setSelectedResource,
   setDetailTab,
   getStatusColor,
   apiUrl,
-  onRefresh,
   setToast,
+  selectedKeys,
+  setSelectedKeys,
 }) => {
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [portForwarding, setPortForwarding] = useState<Record<string, boolean>>({});
   const [portDialog, setPortDialog] = useState<{ kind: string; name: string; namespace: string } | null>(null);
   const [portLocal, setPortLocal] = useState('');
 
   useEffect(() => {
     setSelectedKeys([]);
-  }, [explorerSubTab]);
-
-  const handleBulkDelete = () => {
-    if (selectedKeys.length === 0) return;
-    setShowDeleteConfirm(true);
-  };
-
-  const executeBulkDelete = async () => {
-    setShowDeleteConfirm(false);
-    setBulkDeleting(true);
-    try {
-      const deletePromises = selectedKeys.map(async (key) => {
-        const [ns, name] = key.split('/');
-        const kind = explorerSubTab === 'pods' ? 'pod' : explorerSubTab === 'deployments' ? 'deployment' : 'service';
-        return fetch(`${apiUrl}/api/kube/delete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ kind, name, namespace: ns })
-        });
-      });
-      const results = await Promise.all(deletePromises);
-      const allOk = results.every(res => res.ok);
-      if (allOk) {
-        setToast?.({ message: `Deleted ${selectedKeys.length} resources.`, type: 'success' });
-      } else {
-        setToast?.({ message: "Failed to delete some resources.", type: 'error' });
-      }
-      setSelectedKeys([]);
-      onRefresh?.(true);
-    } catch (e: any) {
-      setToast?.({ message: e.message || "Network error.", type: 'error' });
-    } finally {
-      setBulkDeleting(false);
-    }
-  };
+  }, [explorerSubTab, setSelectedKeys]);
 
   const handleRowClick = useCallback(async (type: string, name: string, namespace: string) => {
     if (selectedResource?.name === name && selectedResource?.type === type) {
@@ -146,7 +107,8 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
         portForwardRegistry[key] = { pid: data.pid, port: data.port, host, is_docker: data.is_docker };
         setPortForwarding(prev => ({ ...prev, [key]: false }));
         if (data.is_docker) {
-          setToast?.({ message: `Port ${data.port} forwarded in container`, type: 'success' });
+          const proxyUrl = `${window.location.origin}/api/proxy/${data.port}/`;
+          setToast?.({ message: `Port ${data.port} forwarded → Open`, type: 'success', link: proxyUrl });
         } else if (host === 'localhost') {
           const url = `http://127.0.0.1:${data.port}`;
           if (data.target_port && data.target_port !== data.port) {
@@ -180,6 +142,13 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
       events: filteredEventsAll.length,
     };
     return map[id] ?? 0;
+  };
+
+  const getForwardUrl = (pf: { port: number; host: string; is_docker?: boolean }): string => {
+    if (pf.is_docker) {
+      return `${window.location.origin}/api/proxy/${pf.port}/`;
+    }
+    return `http://127.0.0.1:${pf.port}`;
   };
 
   const canDelete = explorerSubTab === 'pods' || explorerSubTab === 'deployments' || explorerSubTab === 'services';
@@ -232,16 +201,19 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                       {pfActive ? (
                         <>
                           {!pfActive.is_docker && pfActive.host === 'localhost' ? (
-                            <a href={`http://localhost:${pfActive.port}`} target="_blank" rel="noopener noreferrer"
+                            <a href={getForwardUrl(pfActive)} target="_blank" rel="noopener noreferrer"
                               className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition cursor-pointer"
-                              title={`Open localhost:${pfActive.port}`}
+                              title={`Open ${getForwardUrl(pfActive)}`}
                               onClick={(e) => e.stopPropagation()}>
                               <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                           ) : (
-                            <span className="px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold">
+                            <a href={getForwardUrl(pfActive)} target="_blank" rel="noopener noreferrer"
+                              className="px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold transition cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-900/50"
+                              title={`Open ${getForwardUrl(pfActive)}`}
+                              onClick={(e) => e.stopPropagation()}>
                               :{pfActive.port}
-                            </span>
+                            </a>
                           )}
                           <button onClick={(e) => { e.stopPropagation(); handlePortForward('pod', pod.name, pod.namespace); }}
                             className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition cursor-pointer"
@@ -358,16 +330,19 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                       {pfActive ? (
                         <>
                           {!pfActive.is_docker && pfActive.host === 'localhost' ? (
-                            <a href={`http://localhost:${pfActive.port}`} target="_blank" rel="noopener noreferrer"
+                            <a href={getForwardUrl(pfActive)} target="_blank" rel="noopener noreferrer"
                               className="p-1.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition cursor-pointer"
-                              title={`Open localhost:${pfActive.port}`}
+                              title={`Open ${getForwardUrl(pfActive)}`}
                               onClick={(e) => e.stopPropagation()}>
                               <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                           ) : (
-                            <span className="px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold">
+                            <a href={getForwardUrl(pfActive)} target="_blank" rel="noopener noreferrer"
+                              className="px-2 py-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold transition cursor-pointer hover:bg-emerald-200 dark:hover:bg-emerald-900/50"
+                              title={`Open ${getForwardUrl(pfActive)}`}
+                              onClick={(e) => e.stopPropagation()}>
                               :{pfActive.port}
-                            </span>
+                            </a>
                           )}
                           <button onClick={(e) => { e.stopPropagation(); handlePortForward('service', svc.name, svc.namespace); }}
                             className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition cursor-pointer"
@@ -629,8 +604,8 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
 
       {/* Explorer Table Header tabs */}
       <div className="border-b border-slate-200 dark:border-[#1b2332] bg-slate-50/50 dark:bg-[#111820] p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center space-x-3.5 w-full sm:w-auto min-w-0 select-none">
-          <div className="flex bg-slate-200/60 dark:bg-[#111820] rounded-lg p-0.5 border border-slate-200 dark:border-[#1b2332] select-none shrink-0 overflow-x-auto">
+        <div className="flex items-center space-x-3.5 w-full min-w-0 select-none">
+          <div className="flex bg-slate-200/60 dark:bg-[#111820] rounded-lg p-0.5 border border-slate-200 dark:border-[#1b2332] select-none overflow-x-auto">
             {TABS.map(tab => (
               <button
                 key={tab.id}
@@ -645,21 +620,6 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          {canDelete && selectedKeys.length > 0 && (
-            <button onClick={handleBulkDelete} disabled={bulkDeleting}
-              className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer disabled:opacity-50 shrink-0">
-              {bulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-              <span>Delete ({selectedKeys.length})</span>
-            </button>
-          )}
-          <div className="flex items-center bg-slate-100 dark:bg-[#111820] border border-slate-200 dark:border-[#1b2332] rounded-lg px-3 py-2 w-full max-w-xs">
-            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
-            <input type="text" placeholder={`Search ${explorerSubTab}...`} value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-transparent text-xs text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 p-0 w-full font-bold" />
-          </div>
-        </div>
       </div>
 
       {/* Data Lists Table */}
@@ -667,39 +627,21 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
         {renderTable()}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4 space-y-4">
-            <div className="flex items-center gap-3 text-red-500">
-              <AlertCircle className="w-5 h-5" />
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white">Delete Selected Resources?</h3>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-              Delete {selectedKeys.length} selected {explorerSubTab}? This is permanent.
-            </p>
-            <div className="flex gap-2 pt-1">
-              <button onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-[#1b2332] dark:hover:bg-[#242d3d] text-slate-700 dark:text-slate-300 font-semibold py-2 rounded-lg text-xs transition cursor-pointer">
-                Cancel
-              </button>
-              <button onClick={executeBulkDelete}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 rounded-lg text-xs transition cursor-pointer">
-                Yes, Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Port Forward Dialog */}
       {portDialog && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm animate-fade-in"
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 animate-fade-in p-4"
           onClick={() => setPortDialog(null)}>
-          <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] p-5 rounded-xl shadow-2xl max-w-xs w-full mx-4 space-y-4"
+          <div className="bg-white dark:bg-[#0d1117] border border-slate-200 dark:border-[#1b2332] p-6 rounded-2xl shadow-2xl max-w-md w-full space-y-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-slate-800 dark:text-white">Port Forward</h3>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">Port Forward</h3>
+              <button onClick={() => setPortDialog(null)}
+                className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-[#1b2332] text-slate-400 transition cursor-pointer"
+                title="Close">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium font-mono bg-slate-50 dark:bg-[#111820] rounded-lg px-3 py-2 border border-slate-200 dark:border-[#1b2332]">
               {portDialog.kind}/{portDialog.name} · {portDialog.namespace}
             </p>
             <div className="space-y-3">
@@ -726,13 +668,13 @@ export const ExplorerTab: React.FC<ExplorerTabProps> = ({
                   if (m) targetHint = m[1];
                 }
                 return targetHint ? (
-                  <div className="text-[9px] text-slate-400 font-medium bg-slate-50 dark:bg-[#111820] rounded-lg px-3 py-1.5 border border-slate-200 dark:border-[#1b2332]">
+                  <div className="text-[10px] text-slate-400 font-medium bg-slate-50 dark:bg-[#111820] rounded-lg px-3 py-2 border border-slate-200 dark:border-[#1b2332]">
                     Container port: <span className="text-cyan-600 dark:text-cyan-400 font-bold">{targetHint}</span>
-                    {portLocal && ` · localhost:${portLocal} → :${targetHint}`}
+                    {portLocal && <span className="block mt-0.5">localhost:{portLocal} → :{targetHint}</span>}
                   </div>
                 ) : (
                   portLocal && (
-                    <div className="text-[9px] text-slate-400 font-medium bg-slate-50 dark:bg-[#111820] rounded-lg px-3 py-1.5 border border-slate-200 dark:border-[#1b2332]">
+                    <div className="text-[10px] text-slate-400 font-medium bg-slate-50 dark:bg-[#111820] rounded-lg px-3 py-2 border border-slate-200 dark:border-[#1b2332]">
                       localhost:{portLocal} → :{portLocal}
                     </div>
                   )

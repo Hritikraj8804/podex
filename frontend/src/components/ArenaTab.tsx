@@ -16,7 +16,7 @@ import 'reactflow/dist/style.css';
 import {
   Layers, Trash2, Play, Loader2, AlertCircle, FileText, Lock,
   Globe, Database, Lightbulb, ChevronLeft, ChevronRight, Cpu, Network,
-  Box, Settings2, Trash,
+  Box, Settings2, Trash, Rocket,
 } from 'lucide-react';
 import K8sNode from './nodes/K8sNode';
 
@@ -75,10 +75,10 @@ const TOOLBOX_ITEMS: { type: ArenaNode['type']; icon: React.ElementType; label: 
   { type: 'secret',     icon: Lock,       label: 'Secret',     color: '#f43f5e' },
 ];
 
-const TEMPLATES = [
-  { id: 'web' as const, label: 'Scalable Web App', desc: 'Service + Deployment' },
-  { id: 'db' as const,  label: 'Database Stack',   desc: 'StatefulSet + Secret + ConfigMap' },
-  { id: 'full' as const,label: 'Full HTTP Ingress', desc: 'Ingress + Service + Deploy + ConfigMap' },
+const TEMPLATES: { id: 'web' | 'db' | 'full'; icon: React.ElementType; label: string; desc: string; color: string }[] = [
+  { id: 'web',   icon: Rocket,    label: 'Scalable Web App',   desc: 'Service + Deployment', color: '#06b6d4' },
+  { id: 'db',    icon: Database,  label: 'Database Stack',     desc: 'StatefulSet + Secret + ConfigMap', color: '#8b5cf6' },
+  { id: 'full',  icon: Globe,     label: 'Full HTTP Ingress',  desc: 'Ingress + Service + Deploy + ConfigMap', color: '#f59e0b' },
 ];
 
 const base64Encode = (str: string): string => {
@@ -89,6 +89,257 @@ const base64Encode = (str: string): string => {
   } catch {
     return btoa(str);
   }
+};
+
+// Podex-styled page served by any nginx workload created in the Arena.
+// Uses nginx SSI so pod name, IP, client details are REAL data, not hardcoded.
+const PODEX_NGINX_INDEX_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Podex Arena - Live Workload</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0c10; --panel: #0d1117; --panel2: #111820; --panel3: #1b2332;
+    --border: #1b2332; --text: #c5c6c7; --muted: #7f848e; --bright: #f0f6f6;
+    --accent: #06b6d4; --blue: #3b82f6; --green: #10b981; --amber: #f59e0b;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(900px 480px at 15% -10%, rgba(6,182,212,.14), transparent 60%),
+      radial-gradient(700px 420px at 100% 0%, rgba(59,130,246,.10), transparent 60%),
+      radial-gradient(600px 400px at 50% 110%, rgba(139,92,246,.06), transparent 60%),
+      var(--bg);
+    color: var(--text); min-height: 100vh;
+    font-family: var(--sans); display: flex; flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* ---- Top navigation ---- */
+  nav {
+    display: flex; align-items: center; gap: 28px; padding: 16px 40px;
+    border-bottom: 1px solid var(--border); background: rgba(13,17,23,.7);
+    backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .mark {
+    width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #04283a; font-weight: 800; font-size: 17px;
+    box-shadow: 0 4px 16px rgba(6,182,212,.4);
+  }
+  .brand .t { font-size: 17px; font-weight: 800; color: var(--bright); letter-spacing: -0.02em; }
+  .brand .t span { color: var(--accent); }
+  .nav-links { display: flex; gap: 22px; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600; transition: color .15s; }
+  .nav-links a:hover { color: var(--accent); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; background: rgba(16,185,129,.1); color: var(--green); border: 1px solid rgba(16,185,129,.4);
+  }
+  .status-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px rgba(16,185,129,.9); animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 9px;
+    font-size: 12.5px; font-weight: 700; text-decoration: none; transition: all .15s; cursor: pointer;
+  }
+  .btn.ghost { border: 1px solid var(--border); color: var(--text); background: var(--panel2); }
+  .btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #04283a; border: 1px solid var(--accent); }
+  .btn.primary:hover { background: #22d3ee; }
+
+  /* ---- Hero ---- */
+  main { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 56px 40px 40px; }
+  .hero { text-align: center; max-width: 720px; margin: 0 auto 44px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; color: var(--accent); background: rgba(6,182,212,.08);
+    border: 1px solid rgba(6,182,212,.3); text-transform: uppercase; letter-spacing: .08em;
+  }
+  .hero h1 { font-size: 40px; font-weight: 800; color: var(--bright); letter-spacing: -0.03em; line-height: 1.1; margin-top: 18px; }
+  .hero h1 span { color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 15px; margin-top: 14px; line-height: 1.6; }
+  .hero p code { color: var(--accent); font-family: var(--mono); font-size: 13px; }
+
+  /* ---- Live status bar ---- */
+  .livebar {
+    display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-radius: 14px;
+    background: rgba(16,185,129,.06); border: 1px solid rgba(16,185,129,.3); margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .livebar .lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--green); }
+  .livebar .sep { width: 1px; height: 18px; background: var(--border); }
+  .livebar .item { font-family: var(--mono); font-size: 12px; color: var(--text); }
+  .livebar .item b { color: var(--bright); }
+
+  /* ---- Cards grid ---- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .tile {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; transition: border-color .15s, transform .15s;
+  }
+  .tile:hover { border-color: #2d3142; transform: translateY(-2px); }
+  .tile .k { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .tile .k .ic {
+    width: 24px; height: 24px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; background: var(--panel2); border: 1px solid var(--border); color: var(--accent);
+  }
+  .tile .v { font-family: var(--mono); color: var(--bright); font-size: 16px; font-weight: 700; margin-top: 10px; word-break: break-all; }
+  .tile .v.acc { color: var(--accent); }
+  .tile .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ---- Tech badges ---- */
+  .tech { margin-top: 32px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .tech .tag {
+    font-family: var(--mono); font-size: 11px; padding: 5px 12px; border-radius: 8px;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .tech .tag b { color: var(--text); }
+  .tech .tag .dotc { color: var(--green); }
+
+  /* ---- Footer ---- */
+  footer {
+    padding: 20px 40px; border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    background: rgba(13,17,23,.6);
+  }
+  footer .made { color: var(--muted); font-size: 12px; }
+  footer .made code { color: var(--text); font-family: var(--mono); }
+  footer .links { margin-left: auto; display: flex; gap: 18px; }
+  footer .links a { color: var(--accent); text-decoration: none; font-size: 12.5px; font-weight: 600; }
+  footer .links a:hover { text-decoration: underline; }
+
+  @media (max-width: 640px) {
+    nav { padding: 14px 20px; }
+    .nav-links { display: none; }
+    main { padding: 36px 20px 28px; }
+    .hero h1 { font-size: 30px; }
+    footer { padding: 18px 20px; }
+  }
+</style>
+</head>
+<body>
+  <nav>
+    <div class="brand">
+      <div class="mark">P</div>
+      <div class="t">Podex <span>Arena</span></div>
+    </div>
+    <div class="nav-links">
+      <a href="/">Podex App</a>
+      <a href="https://github.com/Hritikraj8804/podex" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://podex.in" target="_blank" rel="noopener">podex.in</a>
+    </div>
+    <div class="nav-right">
+      <span class="status-pill"><span class="dot"></span> Live - Running</span>
+    </div>
+  </nav>
+
+  <main>
+    <div class="hero">
+      <span class="eyebrow">Kubernetes - Live Pod</span>
+      <h1>This pod is <span>serving your traffic</span>.</h1>
+      <p>
+        A real workload created in the <code>Podex Arena</code> playground.
+        Everything below is live data served by this pod - nothing is hardcoded.
+      </p>
+    </div>
+
+    <div class="livebar">
+      <span class="lbl">Live telemetry</span>
+      <span class="sep"></span>
+      <span class="item">Request: <b><!--# echo var="request_method" --> <!--# echo var="request_uri" --></b></span>
+      <span class="sep"></span>
+      <span class="item">Proto: <b><!--# echo var="server_protocol" --></b></span>
+      <span class="sep"></span>
+      <span class="item">Time: <b><!--# echo var="time_local" --></b></span>
+    </div>
+
+    <div class="grid">
+      <div class="tile"><div class="k"><span class="ic">P</span> Pod name</div><div class="v acc"><!--# echo var="hostname" --></div><div class="sub">container hostname</div></div>
+      <div class="tile"><div class="k"><span class="ic">#</span> Pod IP</div><div class="v"><!--# echo var="server_addr" --></div><div class="sub">cluster pod address</div></div>
+      <div class="tile"><div class="k"><span class="ic">C</span> Client IP</div><div class="v"><!--# echo var="remote_addr" --></div><div class="sub">who hit this page</div></div>
+      <div class="tile"><div class="k"><span class="ic">@</span> Server port</div><div class="v">80</div><div class="sub">nginx listener</div></div>
+      <div class="tile"><div class="k"><span class="ic">H</span> Host</div><div class="v"><!--# echo var="http_host" --></div><div class="sub">request host header</div></div>
+      <div class="tile"><div class="k"><span class="ic">B</span> User agent</div><div class="v"><!--# echo var="http_user_agent" --></div><div class="sub">your browser</div></div>
+    </div>
+
+    <div class="tech">
+      <span class="tag">kind <b>pod</b></span>
+      <span class="tag">created in <b>Podex Arena</b></span>
+      <span class="tag">image <b>nginx:alpine</b></span>
+      <span class="tag">ssi <b>on</b> - live data</span>
+      <span class="tag">status <b><span class="dotc">running</span></b></span>
+    </div>
+  </main>
+
+  <footer>
+    <span class="made">Deployed from the <code>Podex Arena</code> playground</span>
+    <span class="links">
+      <a href="/">Open Podex</a>
+      <a href="https://github.com/Hritikraj8804/podex" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://podex.in" target="_blank" rel="noopener">podex.in</a>
+    </span>
+  </footer>
+</body>
+</html>`;
+
+const PODEX_NGINX_CONF = `server {
+    listen 80;
+    server_name localhost;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+        ssi on;
+    }
+}`;
+
+const indentBlock = (str: string, spaces: number): string =>
+  str.split('\n').map(l => ' '.repeat(spaces) + l).join('\n');
+
+const isNginxImage = (image: string): boolean => /nginx/i.test(image || '');
+
+// Builds the ConfigMap doc + volume injection for nginx workloads so the
+// served page is the Podex-consistent page above (with real pod data).
+const nginxPageConfigMapYaml = (name: string): string => {
+  const cmName = `${name}-podex-page`;
+  return `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${cmName}
+data:
+  index.html: |-
+${indentBlock(PODEX_NGINX_INDEX_HTML, 4)}
+  default.conf: |-
+${indentBlock(PODEX_NGINX_CONF, 4)}`;
+};
+
+const nginxVolumeMounts = (depth: 'workload' | 'pod'): string => {
+  const base = depth === 'pod' ? 4 : 8;
+  return `${' '.repeat(base)}volumeMounts:
+${' '.repeat(base)}- name: podex-page
+${' '.repeat(base + 2)}mountPath: /usr/share/nginx/html/index.html
+${' '.repeat(base + 2)}subPath: index.html
+${' '.repeat(base)}- name: podex-page
+${' '.repeat(base + 2)}mountPath: /etc/nginx/conf.d/default.conf
+${' '.repeat(base + 2)}subPath: default.conf`;
+};
+
+const nginxVolumes = (cmName: string, depth: 'workload' | 'pod'): string => {
+  const base = depth === 'pod' ? 2 : 6;
+  return `${' '.repeat(base)}volumes:
+${' '.repeat(base)}- name: podex-page
+${' '.repeat(base + 2)}configMap:
+${' '.repeat(base + 4)}name: ${cmName}`;
 };
 
 const defaultConfig = (type: ArenaNode['type']): ArenaNode['config'] => ({
@@ -127,12 +378,21 @@ const generateYaml = (node: ArenaNode, connections: ArenaConnection[], allNodes:
     });
   }
 
+  // For nginx workloads, mount the Podex-consistent page (with real pod data).
+  const useNginxPage = (type === 'pod' || type === 'deployment' || type === 'statefulset') && isNginxImage(config.image);
+  const cmName = `${name}-podex-page`;
+  const nginxMounts = useNginxPage ? nginxVolumeMounts(type === 'pod' ? 'pod' : 'workload') : '';
+  const nginxVols = useNginxPage ? nginxVolumes(cmName, type === 'pod' ? 'pod' : 'workload') : '';
+
   if (type === 'pod') {
-    return `apiVersion: v1\nkind: Pod\nmetadata:\n  name: ${name}\n  labels:\n    app: ${name}\nspec:\n  containers:\n  - name: container\n    image: ${config.image}\n    ports:\n    - containerPort: ${config.port}${envYaml}`;
+    const workload = `apiVersion: v1\nkind: Pod\nmetadata:\n  name: ${name}\n  labels:\n    app: ${name}\nspec:\n  containers:\n  - name: container\n    image: ${config.image}\n    ports:\n    - containerPort: ${config.port}${envYaml}${nginxMounts ? '\n' + nginxMounts : ''}${nginxVols ? '\n' + nginxVols : ''}`;
+    return useNginxPage ? `${nginxPageConfigMapYaml(name)}\n---\n${workload}` : workload;
   } else if (type === 'deployment') {
-    return `apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: ${name}\n  labels:\n    app: ${name}\nspec:\n  replicas: ${config.replicas}\n  selector:\n    matchLabels:\n      app: ${name}\n  template:\n    metadata:\n      labels:\n        app: ${name}\n    spec:\n      containers:\n      - name: container\n        image: ${config.image}\n        ports:\n        - containerPort: ${config.port}${envYaml}`;
+    const workload = `apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: ${name}\n  labels:\n    app: ${name}\nspec:\n  replicas: ${config.replicas}\n  selector:\n    matchLabels:\n      app: ${name}\n  template:\n    metadata:\n      labels:\n        app: ${name}\n    spec:\n      containers:\n      - name: container\n        image: ${config.image}\n        ports:\n        - containerPort: ${config.port}${envYaml}${nginxMounts ? '\n' + nginxMounts : ''}${nginxVols ? '\n' + nginxVols : ''}`;
+    return useNginxPage ? `${nginxPageConfigMapYaml(name)}\n---\n${workload}` : workload;
   } else if (type === 'statefulset') {
-    return `apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: ${name}\nspec:\n  serviceName: ${config.serviceName || 'db-service'}\n  replicas: ${config.replicas}\n  selector:\n    matchLabels:\n      app: ${name}\n  template:\n    metadata:\n      labels:\n        app: ${name}\n    spec:\n      containers:\n      - name: container\n        image: ${config.image}\n        ports:\n        - containerPort: ${config.port}${envYaml}`;
+    const workload = `apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: ${name}\nspec:\n  serviceName: ${config.serviceName || 'db-service'}\n  replicas: ${config.replicas}\n  selector:\n    matchLabels:\n      app: ${name}\n  template:\n    metadata:\n      labels:\n        app: ${name}\n    spec:\n      containers:\n      - name: container\n        image: ${config.image}\n        ports:\n        - containerPort: ${config.port}${envYaml}${nginxMounts ? '\n' + nginxMounts : ''}${nginxVols ? '\n' + nginxVols : ''}`;
+    return useNginxPage ? `${nginxPageConfigMapYaml(name)}\n---\n${workload}` : workload;
   } else if (type === 'service') {
     return `apiVersion: v1\nkind: Service\nmetadata:\n  name: ${name}\nspec:\n  type: ${config.serviceType}\n  ports:\n  - port: ${config.port}\n    targetPort: ${config.targetPort}\n  selector:\n    app: ${config.selector || 'my-app'}`;
   } else if (type === 'configmap') {
@@ -146,16 +406,19 @@ const generateYaml = (node: ArenaNode, connections: ArenaConnection[], allNodes:
 
 const parseYamlToConfig = (yaml: string, node: ArenaNode): Partial<ArenaNode> | null => {
   try {
-    const nameMatch = yaml.match(/name:\s+([\w-]+)/);
-    const imageMatch = yaml.match(/image:\s+([\w.\-:/]+)/);
-    const replicasMatch = yaml.match(/replicas:\s+(\d+)/);
-    const portMatch = yaml.match(/containerPort:\s+(\d+)/) || yaml.match(/-\s+port:\s+(\d+)/);
-    const targetPortMatch = yaml.match(/targetPort:\s+(\d+)/);
-    const typeMatch = yaml.match(/type:\s+(ClusterIP|NodePort|LoadBalancer)/);
-    const selectorMatch = yaml.match(/selector:\s*\n\s+app:\s+([\w-]+)/) || yaml.match(/app:\s+([\w-]+)/);
-    const ingressHostMatch = yaml.match(/host:\s+([\w.-]+)/);
-    const ingressPathMatch = yaml.match(/path:\s+([\w.\-/]+)/);
-    const ingressServiceMatch = yaml.match(/name:\s+([\w-]+)/);
+    // Multi-doc YAML (ConfigMap + workload) — parse the LAST document (the workload).
+    const docs = yaml.split(/\n---\s*\n/);
+    const doc = docs[docs.length - 1] || yaml;
+    const nameMatch = doc.match(/name:\s+([\w-]+)/);
+    const imageMatch = doc.match(/image:\s+([\w.\-:/]+)/);
+    const replicasMatch = doc.match(/replicas:\s+(\d+)/);
+    const portMatch = doc.match(/containerPort:\s+(\d+)/) || doc.match(/-\s+port:\s+(\d+)/);
+    const targetPortMatch = doc.match(/targetPort:\s+(\d+)/);
+    const typeMatch = doc.match(/type:\s+(ClusterIP|NodePort|LoadBalancer)/);
+    const selectorMatch = doc.match(/selector:\s*\n\s+app:\s+([\w-]+)/) || doc.match(/app:\s+([\w-]+)/);
+    const ingressHostMatch = doc.match(/host:\s+([\w.-]+)/);
+    const ingressPathMatch = doc.match(/path:\s+([\w.\-/]+)/);
+    const ingressServiceMatch = doc.match(/name:\s+([\w-]+)/);
 
     const parsedConfig = { ...node.config };
     let parsedName = node.name;
@@ -585,16 +848,35 @@ const InnerArena: React.FC<ArenaTabProps> = ({
             <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 px-1">
               Templates
             </div>
-            {TEMPLATES.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTemplateConfirm(t.id)}
-                className="w-full text-left p-2.5 rounded-lg bg-white dark:bg-[#111820] border border-slate-100 dark:border-[#1b2332] hover:border-cyan-300 dark:hover:border-cyan-600/30 transition-all duration-150 cursor-pointer"
-              >
-                <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">{t.label}</div>
-                <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{t.desc}</div>
-              </button>
-            ))}
+            {TEMPLATES.map(t => {
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTemplateConfirm(t.id)}
+                  className="w-full text-left p-2.5 rounded-lg bg-slate-50 dark:bg-[#151a24] border border-dashed border-slate-200 dark:border-[#2a3548] hover:border-solid hover:border-cyan-300 dark:hover:border-cyan-600/40 transition-all duration-150 cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${t.color}14` }}
+                    >
+                      <Icon style={{ width: 15, height: 15, color: t.color }} strokeWidth={2} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">{t.label}</div>
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">{t.desc}</div>
+                    </div>
+                    <span
+                      className="shrink-0 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      style={{ color: t.color, backgroundColor: `${t.color}12` }}
+                    >
+                      Stack
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           {/* Snapping rules */}

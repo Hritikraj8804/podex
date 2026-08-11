@@ -7,10 +7,10 @@ router = APIRouter()
 k8s_service = K8sService()
 
 @router.websocket("/ws/updates")
-async def ws_updates(websocket: WebSocket, namespace: str = "default"):
+async def ws_updates(websocket: WebSocket, namespace: str = "default", include_system: bool = False):
     await websocket.accept()
     active_namespace = namespace
-    
+
     # Listen for namespace switch messages from the client
     async def receive_messages():
         nonlocal active_namespace
@@ -32,16 +32,16 @@ async def ws_updates(websocket: WebSocket, namespace: str = "default"):
     try:
         while True:
             try:
-                stats = k8s_service.get_cluster_stats()
-                pods = k8s_service.list_pods(active_namespace)
-                deployments = k8s_service.list_deployments(active_namespace)
-                services = k8s_service.list_services(active_namespace)
-                configmaps = k8s_service.list_configmaps(active_namespace)
-                secrets = k8s_service.list_secrets(active_namespace)
-                statefulsets = k8s_service.list_statefulsets(active_namespace)
-                daemonsets = k8s_service.list_daemonsets(active_namespace)
-                events = k8s_service.list_events(active_namespace)
-                topology = k8s_service.get_topology(active_namespace)
+                stats = k8s_service.get_cluster_stats(include_system=include_system)
+                pods = k8s_service.list_pods(active_namespace, include_system=include_system)
+                deployments = k8s_service.list_deployments(active_namespace, include_system=include_system)
+                services = k8s_service.list_services(active_namespace, include_system=include_system)
+                configmaps = k8s_service.list_configmaps(active_namespace, include_system=include_system)
+                secrets = k8s_service.list_secrets(active_namespace, include_system=include_system)
+                statefulsets = k8s_service.list_statefulsets(active_namespace, include_system=include_system)
+                daemonsets = k8s_service.list_daemonsets(active_namespace, include_system=include_system)
+                events = k8s_service.list_events(active_namespace, include_system=include_system)
+                topology = k8s_service.get_topology(active_namespace, include_system=include_system)
 
                 payload = {
                     "stats": stats,

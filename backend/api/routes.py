@@ -5,7 +5,7 @@ import time
 import os
 import signal
 import tempfile
-from fastapi import APIRouter, HTTPException, Query, Header
+from fastapi import APIRouter, HTTPException, Query, Header, Request
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
@@ -83,35 +83,39 @@ class GenerateCommandResponse(BaseModel):
 
 # 1. Dashboard Stats
 @router.get("/stats")
-def get_stats():
-    return k8s_service.get_cluster_stats()
+def get_stats(include_system: bool = False):
+    return k8s_service.get_cluster_stats(include_system=include_system)
 
 # 2. Explorer Lists
 @router.get("/pods")
-def get_pods(namespace: Optional[str] = Query(None)):
-    return k8s_service.list_pods(namespace)
+def get_pods(namespace: Optional[str] = Query(None), include_system: bool = False):
+    return k8s_service.list_pods(namespace, include_system=include_system)
 
 @router.get("/deployments")
-def get_deployments(namespace: Optional[str] = Query(None)):
-    return k8s_service.list_deployments(namespace)
+def get_deployments(namespace: Optional[str] = Query(None), include_system: bool = False):
+    return k8s_service.list_deployments(namespace, include_system=include_system)
 
 @router.get("/services")
-def get_services(namespace: Optional[str] = Query(None)):
-    return k8s_service.list_services(namespace)
+def get_services(namespace: Optional[str] = Query(None), include_system: bool = False):
+    return k8s_service.list_services(namespace, include_system=include_system)
+
+@router.get("/endpoints")
+def get_endpoints(namespace: Optional[str] = Query(None), include_system: bool = False):
+    return k8s_service.list_service_endpoints(namespace, include_system=include_system)
 
 @router.get("/resources")
-def get_resources(namespace: Optional[str] = Query(None)):
+def get_resources(namespace: Optional[str] = Query(None), include_system: bool = False):
     try:
         return {
-            "pods": k8s_service.list_pods(namespace),
-            "deployments": k8s_service.list_deployments(namespace),
-            "services": k8s_service.list_services(namespace),
+            "pods": k8s_service.list_pods(namespace, include_system=include_system),
+            "deployments": k8s_service.list_deployments(namespace, include_system=include_system),
+            "services": k8s_service.list_services(namespace, include_system=include_system),
             "nodes": k8s_service.list_nodes(),
-            "configmaps": k8s_service.list_configmaps(namespace),
-            "secrets": k8s_service.list_secrets(namespace),
-            "statefulsets": k8s_service.list_statefulsets(namespace),
-            "daemonsets": k8s_service.list_daemonsets(namespace),
-            "events": k8s_service.list_events(namespace),
+            "configmaps": k8s_service.list_configmaps(namespace, include_system=include_system),
+            "secrets": k8s_service.list_secrets(namespace, include_system=include_system),
+            "statefulsets": k8s_service.list_statefulsets(namespace, include_system=include_system),
+            "daemonsets": k8s_service.list_daemonsets(namespace, include_system=include_system),
+            "events": k8s_service.list_events(namespace, include_system=include_system),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -121,24 +125,24 @@ def get_nodes():
     return k8s_service.list_nodes()
 
 @router.get("/configmaps")
-def get_configmaps(namespace: Optional[str] = Query(None)):
-    return k8s_service.list_configmaps(namespace)
+def get_configmaps(namespace: Optional[str] = Query(None), include_system: bool = False):
+    return k8s_service.list_configmaps(namespace, include_system=include_system)
 
 @router.get("/secrets")
-def get_secrets(namespace: Optional[str] = Query(None)):
-    return k8s_service.list_secrets(namespace)
+def get_secrets(namespace: Optional[str] = Query(None), include_system: bool = False):
+    return k8s_service.list_secrets(namespace, include_system=include_system)
 
 @router.get("/statefulsets")
-def get_statefulsets(namespace: Optional[str] = Query(None)):
-    return k8s_service.list_statefulsets(namespace)
+def get_statefulsets(namespace: Optional[str] = Query(None), include_system: bool = False):
+    return k8s_service.list_statefulsets(namespace, include_system=include_system)
 
 @router.get("/daemonsets")
-def get_daemonsets(namespace: Optional[str] = Query(None)):
-    return k8s_service.list_daemonsets(namespace)
+def get_daemonsets(namespace: Optional[str] = Query(None), include_system: bool = False):
+    return k8s_service.list_daemonsets(namespace, include_system=include_system)
 
 @router.get("/events-all")
-def get_events_all(namespace: Optional[str] = Query(None)):
-    return k8s_service.list_events(namespace)
+def get_events_all(namespace: Optional[str] = Query(None), include_system: bool = False):
+    return k8s_service.list_events(namespace, include_system=include_system)
 
 # 3. Node-specific routes (cluster-scoped, no namespace)
 @router.get("/node/{name}/details")
@@ -242,7 +246,7 @@ async def investigate(
     x_ai_model: Optional[str] = Header(None),
     x_ai_temperature: Optional[float] = Header(None)
 ):
-    return await investigation_service.investigate_resource(
+    result = await investigation_service.investigate_resource(
         resource_type=req.type,
         name=req.name,
         namespace=req.namespace,
@@ -251,6 +255,10 @@ async def investigate(
         model_override=x_ai_model,
         temperature_override=x_ai_temperature
     )
+    # Normalize the action plan so the frontend always renders clean numbered steps.
+    from backend.utils.text import normalize_action_plan
+    result.suggested_fix = normalize_action_plan(result.suggested_fix)
+    return result
 
 # 5. Concept Learning Endpoint
 @router.get("/learn", response_model=ConceptExplanation)
@@ -352,8 +360,8 @@ async def post_generate_command(
 
 # 9. Live Cluster Topology Map
 @router.get("/kube/topology")
-def get_kube_topology(namespace: str = Query("default")):
-    result = k8s_service.get_topology(namespace)
+def get_kube_topology(namespace: str = Query("default"), include_system: bool = False):
+    result = k8s_service.get_topology(namespace, include_system=include_system)
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
     return result
@@ -414,6 +422,7 @@ def apply_yaml(req: ApplyYamlRequest):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
             env=env
         )
         stdout, stderr = proc.communicate(input=req.yaml)
@@ -433,6 +442,7 @@ def delete_resource(req: DeleteResourceRequest):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
             env=env
         )
         stdout, stderr = proc.communicate()
@@ -463,6 +473,7 @@ def start_port_forward(req: PortForwardRequest):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
             env=env
         )
         time.sleep(1.5)
@@ -499,3 +510,25 @@ def stop_port_forward(pid: int):
         return {"success": False, "message": "Process not found."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# 11b. HTTP proxy to a running port-forward.
+# Inside Docker the forwarded port lives in the backend container and is not
+# exposed to the host, so the browser reaches it through this endpoint.
+@router.api_route("/proxy/{port}/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
+async def proxy_to_port(port: int, path: str, request: Request):
+    import httpx
+    from fastapi.responses import StreamingResponse
+    target = f"http://127.0.0.1:{port}/{path}"
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            headers = {k: v for k, v in request.headers.items() if k.lower() not in ("host", "connection", "content-length", "accept-encoding")}
+            body = await request.body() if request.method not in ("GET", "HEAD") else None
+            req = client.build_request(request.method, target, headers=headers, content=body, params=request.query_params)
+            resp = await client.send(req, stream=True)
+            return StreamingResponse(
+                resp.aiter_bytes(),
+                status_code=resp.status_code,
+                headers={k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-encoding", "transfer-encoding", "connection", "keep-alive")},
+            )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Proxy to port {port} failed: {e}")

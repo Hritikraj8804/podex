@@ -10,7 +10,6 @@ interface DashboardTabProps {
   stats: any;
   statsLoading: boolean;
   filteredPods: any[];
-  showSystemResources: boolean;
   filteredDeployments: any[];
   filteredServices: any[];
   setLearnQuery: (query: string) => void;
@@ -25,7 +24,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   stats,
   statsLoading,
   filteredPods,
-  showSystemResources,
   filteredDeployments,
   filteredServices,
   setLearnQuery,
@@ -145,9 +143,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {([
           { label: 'Nodes', value: stats?.node_count ?? 0, icon: Server, sub: 'active', color: 'text-cyan-500 bg-cyan-500/10' },
-          { label: 'Pods', value: showSystemResources ? (stats?.pod_count ?? 0) : filteredPods.length, icon: Box, sub: 'running', color: 'text-emerald-500 bg-emerald-500/10' },
-          { label: 'Deployments', value: showSystemResources ? (stats?.deployment_count ?? 0) : filteredDeployments.length, icon: Layers, sub: 'specs', color: 'text-indigo-500 bg-indigo-500/10' },
-          { label: 'Services', value: showSystemResources ? (stats?.service_count ?? 0) : filteredServices.length, icon: Network, sub: 'endpoints', color: 'text-amber-500 bg-amber-500/10' },
+          { label: 'Pods', value: filteredPods.length, icon: Box, sub: 'running', color: 'text-emerald-500 bg-emerald-500/10' },
+          { label: 'Deployments', value: filteredDeployments.length, icon: Layers, sub: 'specs', color: 'text-indigo-500 bg-indigo-500/10' },
+          { label: 'Services', value: filteredServices.length, icon: Network, sub: 'endpoints', color: 'text-amber-500 bg-amber-500/10' },
         ] as const).map((item, idx) => (
           <div
             key={idx}

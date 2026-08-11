@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Podex - Cluster Status</title>
+<link rel="icon" type="image/png" href="/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0c10;
+    --panel: #0d1117;
+    --panel-2: #111820;
+    --panel-3: #1b2332;
+    --border: #1b2332;
+    --text: #c5c6c7;
+    --muted: #7f848e;
+    --accent: #06b6d4;
+    --blue: #3b82f6;
+    --green: #10b981;
+    --green-dark: #064e3b;
+    --amber: #f59e0b;
+    --amber-dark: #78350f;
+    --red: #ef4444;
+    --red-dark: #450a0a;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 28px 24px 40px; }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  header img { width: 46px; height: 46px; }
+  header h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; color: #f0f6f6; }
+  header h1 span { color: var(--accent); }
+  header .tagline { color: var(--muted); font-size: 13px; margin-top: 2px; font-weight: 500; }
+  .meta { margin-left: auto; text-align: right; font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .meta .pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    border: 1px solid var(--border);
+  }
+  .pill.healthy { color: var(--green); border-color: var(--green); background: rgba(16,185,129,.08); }
+  .pill.unhealthy { color: var(--red); border-color: var(--red); background: rgba(239,68,68,.08); }
+  .pill.connecting { color: var(--amber); border-color: var(--amber); background: rgba(245,158,11,.08); }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    transition: border-color .15s ease;
+  }
+  .card:hover { border-color: #2d3142; }
+  .card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 700; }
+  .card .value { font-size: 34px; font-weight: 800; margin-top: 8px; font-family: var(--mono); color: #f0f6f6; }
+  .card .value.green { color: var(--green); }
+  .card .value.amber { color: var(--amber); }
+  .card .value.red { color: var(--red); }
+  .card .value.accent { color: var(--accent); }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .toolbar a.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 9px 16px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: all .15s ease;
+  }
+  .toolbar a.btn:hover { border-color: var(--accent); color: var(--accent); }
+  .toolbar a.btn.primary { background: var(--accent); border-color: var(--accent); color: #04283a; }
+  .toolbar a.btn.primary:hover { background: #22d3ee; }
+  .spacer { flex: 1; }
+
+  .section { margin-bottom: 30px; }
+  .section h2 {
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #e6edf0;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .section h2 .count {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-family: var(--mono);
+  }
+
+  table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--panel); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; }
+  th, td { text-align: left; padding: 11px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { background: var(--panel-2); color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+  td { font-family: var(--mono); font-size: 12.5px; color: #aeb6c2; }
+  tr:last-child td { border-bottom: none; }
+  td .ns { color: var(--muted); font-size: 10px; }
+  tr:hover td { background: rgba(16,24,32,.5); }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; border: 1px solid transparent; font-family: var(--mono); }
+  .badge.green { background: rgba(16,185,129,.08); color: var(--green); border-color: rgba(16,185,129,.35); }
+  .badge.amber { background: rgba(245,158,11,.08); color: var(--amber); border-color: rgba(245,158,11,.35); }
+  .badge.red { background: rgba(239,68,68,.08); color: var(--red); border-color: rgba(239,68,68,.35); }
+  .badge.gray { background: rgba(148,163,184,.08); color: #94a3b8; border-color: rgba(148,163,184,.3); }
+  .badge.blue { background: rgba(59,130,246,.08); color: var(--blue); border-color: rgba(59,130,246,.35); }
+
+  .empty { padding: 32px 24px; text-align: center; color: var(--muted); font-size: 13px; background: var(--panel); border: 1px dashed #2d3142; border-radius: 14px; font-weight: 500; }
+
+  /* Routing / endpoints view */
+  .routing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+  .routing-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .routing-card .svc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+  .routing-card .svc-head .name { font-weight: 800; color: #e6edf0; font-size: 14px; font-family: var(--mono); }
+  .routing-card .svc-head .ns { color: var(--muted); font-size: 11px; font-family: var(--mono); }
+  .routing-card .svc-sub { color: var(--muted); font-size: 11px; font-family: var(--mono); margin-bottom: 12px; }
+  .routing-card .selector {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+  }
+  .routing-card .selector .tag {
+    font-family: var(--mono); font-size: 10.5px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; color: var(--accent);
+  }
+  .routing-card .pods { display: flex; flex-direction: column; gap: 6px; }
+  .routing-card .pod {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  }
+  .routing-card .pod .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .routing-card .pod .dot.ready { background: var(--green); }
+  .routing-card .pod .dot.notready { background: var(--muted); }
+  .routing-card .pod .pname { font-family: var(--mono); font-size: 12px; font-weight: 600; color: #dbe3e8; flex: 1; }
+  .routing-card .pod .pip { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .routing-card .no-selector, .routing-card .no-pods {
+    font-size: 11px; color: var(--muted); font-family: var(--mono); padding: 6px 0;
+  }
+
+  .error-banner {
+    background: #2a1015;
+    border: 1px solid #5b1c24;
+    color: #fca5a5;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    margin-bottom: 24px;
+    font-family: var(--mono);
+  }
+  .banner { background: #0d1c24; border: 1px solid #1f3a45; color: #9fd8ea; padding: 12px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 24px; font-family: var(--mono); }
+
+  footer { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 36px; color: var(--muted); font-size: 12px; display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+  footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  footer a:hover { text-decoration: underline; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="/logo.png" alt="Podex" />
+    <div>
+      <h1>Podex <span>Cluster Status</span></h1>
+      <div class="tagline">Learn Kubernetes by understanding your own cluster.</div>
+    </div>
+    <div class="meta">
+      <span id="statusPill" class="pill connecting">Connecting...</span><br />
+      <span id="lastUpdated">waiting for backend</span>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" style="display:none"></div>
+  <div id="errorBanner" class="error-banner" style="display:none"></div>
+
+  <div class="cards">
+    <div class="card"><div class="label">Cluster</div><div class="value accent" id="statCluster">-</div></div>
+    <div class="card"><div class="label">Nodes</div><div class="value" id="statNodes">-</div></div>
+    <div class="card"><div class="label">Pods</div><div class="value" id="statPods">-</div></div>
+    <div class="card"><div class="label">Deployments</div><div class="value" id="statDeployments">-</div></div>
+    <div class="card"><div class="label">Services</div><div class="value" id="statServices">-</div></div>
+  </div>
+
+  <div class="toolbar">
+    <a class="btn primary" href="/">Open Podex App</a>
+    <a class="btn" href="https://github.com/Hritikraj8804/podex" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn" href="https://podex.in" target="_blank" rel="noopener">Website</a>
+    <span class="spacer"></span>
+    <button id="refreshBtn" class="btn" style="cursor:pointer">↻ Refresh now</button>
+  </div>
+
+  <div class="section">
+    <h2>Service Routing <span class="count">which pod gets the traffic</span></h2>
+    <div id="routingGrid"></div>
+  </div>
+
+  <div class="section">
+    <h2>Pods <span class="count" id="podCount">0</span></h2>
+    <div id="podTable"></div>
+  </div>
+
+  <div class="section">
+    <h2>Deployments <span class="count" id="deployCount">0</span></h2>
+    <div id="deployTable"></div>
+  </div>
+
+  <div class="section">
+    <h2>Services <span class="count" id="svcCount">0</span></h2>
+    <div id="svcTable"></div>
+  </div>
+
+  <footer>
+    <span>Podex - open-source Kubernetes workspace for beginners</span>
+    <span class="muted">MIT License</span>
+    <a href="/">podex</a>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var API = "/api";
+  var REFRESH_MS = 5000;
+  var statusPill = document.getElementById("statusPill");
+  var lastUpdated = document.getElementById("lastUpdated");
+  var errorBanner = document.getElementById("errorBanner");
+  var banner = document.getElementById("banner");
+  var refreshBtn = document.getElementById("refreshBtn");
+  var isDark = true;
+
+  function setStatus(text, cls) {
+    statusPill.textContent = text;
+    statusPill.className = "pill " + cls;
+  }
+
+  function statusClass(s) {
+    s = (s || "").toLowerCase();
+    if (s.includes('run') || s === 'ready' || s === 'completed' || s === 'healthy' || s === 'succeeded' || s.includes('active')) return "green";
+    if (s.includes('backoff') || s.includes('fail') || s.includes('error') || s.includes('unhealthy')) return "red";
+    if (s.includes('pend') || s.includes('progress') || s.includes('terminat') || s.includes('creat')) return "amber";
+    return "gray";
+  }
+
+  function humanStatus(s) {
+    s = s || "Unknown";
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  function esc(str) {
+    var div = document.createElement("div");
+    div.textContent = String(str == null ? "" : str);
+    return div.innerHTML;
+  }
+
+  function renderRouting(endpoints) {
+    var grid = document.getElementById("routingGrid");
+    if (!endpoints || !endpoints.length) {
+      grid.innerHTML = '<div class="empty">No services found to map.</div>';
+      return;
+    }
+    grid.innerHTML = endpoints.map(function (ep) {
+      var selectorTags = Object.keys(ep.selector || {}).length
+        ? Object.keys(ep.selector).map(function (k) {
+            return '<span class="tag">' + esc(k) + '=' + esc(ep.selector[k]) + '</span>';
+          }).join("")
+        : '<span class="no-selector">no label selector</span>';
+
+      var podsHtml;
+      if (!Object.keys(ep.selector || {}).length) {
+        podsHtml = '<div class="no-pods">Service has no selector — no pods receive traffic directly.</div>';
+      } else if (!ep.pods.length) {
+        podsHtml = '<div class="no-pods">No pods match this selector.</div>';
+      } else {
+        podsHtml = '<div class="pods">' + ep.pods.map(function (p) {
+          var cls = p.ready ? "ready" : "notready";
+          var lbl = p.ready ? "ready" : "not ready";
+          return '<div class="pod">' +
+            '<span class="dot ' + cls + '" title="' + lbl + '"></span>' +
+            '<span class="pname">' + esc(p.name) + '</span>' +
+            '<span class="pip">' + esc(p.ip) + '</span>' +
+            '</div>';
+        }).join("") + '</div>';
+      }
+
+      var typeBadge = ep.type === 'NodePort'
+        ? '<span class="badge blue">NodePort</span>'
+        : ep.type === 'LoadBalancer'
+        ? '<span class="badge amber">LoadBalancer</span>'
+        : '<span class="badge gray">' + esc(ep.type || "ClusterIP") + '</span>';
+
+      return '<div class="routing-card">' +
+        '<div class="svc-head">' +
+          '<span class="name">' + esc(ep.name) + '</span>' +
+          typeBadge +
+        '</div>' +
+        '<div class="svc-sub">' + esc(ep.namespace) + ' · ' + esc(ep.cluster_ip) + '</div>' +
+        '<div class="selector">' + selectorTags + '</div>' +
+        podsHtml +
+      '</div>';
+    }).join("");
+  }
+
+  function renderPods(pods) {
+    document.getElementById("podCount").textContent = pods.length;
+    if (!pods.length) {
+      document.getElementById("podTable").innerHTML = '<div class="empty">No pods found.</div>';
+      return;
+    }
+    var rows = pods.map(function (p) {
+      return '<tr>' +
+        '<td>' + esc(p.name) + '</td>' +
+        '<td><span class="ns">' + esc(p.namespace) + '</span></td>' +
+        '<td><span class="badge ' + statusClass(p.status) + '">' + humanStatus(p.status) + '</span></td>' +
+        '<td>' + esc(p.restarts || 0) + '</td>' +
+        '<td>' + esc(p.pod_ip || "None") + '</td>' +
+        '<td>' + esc(p.ports || "—") + '</td>' +
+        '<td>' + esc(p.age || "") + '</td>' +
+        '</tr>';
+    }).join("");
+    document.getElementById("podTable").innerHTML =
+      '<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Restarts</th><th>Pod IP</th><th>Ports</th><th>Age</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderDeployments(deployments) {
+    document.getElementById("deployCount").textContent = deployments.length;
+    if (!deployments.length) {
+      document.getElementById("deployTable").innerHTML = '<div class="empty">No deployments found.</div>';
+      return;
+    }
+    var rows = deployments.map(function (d) {
+      var readyTxt = d.replicas_ready + '/' + d.replicas_desired;
+      var readyCls = (d.replicas_desired > 0 && d.replicas_ready === d.replicas_desired) ? "green" : statusClass(d.status);
+      return '<tr>' +
+        '<td>' + esc(d.name) + '</td>' +
+        '<td><span class="ns">' + esc(d.namespace) + '</span></td>' +
+        '<td><span class="badge ' + readyCls + '">' + humanStatus(d.status) + '</span></td>' +
+        '<td>' + esc(d.replicas_desired) + '</td>' +
+        '<td>' + esc(d.replicas_ready) + '</td>' +
+        '<td>' + esc(d.replicas_available) + '</td>' +
+        '<td>' + esc(d.age || "") + '</td>' +
+        '</tr>';
+    }).join("");
+    document.getElementById("deployTable").innerHTML =
+      '<table><thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Desired</th><th>Ready</th><th>Available</th><th>Age</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderServices(services) {
+    document.getElementById("svcCount").textContent = services.length;
+    if (!services.length) {
+      document.getElementById("svcTable").innerHTML = '<div class="empty">No services found.</div>';
+      return;
+    }
+    var rows = services.map(function (s) {
+      var typeBadge = s.type === 'NodePort'
+        ? '<span class="badge blue">NodePort</span>'
+        : s.type === 'LoadBalancer'
+        ? '<span class="badge amber">LoadBalancer</span>'
+        : '<span class="badge gray">' + esc(s.type || "ClusterIP") + '</span>';
+      return '<tr>' +
+        '<td>' + esc(s.name) + '</td>' +
+        '<td><span class="ns">' + esc(s.namespace) + '</span></td>' +
+        '<td>' + typeBadge + '</td>' +
+        '<td>' + esc(s.cluster_ip || "None") + '</td>' +
+        '<td>' + esc(s.external_ip || "None") + '</td>' +
+        '<td>' + esc(s.ports || "—") + '</td>' +
+        '<td>' + esc(s.age || "") + '</td>' +
+        '</tr>';
+    }).join("");
+    document.getElementById("svcTable").innerHTML =
+      '<table><thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th><th>External IP</th><th>Ports</th><th>Age</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderStats(stats) {
+    document.getElementById("statCluster").textContent = (stats.status === "healthy" ? "Healthy" : "Unhealthy");
+    document.getElementById("statCluster").className = "value " + (stats.status === "healthy" ? "green" : "red");
+    document.getElementById("statNodes").textContent = stats.node_count || 0;
+    document.getElementById("statPods").textContent = stats.pod_count || 0;
+    document.getElementById("statDeployments").textContent = stats.deployment_count || 0;
+    document.getElementById("statServices").textContent = stats.service_count || 0;
+  }
+
+  function refresh() {
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, 8000);
+
+    Promise.all([
+      fetch(API + "/stats", { signal: controller.signal }).then(function (r) { return r.json(); }),
+      fetch(API + "/endpoints", { signal: controller.signal }).then(function (r) { return r.json(); }),
+      fetch(API + "/pods", { signal: controller.signal }).then(function (r) { return r.json(); }),
+      fetch(API + "/deployments", { signal: controller.signal }).then(function (r) { return r.json(); }),
+      fetch(API + "/services", { signal: controller.signal }).then(function (r) { return r.json(); })
+    ]).then(function (data) {
+      clearTimeout(timeout);
+      errorBanner.style.display = "none";
+      setStatus("Live", "healthy");
+      var now = new Date().toLocaleTimeString();
+      lastUpdated.textContent = "updated " + now;
+      banner.style.display = "none";
+      renderStats(data[0]);
+      renderRouting(data[1] || []);
+      renderPods(data[2] || []);
+      renderDeployments(data[3] || []);
+      renderServices(data[4] || []);
+    }).catch(function (err) {
+      clearTimeout(timeout);
+      setStatus("Backend offline", "unhealthy");
+      lastUpdated.textContent = "cannot reach backend";
+      banner.style.display = "none";
+      errorBanner.style.display = "block";
+      errorBanner.textContent = "Unable to reach the Podex backend at " + API + ". Check that the backend service is running (uvicorn on :3457).";
+      document.getElementById("statCluster").className = "value red";
+      document.getElementById("statNodes").textContent = "-";
+      document.getElementById("statPods").textContent = "-";
+      document.getElementById("statDeployments").textContent = "-";
+      document.getElementById("statServices").textContent = "-";
+    });
+  }
+
+  refreshBtn.addEventListener("click", refresh);
+  refresh();
+  setInterval(refresh, REFRESH_MS);
+})();
+</script>
+</body>
+</html>
