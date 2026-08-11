@@ -5,7 +5,7 @@ import time
 import os
 import signal
 import tempfile
-from fastapi import APIRouter, HTTPException, Query, Header, Request
+from fastapi import APIRouter, HTTPException, Query, Header, Request, WebSocket
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
@@ -17,6 +17,11 @@ from backend.utils import clean_kubernetes_dict
 
 from backend.api.updates import router as updates_router
 from backend.api.terminal import router as terminal_router
+
+try:
+    from shell.session import run_shell_ws
+except ImportError:
+    run_shell_ws = None
 
 router = APIRouter()
 router.include_router(updates_router)
@@ -532,3 +537,15 @@ async def proxy_to_port(port: int, path: str, request: Request):
             )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Proxy to port {port} failed: {e}")
+
+# Local-development shell fallback: when the Podex Shell microservice (port
+# 3458) is not running, the frontend can talk to this same endpoint on the
+# main backend so the shell works without Docker.
+@router.websocket("/ws/shell")
+async def ws_shell_fallback(websocket: WebSocket):
+    if run_shell_ws is None:
+        await websocket.accept()
+        await websocket.send_text("\r\n[Podex shell unavailable: shell module not found]\r\n")
+        await websocket.close()
+        return
+    await run_shell_ws(websocket)

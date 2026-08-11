@@ -17,7 +17,8 @@ import {
   PanelLeftClose,
   Network,
   Gamepad2,
-  Search
+  Search,
+  Terminal as TerminalIcon
 } from 'lucide-react';
 import { DashboardTab } from './components/DashboardTab';
 import { ExplorerTab } from './components/ExplorerTab';
@@ -26,6 +27,7 @@ import { LearnTab } from './components/LearnTab';
 import { SettingsTab } from './components/SettingsTab';
 import { ResourceDrawer } from './components/ResourceDrawer';
 import { ArenaTab } from './components/ArenaTab';
+import { GlobalShell } from './components/GlobalShell';
 
 const API_URL = import.meta.env.VITE_API_URL !== undefined ? import.meta.env.VITE_API_URL : 'http://localhost:3457';
 
@@ -175,6 +177,9 @@ export default function App() {
   const [refreshInterval, setRefreshIntervalState] = useState<number>(() => {
     return Number(localStorage.getItem('refreshInterval')) || 8;
   });
+  const [shellOpen, setShellOpen] = useState<boolean>(() => {
+    return localStorage.getItem('shellOpen') === 'true';
+  });
 
   const setAiProvider = (val: 'gemini' | 'openai') => {
     setAiProviderState(val);
@@ -197,6 +202,10 @@ export default function App() {
   const setRefreshInterval = (val: number) => {
     setRefreshIntervalState(val);
     localStorage.setItem('refreshInterval', String(val));
+  };
+  const toggleShellOpen = (val: boolean) => {
+    setShellOpen(val);
+    localStorage.setItem('shellOpen', String(val));
   };
 
   // Context states
@@ -986,9 +995,17 @@ export default function App() {
 
   const relatedList = getRelatedResources();
 
-
-
-
+  // Fullscreen shell route: `?shell=1` renders just the terminal in a new tab
+  if (new URLSearchParams(window.location.search).get('shell') === '1') {
+    return (
+      <GlobalShell
+        open={true}
+        setOpen={() => { /* nop in fullscreen */ }}
+        apiUrl={API_URL}
+        fullscreen
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#0b0e14] text-slate-800 dark:text-slate-100 overflow-hidden transition-colors duration-150">
@@ -1209,7 +1226,7 @@ export default function App() {
       </aside>
 
       {/* Main Workspace Frame */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0b0e14]">
+      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#0b0e14] relative">
 
         {/* Top Header Workspace */}
         <header className="h-16 border-b border-slate-200 dark:border-[#1e2235] flex items-center justify-between px-8 bg-white dark:bg-[#10131c]">
@@ -1245,6 +1262,20 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-3 text-xs text-slate-500 dark:text-slate-400 font-bold">
+
+            {/* Podex Shell toggle (GCloud-style always-available terminal) */}
+            <button
+              onClick={() => toggleShellOpen(!shellOpen)}
+              title={shellOpen ? 'Hide Podex Shell' : 'Open Podex Shell'}
+              className={`flex items-center space-x-1.5 rounded-lg px-2.5 py-1.5 transition cursor-pointer border ${
+                shellOpen
+                  ? 'bg-cyan-50 dark:bg-cyan-950/40 border-cyan-200 dark:border-cyan-900 text-cyan-600 dark:text-cyan-300'
+                  : 'border-transparent hover:bg-slate-100 dark:hover:bg-[#24233f] hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              <TerminalIcon className="w-4 h-4" />
+              <span className="hidden lg:inline">Shell</span>
+            </button>
 
             <a href="https://github.com/Hritikraj8804/podex" target="_blank" rel="noopener noreferrer"
               className="flex items-center space-x-1.5 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer">
@@ -1418,6 +1449,9 @@ export default function App() {
             />
           )}
         </div>
+
+        {/* Global Podex Shell (GCloud-style docked terminal, available on every page) */}
+        <GlobalShell open={shellOpen} setOpen={toggleShellOpen} apiUrl={API_URL} />
       </main>
 
       {/* RESOURCE DETAILS Slide-Over Panel */}

@@ -38,6 +38,7 @@ Podex is an **open-source, AI-powered Kubernetes workspace** for beginners, stud
 | **Poddy AI Tutor** | ChatGPT-style chat for K8s questions with analogies, gotchas, and deep explanations |
 | **AI Investigation** | One-click pod diagnosis  specs + logs + events → root cause + fix |
 | **Live Terminal & Logs** | WebSocket shell, SSE log streaming, natural-language kubectl command generator |
+| **Podex Shell** | Google-Cloud-style docked terminal available on every page - resize it, run kubectl/helm/k9s directly against your cluster, and watch changes appear in the UI in ~2s |
 | **Port Forwarding** | One-click forward to Pods and Services from the Explorer table |
 | **Explain Before Execute** | Educational modals for destructive ops (rolling updates, SIGTERM, scaling) |
 | **Sandbox Mode** | Runs fully mock-mode out of the box  no API keys needed |
@@ -82,6 +83,7 @@ Open **http://localhost:3456**
 |---------|------|
 | Frontend (Vite) | `3456` |
 | Backend (FastAPI) | `3457` |
+| Podex Shell (microservice) | `3458` |
 
 ---
 
@@ -165,6 +167,10 @@ podex/
 │   ├── kubernetes/   # K8s client config
 │   ├── services/     # K8s operations, investigation
 │   └── main.py
+├── shell/            # Podex Shell microservice (PTY + kubectl/helm/k9s)
+│   ├── main.py       # WS /ws/shell terminal bridge + /health
+│   ├── Dockerfile    # Ubuntu image with kubectl, helm, k9s
+│   └── entrypoint.sh # Patches kubeconfig for Docker networking
 ├── frontend/         # React + Vite + TypeScript
 │   ├── src/          # Components, App.tsx, main.tsx
 │   └── public/       # Logo, mascot, favicon
