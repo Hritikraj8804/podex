@@ -211,6 +211,7 @@ export const GlobalShell: React.FC<GlobalShellProps> = ({ open, setOpen, apiUrl,
 
     const primaryUrl = buildWsUrl(SHELL_URL, '/ws/shell');
     const fallbackUrl = buildWsUrl(apiUrl || window.location.origin, '/api/ws/shell');
+    const sameOriginWsUrl = buildWsUrl(window.location.origin, '/ws/shell');
 
     let disposed = false;
 
@@ -232,9 +233,27 @@ export const GlobalShell: React.FC<GlobalShellProps> = ({ open, setOpen, apiUrl,
         };
       });
 
+    // Connection strategy:
+    //   1. Same-origin via nginx/Vite proxy (most reliable in Docker+local)
+    //   2. Direct port 3458 (works when docker publishes the port)
+    //   3. Backend /api/ws/shell fallback (PTY on host or shell module)
+    const probeTargets: [string, number][] = [
+      [sameOriginWsUrl, 2000],
+      [primaryUrl, 1500],
+      [fallbackUrl, 4000],
+    ];
+
+    // De-duplicate: skip if same as previous target
+    const uniqueTargets: [string, number][] = [];
+    for (const t of probeTargets) {
+      if (uniqueTargets.length === 0 || t[0] !== uniqueTargets[uniqueTargets.length - 1][0]) {
+        uniqueTargets.push(t);
+      }
+    }
+
     (async () => {
       let ws: WebSocket | null = null;
-      for (const [url, timeout] of [[primaryUrl, 1200], [fallbackUrl, 4000]] as const) {
+      for (const [url, timeout] of uniqueTargets) {
         if (disposed) return;
         try {
           ws = await probeSocket(url, timeout);

@@ -13,6 +13,10 @@ export default defineConfig({
         target: 'http://localhost:3457',
         changeOrigin: true,
         ws: true
+      },
+      '/ws/shell': {
+        target: 'ws://localhost:3458',
+        ws: true
       }
     }
   }

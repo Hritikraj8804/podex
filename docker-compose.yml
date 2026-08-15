@@ -53,11 +53,14 @@ services:
       dockerfile: docker/Dockerfile.frontend
       args:
         VITE_API_URL: ""
+        VITE_SHELL_URL: ""
     ports:
       - "${FRONTEND_PORT:-3456}:80"
     depends_on:
       backend:
         condition: service_healthy
+      shell:
+        condition: service_started
     # nginx:alpine-slim runs as the nginx user (non-root) by default
     restart: unless-stopped
     healthcheck:
