@@ -11,8 +11,11 @@ import {
   Type,
   Plus,
   ChevronDown,
+  Copy,
+  Check,
 } from 'lucide-react';
 import 'xterm/css/xterm.css';
+import { copyToClipboard } from '../utils/clipboard';
 
 const SHELL_URL = import.meta.env.VITE_SHELL_URL || 'http://localhost:3458';
 const HEADER_HEIGHT = 64;
@@ -69,6 +72,8 @@ export const GlobalShell: React.FC<GlobalShellProps> = ({ open, setOpen, apiUrl,
   const [status, setStatus] = useState<SessionStatus>('offline');
   const [resizing, setResizing] = useState(false);
   const [resetTick, setResetTick] = useState(0);
+  const [copiedTick, setCopiedTick] = useState(0); // flash "Copied" indicator
+  const copyTimerRef = useRef<number | null>(null);
 
   const maxHeight = () => Math.max(MIN_HEIGHT, window.innerHeight - HEADER_HEIGHT - BOTTOM_GAP);
 
@@ -126,6 +131,24 @@ export const GlobalShell: React.FC<GlobalShellProps> = ({ open, setOpen, apiUrl,
       // container not rendered yet
     }
   }, [sendResize]);
+
+  // Flash the "Copied" indicator for ~1.2s
+  const flashCopied = useCallback(() => {
+    setCopiedTick((t) => t + 1);
+    if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = window.setTimeout(() => setCopiedTick((t) => t + 1), 1200);
+  }, []);
+
+  // Copy the active terminal's current selection to the clipboard
+  const copyActiveSelection = useCallback(async () => {
+    const s = activeId != null ? sessionsRef.current[activeId] : null;
+    if (!s) return;
+    const sel = s.term.getSelection();
+    if (!sel) return;
+    const ok = await copyToClipboard(sel);
+    if (ok) flashCopied();
+  }, [activeId, flashCopied]);
+
   // Create a brand-new terminal session for a tab (full reset semantics)
   const createSession = useCallback((id: number, host: HTMLDivElement, initialFont: 'S' | 'M' | 'L') => {
     const term = new Terminal({
@@ -150,6 +173,26 @@ export const GlobalShell: React.FC<GlobalShellProps> = ({ open, setOpen, apiUrl,
     });
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+
+    // ── Clipboard shortcuts: Ctrl+Shift+C copy, Ctrl+Shift+V paste ──────────
+    // xterm v5 does not handle these natively (Ctrl+Shift+C is the DevTools
+    // shortcut in Chrome), so we intercept them here.
+    term.attachCustomKeyEventHandler((event) => {
+      if (!(event.ctrlKey && event.shiftKey)) return true;
+      if (event.code === 'KeyC' || event.code === 'KeyC'.toLowerCase()) {
+        const sel = term.getSelection();
+        if (sel) {
+          copyToClipboard(sel).then((ok) => { if (ok) flashCopied(); });
+        }
+        return false; // prevent xterm + browser default (DevTools)
+      }
+      if (event.code === 'KeyV' || event.code === 'KeyV'.toLowerCase()) {
+        // Let the browser's native paste handler run: xterm captures the
+        // paste event from its internal textarea and forwards it via onData.
+        return false;
+      }
+      return true;
+    });
 
     const session: Session = { term, fitAddon, ws: null, state: 'connecting', cleanup: () => {} };
     sessionsRef.current[id] = session;
@@ -274,7 +317,7 @@ export const GlobalShell: React.FC<GlobalShellProps> = ({ open, setOpen, apiUrl,
         }
       };
     })();
-  }, [apiUrl, buildWsUrl, fitSession, setSessionStatus]);
+  }, [apiUrl, buildWsUrl, fitSession, setSessionStatus, flashCopied]);
 
   const destroySession = useCallback((id: number) => {
     const s = sessionsRef.current[id];
@@ -353,6 +396,7 @@ export const GlobalShell: React.FC<GlobalShellProps> = ({ open, setOpen, apiUrl,
   // Cleanup all sessions on unmount
   useEffect(() => {
     return () => {
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
       Object.values(sessionsRef.current).forEach((s) => s.cleanup());
       sessionsRef.current = {};
     };
@@ -485,6 +529,14 @@ export const GlobalShell: React.FC<GlobalShellProps> = ({ open, setOpen, apiUrl,
           </span>
         )}
 
+        {/* Transient "Copied" flash (shows for ~1.2s after copy) */}
+        {copiedTick % 2 === 1 && (
+          <span className="flex items-center text-emerald-500 space-x-1 mr-1 animate-fade-in">
+            <Check className="w-3 h-3" />
+            <span className="text-[10px] font-bold">Copied</span>
+          </span>
+        )}
+
         <span className="hidden md:flex items-center mr-1 text-[9px] font-black text-slate-400 uppercase tracking-wider">
           Font
         </span>
@@ -518,6 +570,13 @@ export const GlobalShell: React.FC<GlobalShellProps> = ({ open, setOpen, apiUrl,
           title="Clear terminal"
         >
           <Eraser className="w-4 h-4" />
+        </button>
+        <button
+          onClick={copyActiveSelection}
+          className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#24233f] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer relative"
+          title="Copy selection (Ctrl+Shift+C)"
+        >
+          <Copy className="w-4 h-4" />
         </button>
         {closable ? (
           <button

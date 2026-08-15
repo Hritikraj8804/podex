@@ -69,7 +69,22 @@ Podex is an **open-source, AI-powered Kubernetes workspace** for beginners, stud
 
 Run the entire stack with a single command:
 
-**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Kind](https://kind.sigs.k8s.io/) (or Minikube), [kubectl](https://kubernetes.io/docs/tasks/tools/)
+**Prerequisites:**
+1. [Docker Desktop](https://www.docker.com/products/docker-desktop/) — runs the Podex containers
+2. A local Kubernetes cluster — [Kind](https://kind.sigs.k8s.io/) (recommended), [Minikube](https://minikube.sigs.k8s.io/), or Docker Desktop K8s
+3. [kubectl](https://kubernetes.io/docs/tasks/tools/) — CLI to verify your cluster
+
+**How Podex connects to your cluster:**
+- Podex reads your **existing `~/.kube/config`** file automatically
+- Your `~/.kube/config` was created when you set up Kind/Minikube — it contains your cluster's certificate and connection details
+- **No manual certificate configuration needed** — Podex inherits whatever cluster you already have access to
+- If you're running `docker compose up`, Podex also patches the config to route `localhost` → `host.docker.internal` so the container can reach your host cluster
+- **No cluster?** Podex will still start, but Kubernetes features will show errors. Create one with:
+  ```bash
+  kind create cluster --name podex
+  ```
+
+**Start Podex:**
 
 ```bash
 git clone https://github.com/Hritikraj8804/podex.git

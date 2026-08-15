@@ -12,6 +12,7 @@ if [ -f "$SRC/config" ]; then
     echo "[podex-shell] Found kubeconfig mount at ${SRC}, copying to ${KUBECONF}"
     mkdir -p "$(dirname "$KUBECONF")"
     cp "$SRC/config" "$KUBECONF"
+    chmod 600 "$KUBECONF"
 fi
 
 if [ -f "$KUBECONF" ]; then

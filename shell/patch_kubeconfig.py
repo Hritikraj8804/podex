@@ -32,6 +32,10 @@ def main(path: str) -> None:
             cls["server"] = server.replace("127.0.0.1", "host.docker.internal")
         elif "localhost" in server:
             cls["server"] = server.replace("localhost", "host.docker.internal")
+        # kubectl forbids a root CA file combined with insecure-skip-tls-verify,
+        # so remove any CA references before disabling TLS verification.
+        for key in ("certificate-authority", "certificate-authority-data", "certificate-authority-file"):
+            cls.pop(key, None)
         cls["insecure-skip-tls-verify"] = True
 
     with open(path, "w") as f:

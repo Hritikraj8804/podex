@@ -15,6 +15,13 @@ WORKDIR /app
 RUN apk add --no-cache kubectl --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community/ 2>/dev/null \
     || apk add --no-cache kubectl --repository=https://dl-cdn.alpinelinux.org/alpine/v3.21/community/ 2>/dev/null
 
+# Create a non-root user for advanced deployments (not used by default)
+# The kubeconfig volume is mounted as root-owned by Docker, so the container
+# must run as root to read it. To run as non-root, set `user: podex` in
+# docker-compose.yml and ensure ~/.kube is world-readable (chmod 755).
+#   RUN addgroup -S podex && adduser -S podex -G podex
+#   USER podex
+
 COPY --from=builder /app/wheels /app/wheels
 RUN pip install --no-cache-dir --no-index --find-links=/app/wheels /app/wheels/* \
     && rm -rf /app/wheels \
@@ -27,4 +34,6 @@ EXPOSE 3457
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3457/api/stats')" || exit 1
 
+# Runs as root by default to read the mounted kubeconfig volume.
+# See comment above for non-root instructions.
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "3457"]

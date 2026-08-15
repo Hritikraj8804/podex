@@ -59,4 +59,7 @@ EXPOSE 3458
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD curl -fsS http://localhost:3458/health || exit 1
 
+# Runs as root by default to read the mounted kubeconfig volume.
+# The kubeconfig is mounted from the host's ~/.kube and is owned by root
+# inside the container. To run as non-root, adjust the mount ownership.
 CMD ["/app/entrypoint.sh"]
