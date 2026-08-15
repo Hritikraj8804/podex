@@ -38,6 +38,7 @@ Podex is an **open-source, AI-powered Kubernetes workspace** for beginners, stud
 | **Poddy AI Tutor** | ChatGPT-style chat for K8s questions with analogies, gotchas, and deep explanations |
 | **AI Investigation** | One-click pod diagnosis  specs + logs + events → root cause + fix |
 | **Live Terminal & Logs** | WebSocket shell, SSE log streaming, natural-language kubectl command generator |
+| **Podex Shell** | Google-Cloud-style docked terminal available on every page - resize it, run kubectl/helm/k9s directly against your cluster, and watch changes appear in the UI in ~2s |
 | **Port Forwarding** | One-click forward to Pods and Services from the Explorer table |
 | **Explain Before Execute** | Educational modals for destructive ops (rolling updates, SIGTERM, scaling) |
 | **Sandbox Mode** | Runs fully mock-mode out of the box  no API keys needed |
@@ -68,7 +69,22 @@ Podex is an **open-source, AI-powered Kubernetes workspace** for beginners, stud
 
 Run the entire stack with a single command:
 
-**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Kind](https://kind.sigs.k8s.io/) (or Minikube), [kubectl](https://kubernetes.io/docs/tasks/tools/)
+**Prerequisites:**
+1. [Docker Desktop](https://www.docker.com/products/docker-desktop/) — runs the Podex containers
+2. A local Kubernetes cluster — [Kind](https://kind.sigs.k8s.io/) (recommended), [Minikube](https://minikube.sigs.k8s.io/), or Docker Desktop K8s
+3. [kubectl](https://kubernetes.io/docs/tasks/tools/) — CLI to verify your cluster
+
+**How Podex connects to your cluster:**
+- Podex reads your **existing `~/.kube/config`** file automatically
+- Your `~/.kube/config` was created when you set up Kind/Minikube — it contains your cluster's certificate and connection details
+- **No manual certificate configuration needed** — Podex inherits whatever cluster you already have access to
+- If you're running `docker compose up`, Podex also patches the config to route `localhost` → `host.docker.internal` so the container can reach your host cluster
+- **No cluster?** Podex will still start, but Kubernetes features will show errors. Create one with:
+  ```bash
+  kind create cluster --name podex
+  ```
+
+**Start Podex:**
 
 ```bash
 git clone https://github.com/Hritikraj8804/podex.git
@@ -82,6 +98,7 @@ Open **http://localhost:3456**
 |---------|------|
 | Frontend (Vite) | `3456` |
 | Backend (FastAPI) | `3457` |
+| Podex Shell (microservice) | `3458` |
 
 ---
 
@@ -165,6 +182,10 @@ podex/
 │   ├── kubernetes/   # K8s client config
 │   ├── services/     # K8s operations, investigation
 │   └── main.py
+├── shell/            # Podex Shell microservice (PTY + kubectl/helm/k9s)
+│   ├── main.py       # WS /ws/shell terminal bridge + /health
+│   ├── Dockerfile    # Ubuntu image with kubectl, helm, k9s
+│   └── entrypoint.sh # Patches kubeconfig for Docker networking
 ├── frontend/         # React + Vite + TypeScript
 │   ├── src/          # Components, App.tsx, main.tsx
 │   └── public/       # Logo, mascot, favicon

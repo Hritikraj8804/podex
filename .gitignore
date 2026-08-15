@@ -75,3 +75,11 @@ temp/
 
 # graphify
 graphify-out/
+
+# ==========================================
+# Podex Shell Microservice
+# ==========================================
+shell/.env
+shell/__pycache__/
+shell/venv/
+shell/.venv/

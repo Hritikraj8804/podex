@@ -1,13 +1,22 @@
 import asyncio
 import json
+import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from backend.services.k8s_service import K8sService
+from backend.utils.ws_security import is_origin_allowed
+
+logger = logging.getLogger("podex.updates")
 
 router = APIRouter()
 k8s_service = K8sService()
 
 @router.websocket("/ws/updates")
 async def ws_updates(websocket: WebSocket, namespace: str = "default", include_system: bool = False):
+    # Validate origin to prevent cross-site WebSocket hijacking (CSWSH)
+    if not is_origin_allowed(websocket):
+        await websocket.close(code=1008, reason="Origin not allowed")
+        return
+
     await websocket.accept()
     active_namespace = namespace
 
@@ -22,7 +31,7 @@ async def ws_updates(websocket: WebSocket, namespace: str = "default", include_s
                     if msg.get("action") == "set_namespace":
                         active_namespace = msg.get("namespace", "default")
                 except Exception as e:
-                    print(f"Error parsing WS message: {e}")
+                    logger.warning(f"Error parsing WS message: {e}")
         except WebSocketDisconnect:
             pass
 
@@ -61,9 +70,9 @@ async def ws_updates(websocket: WebSocket, namespace: str = "default", include_s
                 
                 await websocket.send_json(payload)
             except Exception as err:
-                print(f"Error in updates fetch loop: {err}")
+                logger.error(f"Error in updates fetch loop: {err}")
                 try:
-                    await websocket.send_json({"error": str(err)})
+                    await websocket.send_json({"error": "Failed to fetch cluster data. Check server logs."})
                 except Exception:
                     break
 

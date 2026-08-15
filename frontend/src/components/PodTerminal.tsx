@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Copy, Check } from 'lucide-react';
 import 'xterm/css/xterm.css';
+import { copyToClipboard } from '../utils/clipboard';
 
 interface PodTerminalProps {
   namespace: string;
@@ -22,6 +23,8 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [generatedCommand, setGeneratedCommand] = useState('');
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<number | null>(null);
   
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
@@ -114,6 +117,29 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
 
+    // ── Clipboard shortcuts: Ctrl+Shift+C copy, Ctrl+Shift+V paste ──────────
+    term.attachCustomKeyEventHandler((event) => {
+      if (!(event.ctrlKey && event.shiftKey)) return true;
+      if (event.code === 'KeyC') {
+        const sel = term.getSelection();
+        if (sel) {
+          copyToClipboard(sel).then((ok) => {
+            if (ok) {
+              setCopied(true);
+              if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+              copyTimerRef.current = window.setTimeout(() => setCopied(false), 1200);
+            }
+          });
+        }
+        return false; // prevent xterm + browser default (DevTools)
+      }
+      if (event.code === 'KeyV') {
+        // Let the browser's native paste handler run (xterm captures it).
+        return false;
+      }
+      return true;
+    });
+
     // Open connection
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -163,6 +189,7 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
 
     // Cleanup
     return () => {
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
       dataDisposer.dispose();
       ws.close();
       term.dispose();
@@ -192,6 +219,30 @@ export const PodTerminal: React.FC<PodTerminalProps> = ({
           )}
         </div>
         <div className="flex items-center space-x-2 text-[10px] font-extrabold uppercase tracking-wider">
+          {copied && (
+            <span className="flex items-center text-emerald-500 space-x-1 animate-fade-in">
+              <Check className="w-3 h-3" />
+              <span>Copied</span>
+            </span>
+          )}
+          <button
+            onClick={() => {
+              const sel = xtermRef.current?.getSelection();
+              if (sel) {
+                copyToClipboard(sel).then((ok) => {
+                  if (ok) {
+                    setCopied(true);
+                    if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
+                    copyTimerRef.current = window.setTimeout(() => setCopied(false), 1200);
+                  }
+                });
+              }
+            }}
+            className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
+            title="Copy selection (Ctrl+Shift+C)"
+          >
+            <Copy className="w-3.5 h-3.5" />
+          </button>
           {status === 'connecting' && (
             <span className="flex items-center text-amber-500 space-x-1">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -1,8 +1,12 @@
 import asyncio
 import threading
+import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from kubernetes import client
 from kubernetes.stream import stream
+from backend.utils.ws_security import is_origin_allowed
+
+logger = logging.getLogger("podex.terminal")
 
 router = APIRouter()
 
@@ -86,6 +90,10 @@ class PodTerminalSession:
 
 @router.websocket("/ws/exec/{namespace}/{pod}/{container}")
 async def ws_exec(websocket: WebSocket, namespace: str, pod: str, container: str):
+    # Validate origin to prevent cross-site WebSocket hijacking (CSWSH)
+    if not is_origin_allowed(websocket):
+        await websocket.close(code=1008, reason="Origin not allowed")
+        return
     await websocket.accept()
     
     session = PodTerminalSession(websocket, namespace, pod, container)
