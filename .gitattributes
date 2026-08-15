@@ -1,0 +1,17 @@
+# Normalize all text files to LF in the repository
+* text=auto
+
+# Shell scripts MUST be LF: CRLF breaks the shebang (#!/usr/bin/env bash\r)
+# inside Linux containers -> "/usr/bin/env: 'bash\r': No such file or directory"
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Dockerfiles and configs must be LF to avoid subtle breakage in containers
+Dockerfile text eol=lf
+Dockerfile.* text eol=lf
+*.conf text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.py text eol=lf
+*.ini text eol=lf
+.env* text eol=lf

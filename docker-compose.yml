@@ -56,11 +56,12 @@ services:
         VITE_SHELL_URL: ""
     ports:
       - "${FRONTEND_PORT:-3456}:80"
+    # Start order only — no health gates, so the frontend stays up even if a
+    # microservice is down or crash-looping. Nginx resolves upstreams at
+    # request time (see docker/nginx.conf resolver).
     depends_on:
-      backend:
-        condition: service_healthy
-      shell:
-        condition: service_started
+      - backend
+      - shell
     # nginx:alpine-slim runs as the nginx user (non-root) by default
     restart: unless-stopped
     healthcheck:
