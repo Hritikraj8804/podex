@@ -26,8 +26,9 @@ export interface ArenaNode {
   name: string;
   x: number;
   y: number;
-  status: 'draft' | 'deploying' | 'healthy' | 'failed';
+  status: 'draft' | 'deploying' | 'healthy' | 'failed' | 'deleted';
   statusMessage?: string;
+  deployedAt?: number;
   config: {
     image: string;
     replicas: number;
@@ -61,6 +62,15 @@ interface ArenaTabProps {
   selectedNodeId: string | null;
   setSelectedNodeId: React.Dispatch<React.SetStateAction<string | null>>;
   setToast?: (toast: { message: string; type: 'success' | 'error' | 'info'; link?: string } | null) => void;
+  liveResources?: {
+    pods?: any[];
+    deployments?: any[];
+    services?: any[];
+    configmaps?: any[];
+    secrets?: any[];
+    statefulsets?: any[];
+  };
+  liveSyncEnabled?: boolean;
 }
 
 const nodeTypes = { k8sNode: K8sNode };
@@ -458,6 +468,7 @@ const validateConnection = (sourceType: string, targetType: string): { valid: bo
 
 const InnerArena: React.FC<ArenaTabProps> = ({
   apiUrl, nodes, setNodes, connections, setConnections, selectedNodeId, setSelectedNodeId, setToast,
+  liveResources, liveSyncEnabled,
 }) => {
   const [configTab, setConfigTab] = useState<'form' | 'yaml'>('form');
   const [yamlEditMode, setYamlEditMode] = useState(false);
@@ -511,6 +522,63 @@ const InnerArena: React.FC<ArenaTabProps> = ({
   useEffect(() => {
     setRfEdges(rfEdges);
   }, [rfEdges, setRfEdges]);
+
+  // Keep deployed nodes in sync with live cluster state — e.g. if a pod is
+  // deleted from the Explorer, its Arena node stops showing as healthy.
+  useEffect(() => {
+    if (!liveResources || !liveSyncEnabled) return;
+    const now = Date.now();
+    const lookup: Record<string, any[]> = {
+      pod: liveResources.pods || [],
+      deployment: liveResources.deployments || [],
+      service: liveResources.services || [],
+      configmap: liveResources.configmaps || [],
+      secret: liveResources.secrets || [],
+      statefulset: liveResources.statefulsets || [],
+    };
+    setNodes(prev => {
+      let changed = false;
+      const next = prev.map((n): ArenaNode => {
+        if (n.type === 'ingress' || n.status === 'draft') return n;
+        const list = lookup[n.type];
+        if (!list) return n;
+        const live = list.find(r => r && r.name === n.name && (!r.namespace || r.namespace === 'default'));
+
+        if (!live) {
+          // Grace period right after apply so a slow apiserver doesn't flash "deleted"
+          if (n.status === 'deploying' && n.deployedAt && now - n.deployedAt < 8000) return n;
+          if (n.status === 'failed' || n.status === 'deleted') return n;
+          changed = true;
+          return { ...n, status: 'deleted', statusMessage: 'Not in cluster (deleted?)' };
+        }
+
+        let status: ArenaNode['status'];
+        let statusMessage: string;
+        const s = String(live.status || '').toLowerCase();
+        if (n.type === 'deployment' || n.type === 'statefulset') {
+          const want = Number(live.replicas_desired ?? 0);
+          const ready = Number(live.replicas_ready ?? 0);
+          if (ready > 0) { status = 'healthy'; statusMessage = `${ready}/${want || ready} ready`; }
+          else if (n.status === 'deploying') { status = 'deploying'; statusMessage = `Waiting for pods (0/${want || 1})`; }
+          else { status = 'failed'; statusMessage = `0/${want || 1} ready`; }
+        } else if (/backoff|crash|fail|error|evict|terminat|unknown|errimagepull/.test(s)) {
+          status = 'failed';
+          statusMessage = live.status || 'Failed';
+        } else if (s === 'running' || s === 'succeeded' || n.type === 'service' || n.type === 'configmap' || n.type === 'secret') {
+          status = 'healthy';
+          statusMessage = live.status || 'Applied';
+        } else {
+          status = 'deploying';
+          statusMessage = live.status || 'Pending';
+        }
+
+        if (status === n.status && statusMessage === (n.statusMessage ?? '')) return n;
+        changed = true;
+        return { ...n, status, statusMessage };
+      });
+      return changed ? next : prev;
+    });
+  }, [liveResources, liveSyncEnabled, setNodes]);
 
   const onNodeDragStop = useCallback((_: any, node: Node) => {
     setNodes(prev => prev.map(n =>
@@ -654,7 +722,7 @@ const InnerArena: React.FC<ArenaTabProps> = ({
   };
 
   const handleDeployNode = async (node: ArenaNode) => {
-    setNodes(nodes.map(n => n.id === node.id ? { ...n, status: 'deploying', statusMessage: undefined } : n));
+    setNodes(nodes.map(n => n.id === node.id ? { ...n, status: 'deploying', statusMessage: undefined, deployedAt: Date.now() } : n));
     try {
       const res = await fetch(`${apiUrl}/api/kube/apply`, {
         method: 'POST',
@@ -696,7 +764,7 @@ const InnerArena: React.FC<ArenaTabProps> = ({
   const handleDeployStack = async () => {
     if (nodes.length === 0) return;
     setStackDeploying(true);
-    setNodes(nodes.map(n => ({ ...n, status: 'deploying', statusMessage: undefined })));
+    setNodes(nodes.map(n => ({ ...n, status: 'deploying', statusMessage: undefined, deployedAt: Date.now() })));
     try {
       const combinedYaml = nodes.map(node => generateYaml(node, connections, nodes)).join('\n---\n');
       const res = await fetch(`${apiUrl}/api/kube/apply`, {

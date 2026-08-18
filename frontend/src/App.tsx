@@ -26,7 +26,7 @@ import { TopologyDiagramTab } from './components/TopologyDiagramTab';
 import { LearnTab } from './components/LearnTab';
 import { SettingsTab } from './components/SettingsTab';
 import { ResourceDrawer } from './components/ResourceDrawer';
-import { ArenaTab } from './components/ArenaTab';
+import { ArenaTab, type ArenaNode, type ArenaConnection } from './components/ArenaTab';
 import { GlobalShell } from './components/GlobalShell';
 
 const API_URL = import.meta.env.VITE_API_URL !== undefined ? import.meta.env.VITE_API_URL : 'http://localhost:3457';
@@ -95,38 +95,6 @@ interface ConceptExplanation {
   real_world_analogy: string;
   why_it_exists: string;
   common_gotchas: string[];
-}
-
-export interface ArenaNode {
-  id: string;
-  type: 'pod' | 'deployment' | 'service' | 'configmap' | 'secret' | 'ingress' | 'statefulset';
-  name: string;
-  x: number;
-  y: number;
-  status: 'draft' | 'deploying' | 'healthy' | 'failed';
-  statusMessage?: string;
-  config: {
-    image: string;
-    replicas: number;
-    port: number;
-    targetPort: number;
-    serviceType: 'ClusterIP' | 'NodePort' | 'LoadBalancer';
-    selector: string;
-    configKey: string;
-    configValue: string;
-    secretKey: string;
-    secretValue: string;
-    ingressHost: string;
-    ingressPath: string;
-    ingressService: string;
-    serviceName: string;
-  };
-}
-
-export interface ArenaConnection {
-  id: string;
-  fromId: string;
-  toId: string;
 }
 
 export default function App() {
@@ -1412,6 +1380,8 @@ export default function App() {
               selectedNodeId={arenaSelectedNodeId}
               setSelectedNodeId={setArenaSelectedNodeId}
               setToast={setToast}
+              liveResources={{ pods, deployments, services, configmaps, secrets, statefulsets }}
+              liveSyncEnabled={!!stats && (!namespaceFilter || namespaceFilter === 'default')}
             />
           )}
           {/* TAB 4: SETTINGS */}

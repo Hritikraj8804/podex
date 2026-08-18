@@ -18,16 +18,19 @@ const STATUS_MAP: Record<string, { color: string; label: string }> = {
   deploying: { color: '#f59e0b', label: 'Deploying' },
   healthy:   { color: '#10b981', label: 'Healthy' },
   failed:    { color: '#ef4444', label: 'Failed' },
+  deleted:   { color: '#94a3b8', label: 'Deleted' },
 };
 
 const K8sNode: React.FC<NodeProps> = ({ data, selected }) => {
   const config = NODE_CONFIG[data.nodeType as string] || NODE_CONFIG.pod;
   const status = STATUS_MAP[data.status as string] || STATUS_MAP.draft;
+  const statusMessage = data.statusMessage as string | undefined;
   const Icon = config.icon;
   const hasOutput = !['configmap', 'secret'].includes(data.nodeType as string);
 
   return (
     <div
+      title={statusMessage ? `${data.label}: ${status.label}${statusMessage ? ` — ${statusMessage}` : ''}` : undefined}
       className={`
         group relative flex flex-col items-center
         bg-white dark:bg-[#0f1219]
@@ -67,6 +70,12 @@ const K8sNode: React.FC<NodeProps> = ({ data, selected }) => {
           </div>
         </div>
       </div>
+
+      {statusMessage && (
+        <div className="w-full px-2 pb-1">
+          <div className="text-[7px] leading-tight truncate" style={{ color: status.color }}>{statusMessage}</div>
+        </div>
+      )}
 
       {hasOutput && (
         <Handle
