@@ -257,6 +257,7 @@ class PortForwardRequest(BaseModel):
 
 # In-memory port-forward registry
 port_forward_processes: Dict[int, subprocess.Popen] = {}
+port_forward_ports: Dict[int, int] = {}
 
 class ExplainCommandResponse(BaseModel):
     explanation: str
@@ -715,6 +716,7 @@ def start_port_forward(req: PortForwardRequest):
 
         pid = proc.pid
         port_forward_processes[pid] = proc
+        port_forward_ports[pid] = allocated_port
         return {
             "pid": pid,
             "port": allocated_port,
@@ -731,6 +733,7 @@ def start_port_forward(req: PortForwardRequest):
 def stop_port_forward(pid: int):
     try:
         proc = port_forward_processes.pop(pid, None)
+        port_forward_ports.pop(pid, None)
         if proc:
             if os.name == 'nt':
                 proc.terminate()
@@ -746,29 +749,16 @@ def stop_port_forward(pid: int):
 @router.api_route("/proxy/{port}/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
 async def proxy_to_port(port: int, path: str, request: Request):
     # Only allow proxying to ports that are currently being forwarded
-    allowed_ports = {pfd.pid: None for pfd in port_forward_processes.values()}
-    # Also check by port number in the process tracking
-    proc_for_port = None
-    for pid, proc in port_forward_processes.items():
-        # We don't have direct port-to-pid mapping, but we validate that
-        # port is one of the active ones by checking all registry entries
-        proc_for_port = proc  # Just to mark we found one
-        break
-
-    # Validate port is in the allowed range we track
-    # Build a set of active port-forward ports
-    active_ports: Set[int] = set()
-    for pid, proc in list(port_forward_processes.items()):
-        # Check if process is still alive
-        if proc.poll() is None:
-            # We store the allocated port in the response, but we can't easily
-            # reverse-lookup. So we allow ports 1024-65535 only if there are
-            # active port-forwards running.
-            pass
-
-    # Restrict to ephemeral port range if any port-forwards are active
-    if not port_forward_processes:
+    active_ports = {
+        local_port
+        for pid, local_port in port_forward_ports.items()
+        if port_forward_processes.get(pid) is not None
+        and port_forward_processes[pid].poll() is None
+    }
+    if not active_ports:
         raise HTTPException(status_code=404, detail="No active port-forwards. Start one first.")
+    if port not in active_ports:
+        raise HTTPException(status_code=404, detail=f"Port {port} is not being forwarded.")
 
     # Sanitize the path: prevent path traversal
     # Remove any ".." components
